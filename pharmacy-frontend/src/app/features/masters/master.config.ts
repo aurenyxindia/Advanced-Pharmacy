@@ -45,6 +45,8 @@ export interface MasterConfig {
   bindable?: boolean; // products: allow binding to branch
 }
 
+export const PRODUCT_CATEGORIES = ['Allopathy', 'Ayurvedic', 'Generic', 'Surgical', 'Cosmetic'];
+
 const scheduleBadge: Record<string, string> = {
   OTC: 'text-bg-secondary',
   H: 'text-bg-warning',
@@ -99,7 +101,14 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
         type: 'select',
         required: true,
         optionSource: 'schedule',
-        col: 'col-md-6',
+        col: 'col-md-3',
+      },
+      {
+        key: 'product_category',
+        label: 'Category (Rate Margin)',
+        type: 'select',
+        col: 'col-md-3',
+        options: PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c })),
       },
       { key: 'hsn_code', label: 'HSN Code', type: 'text', col: 'col-md-4' },
       { key: 'default_gst_rate', label: 'GST %', type: 'number', col: 'col-md-4', min: 0, max: 28 },
@@ -259,6 +268,29 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
       { key: 'city', label: 'City', type: 'text', col: 'col-md-4' },
       { key: 'state', label: 'State', type: 'text', col: 'col-md-4' },
       { key: 'pincode', label: 'Pincode', type: 'text', col: 'col-md-4' },
+    ],
+  },
+
+  'rate-margins': {
+    key: 'rate-margins',
+    title: 'Rate Margin Master',
+    subtitle: 'Category-wise wholesale margins -> auto PTR (retailer) & PTS (stockist)',
+    icon: 'bi-percent',
+    resourcePath: 'rate-margins',
+    canCreate: true,
+    canDelete: true,
+    columns: [
+      { key: 'category', label: 'Category' },
+      { key: 'ptr_margin', label: 'PTR Margin %', type: 'number' },
+      { key: 'pts_margin', label: 'PTS Margin %', type: 'number' },
+    ],
+    fields: [
+      {
+        key: 'category', label: 'Category', type: 'select', required: true, col: 'col-md-4',
+        options: PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c })),
+      },
+      { key: 'ptr_margin', label: 'PTR Margin % (Retailer)', type: 'number', required: true, col: 'col-md-4', min: 0, max: 100 },
+      { key: 'pts_margin', label: 'PTS Margin % (Stockist)', type: 'number', required: true, col: 'col-md-4', min: 0, max: 100 },
     ],
   },
 

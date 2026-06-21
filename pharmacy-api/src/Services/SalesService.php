@@ -109,10 +109,21 @@ final class SalesService
                     $locked = true;
                 }
 
+                // GST mode: retail/MRP rates are GST-inclusive (reverse-calc);
+                // wholesale PTR/PTS rates are GST-exclusive (GST added forward).
+                $gstInclusive = !array_key_exists('gst_inclusive', $data) || (int) $data['gst_inclusive'] === 1;
+
                 $lineGross = $rate * $qty;
-                $sell      = $lineGross * (1 - $discPct / 100);
-                $taxable   = $sell / (1 + $gstRate / 100);
-                $gstAmt    = $sell - $taxable;
+                $afterDisc = $lineGross * (1 - $discPct / 100);
+                if ($gstInclusive) {
+                    $sell    = $afterDisc;                       // MRP-inclusive amount the customer pays
+                    $taxable = $sell / (1 + $gstRate / 100);
+                    $gstAmt  = $sell - $taxable;
+                } else {
+                    $taxable = $afterDisc;                       // PTR/PTS basic value (excl GST)
+                    $gstAmt  = $taxable * $gstRate / 100;
+                    $sell    = $taxable + $gstAmt;               // GST added forward
+                }
 
                 // Consume stock (preferred batch first, then FEFO). Quantities are
                 // tracked in base (loose) units, so loose sales work transparently.

@@ -18,6 +18,7 @@ use App\Controllers\OrderController;
 use App\Controllers\PrescriptionController;
 use App\Controllers\PublicController;
 use App\Controllers\PurchaseController;
+use App\Controllers\RateMarginController;
 use App\Controllers\RefillController;
 use App\Controllers\ReportController;
 use App\Controllers\SalesController;
@@ -105,6 +106,14 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->get('/suppliers/{id}', [SupplierController::class, 'show']);
     $router->put('/suppliers/{id}', [SupplierController::class, 'update']);
     $router->delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+
+    // ---- Rate Margin Master (category-wise PTR/PTS pricing) ----
+    $router->get('/rate-margins/compute', [RateMarginController::class, 'compute']);
+    $router->get('/rate-margins', [RateMarginController::class, 'index']);
+    $router->post('/rate-margins', [RateMarginController::class, 'store']);
+    $router->get('/rate-margins/{id}', [RateMarginController::class, 'show']);
+    $router->put('/rate-margins/{id}', [RateMarginController::class, 'update']);
+    $router->delete('/rate-margins/{id}', [RateMarginController::class, 'destroy']);
 
     $router->get('/accounts', [AccountController::class, 'index']);
     $router->post('/accounts', [AccountController::class, 'store']);

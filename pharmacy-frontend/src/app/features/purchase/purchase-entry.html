@@ -45,6 +45,10 @@
         }
       </div>
       <div class="col-6 col-md-1"><label>HSN</label><input class="form-control form-control-sm" [ngModel]="entry().hsn_code" (ngModelChange)="patch('hsn_code', $event)" /></div>
+      <div class="col-6 col-md-2"><label title="Drives PTR/PTS via Rate Margin Master">Category</label>
+        <select class="form-select form-select-sm" [ngModel]="entry().product_category" (ngModelChange)="patch('product_category', $event)">
+          @for (c of categoryOptions; track c) { <option [value]="c">{{ c }}</option> }
+        </select></div>
       @if (!entry().master_product_id) {
         <div class="col-6 col-md-2"><label>Schedule</label>
           <select class="form-select form-select-sm" [ngModel]="entry().schedule_category" (ngModelChange)="patch('schedule_category', $event)">

@@ -392,10 +392,25 @@ export class Billing {
     this.patchBill({ lines: this.bill().lines.filter((_, i) => i !== index) });
   }
 
+  // ---- GST mode ----
+  // Retail and wholesale-MRP rates are GST-INCLUSIVE (reverse-calc).
+  // Wholesale PTR/PTS rates are GST-EXCLUSIVE (GST added forward).
+  readonly gstInclusive = computed(() => {
+    const b = this.bill();
+    return !(b.mode === 'wholesale' && (b.rateType === 'ptr' || b.rateType === 'pts'));
+  });
+
   // ---- maths ----
-  lineSell(l: BillLine): number { return l.rate * l.qty * (1 - l.disc / 100); }
-  lineTaxable(l: BillLine): number { return this.lineSell(l) / (1 + l.gst_rate / 100); }
-  lineGstAmt(l: BillLine): number { return this.lineSell(l) - this.lineTaxable(l); }
+  lineBase(l: BillLine): number { return l.rate * l.qty * (1 - l.disc / 100); }
+  lineTaxable(l: BillLine): number {
+    return this.gstInclusive() ? this.lineBase(l) / (1 + l.gst_rate / 100) : this.lineBase(l);
+  }
+  lineGstAmt(l: BillLine): number {
+    return this.gstInclusive() ? this.lineBase(l) - this.lineTaxable(l) : this.lineTaxable(l) * (l.gst_rate / 100);
+  }
+  lineSell(l: BillLine): number {
+    return this.gstInclusive() ? this.lineBase(l) : this.lineTaxable(l) + this.lineGstAmt(l);
+  }
   lineDiscountAmt(l: BillLine): number { return l.rate * l.qty * (l.disc / 100); }
   lineProfit(l: BillLine): number {
     // l.cost is the Net Rate (cost per unit, excl GST). For a pack it scales by units/pack.
@@ -485,6 +500,7 @@ export class Billing {
       payment_mode: b.paymentMode.toLowerCase(),
       cd_disc_pct: b.mode === 'wholesale' ? b.cdDiscPct : 0,
       is_interstate: b.isInterstate ? 1 : 0,
+      gst_inclusive: this.gstInclusive() ? 1 : 0,
       ipd_admission_id: this.ipdAdmissionId(),
       prescription_id: b.prescriptionId,
       items: b.lines.map((l) => {

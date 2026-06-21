@@ -16,6 +16,7 @@ export interface ProductSearchResult {
   pack_size: string | null;
   units_per_pack?: number;
   shelf_location?: string | null;
+  product_category?: string;
 }
 
 export interface PurchaseLine {
@@ -70,6 +71,13 @@ export class PurchaseService {
   get(id: number): Observable<Record<string, unknown>> {
     return this.http
       .get<ApiResponse<Record<string, unknown>>>(`${this.base}/purchases/${id}`)
+      .pipe(map((r) => r.data));
+  }
+
+  computeRates(mrp: number, gst: number, category: string): Observable<{ ptr: number; pts: number; net_mrp: number }> {
+    const params = new HttpParams().set('mrp', String(mrp)).set('gst', String(gst)).set('category', category);
+    return this.http
+      .get<ApiResponse<{ ptr: number; pts: number; net_mrp: number }>>(`${this.base}/rate-margins/compute`, { params })
       .pipe(map((r) => r.data));
   }
 

@@ -54,6 +54,7 @@ export class MastersHome {
     { key: 'doctors', title: MASTER_CONFIGS['doctors'].title, subtitle: MASTER_CONFIGS['doctors'].subtitle, icon: MASTER_CONFIGS['doctors'].icon, route: '/app/masters/doctors' },
     { key: 'suppliers', title: MASTER_CONFIGS['suppliers'].title, subtitle: MASTER_CONFIGS['suppliers'].subtitle, icon: MASTER_CONFIGS['suppliers'].icon, route: '/app/masters/suppliers' },
     { key: 'accounts', title: MASTER_CONFIGS['accounts'].title, subtitle: MASTER_CONFIGS['accounts'].subtitle, icon: MASTER_CONFIGS['accounts'].icon, route: '/app/masters/accounts' },
+    { key: 'rate-margins', title: MASTER_CONFIGS['rate-margins'].title, subtitle: MASTER_CONFIGS['rate-margins'].subtitle, icon: MASTER_CONFIGS['rate-margins'].icon, route: '/app/masters/rate-margins' },
     { key: 'employees', title: MASTER_CONFIGS['employees'].title, subtitle: MASTER_CONFIGS['employees'].subtitle, icon: MASTER_CONFIGS['employees'].icon, route: '/app/masters/employees', adminOnly: true },
   ];
 

@@ -15,7 +15,7 @@ final class ProductController extends ResourceController
 {
     protected bool $tenantScoped = false;
     protected array $fillable = [
-        'name', 'generic_id', 'manufacturer', 'schedule_category',
+        'name', 'generic_id', 'manufacturer', 'schedule_category', 'product_category',
         'hsn_code', 'default_gst_rate', 'pack_size', 'units_per_pack', 'allow_loose',
         'shelf_location', 'uom', 'composition', 'is_active',
     ];
@@ -34,6 +34,7 @@ final class ProductController extends ResourceController
             'generic_id'        => 'integer',
             'manufacturer'      => 'string|max:150',
             'schedule_category' => 'required|in:OTC,H,H1,X,G,RESTRICTED',
+            'product_category'  => 'string|max:30',
             'hsn_code'          => 'string|max:20',
             'default_gst_rate'  => 'numeric|min:0|max:28',
             'pack_size'         => 'string|max:40',

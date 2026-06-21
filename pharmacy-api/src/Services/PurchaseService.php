@@ -222,6 +222,7 @@ final class PurchaseService
                 'generic_id'        => $np['generic_id'] ?? null,
                 'manufacturer'      => $np['manufacturer'] ?? null,
                 'schedule_category' => $np['schedule_category'] ?? 'OTC',
+                'product_category'  => $np['product_category'] ?? 'Allopathy',
                 'hsn_code'          => $np['hsn_code'] ?? null,
                 'default_gst_rate'  => $np['default_gst_rate'] ?? ($item['gst_rate'] ?? 12),
                 'pack_size'         => $np['pack_size'] ?? null,

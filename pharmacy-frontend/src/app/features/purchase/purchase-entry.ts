@@ -9,6 +9,7 @@ interface Entry {
   master_product_id?: number;
   product_name: string;
   schedule_category: string;
+  product_category: string;
   hsn_code: string;
   batch_no: string;
   expiry_date: string;
@@ -27,7 +28,7 @@ interface Entry {
 
 function emptyEntry(): Entry {
   return {
-    product_name: '', schedule_category: 'OTC', hsn_code: '', batch_no: '', expiry_date: '',
+    product_name: '', schedule_category: 'OTC', product_category: 'Allopathy', hsn_code: '', batch_no: '', expiry_date: '',
     shelf_location: '', quantity: 1, units_per_pack: 1, free_quantity: 0, purchase_rate: 0,
     mrp: 0, ptr: 0, pts: 0, gst_rate: 12, discount_pct: 0, scheme_pct: 0,
   };
@@ -60,11 +61,26 @@ export class PurchaseEntry {
   readonly showResults = signal(false);
 
   readonly scheduleOptions = ['OTC', 'H', 'H1', 'X', 'G', 'RESTRICTED'];
+  readonly categoryOptions = ['Allopathy', 'Ayurvedic', 'Generic', 'Surgical', 'Cosmetic'];
+  private rateTimer?: ReturnType<typeof setTimeout>;
 
   // ---- entry edits ----
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   patch(field: keyof Entry, value: any): void {
     this.entry.update((e) => ({ ...e, [field]: value }));
+    // Auto-derive PTR/PTS from MRP + GST + category margin.
+    if (field === 'mrp' || field === 'gst_rate' || field === 'product_category') {
+      clearTimeout(this.rateTimer);
+      this.rateTimer = setTimeout(() => this.autoRates(), 250);
+    }
+  }
+
+  private autoRates(): void {
+    const e = this.entry();
+    if (e.mrp <= 0) return;
+    this.purchaseSvc.computeRates(e.mrp, e.gst_rate, e.product_category).subscribe((r) => {
+      this.entry.update((cur) => ({ ...cur, ptr: r.ptr, pts: r.pts }));
+    });
   }
 
   onProductInput(value: string): void {
@@ -83,6 +99,7 @@ export class PurchaseEntry {
       master_product_id: p.id,
       product_name: p.name,
       schedule_category: p.schedule_category,
+      product_category: p.product_category || 'Allopathy',
       hsn_code: p.hsn_code ?? '',
       gst_rate: Number(p.default_gst_rate) || 12,
       units_per_pack: p.units_per_pack || 1,
@@ -90,6 +107,7 @@ export class PurchaseEntry {
     }));
     this.searchResults.set([]);
     this.showResults.set(false);
+    setTimeout(() => this.autoRates(), 50);
   }
 
   // ---- entry computed ----
@@ -139,6 +157,7 @@ export class PurchaseEntry {
           master_product_id: l.master_product_id,
           product_name: l.product_name,
           schedule_category: 'OTC',
+          product_category: 'Allopathy',
           hsn_code: '',
           batch_no: l.batch_no ?? '',
           expiry_date: l.expiry_date ?? '',
@@ -192,6 +211,7 @@ export class PurchaseEntry {
             ...base,
             new_product: {
               name: l.product_name, schedule_category: l.schedule_category,
+              product_category: l.product_category,
               default_gst_rate: l.gst_rate, units_per_pack: l.units_per_pack || 1,
               shelf_location: l.shelf_location, hsn_code: l.hsn_code,
             },

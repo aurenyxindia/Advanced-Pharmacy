@@ -79,6 +79,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
+        path: 'masters/rate-margins',
+        canActivate: [roleGuard],
+        data: { configKey: 'rate-margins', roles: ['ho_admin', 'branch_admin'] },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
         path: 'masters/employees',
         canActivate: [roleGuard],
         data: { configKey: 'employees', roles: ['ho_admin', 'branch_admin'] },
