@@ -30,6 +30,19 @@ export class MetaService {
   readonly scheduleCategories = signal<ScheduleCategory[]>([]);
   readonly branches = signal<BranchOption[]>([]);
   readonly roles = signal<RoleOption[]>([]);
+  readonly businessType = signal<'retail' | 'wholesale' | 'both'>('both');
+  readonly state = signal<string | null>(null);
+
+  loadProfile() {
+    return this.http
+      .get<ApiResponse<{ business_type: 'retail' | 'wholesale' | 'both'; state: string | null }>>(
+        `${environment.apiUrl}/meta/profile`,
+      )
+      .pipe(
+        map((r) => r.data),
+        tap((d) => { this.businessType.set(d.business_type); this.state.set(d.state); }),
+      );
+  }
 
   loadScheduleCategories() {
     return this.http

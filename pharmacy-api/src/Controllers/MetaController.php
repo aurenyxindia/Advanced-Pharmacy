@@ -29,6 +29,28 @@ final class MetaController extends Controller
         return $this->success($branches, 'Branches.');
     }
 
+    /** Client profile (business type) + current branch context for the UI. */
+    public function profile(Request $request): Response
+    {
+        $clientId = (int) $request->clientId();
+        $branchId = (int) $request->branchId();
+
+        $client = Connection::ho()->prepare('SELECT business_name, business_type, state, gstin FROM clients WHERE id = :id');
+        $client->execute(['id' => $clientId]);
+        $clientRow = $client->fetch() ?: [];
+
+        $branch = Connection::ho()->prepare('SELECT id, code, name, state, gstin FROM branches WHERE id = :id');
+        $branch->execute(['id' => $branchId]);
+        $branchRow = $branch->fetch() ?: [];
+
+        return $this->success([
+            'business_type' => $clientRow['business_type'] ?? 'both',
+            'business_name' => $clientRow['business_name'] ?? '',
+            'state'         => $branchRow['state'] ?? ($clientRow['state'] ?? null),
+            'branch'        => $branchRow,
+        ], 'Profile.');
+    }
+
     public function roles(Request $request): Response
     {
         $rows = Connection::ho()

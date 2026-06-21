@@ -59,6 +59,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Lookups / metadata ----
     $router->get('/meta/schedule-categories', [MetaController::class, 'scheduleCategories']);
+    $router->get('/meta/profile', [MetaController::class, 'profile']);
     $router->get('/meta/branches', [MetaController::class, 'branches']);
     $router->get('/meta/roles', [MetaController::class, 'roles']);
 

@@ -101,7 +101,7 @@ final class SalesController extends Controller
         $upp = max(1, (int) $b['units_per_pack']);
 
         $stmt = Connection::ops()->prepare(
-            'SELECT id AS batch_id, batch_no, expiry_date, mrp, purchase_rate, quantity, shelf_location
+            'SELECT id AS batch_id, batch_no, expiry_date, mrp, ptr, pts, purchase_rate, quantity, shelf_location
              FROM inventory_batches
              WHERE product_binding_id = :p AND quantity > 0
              ORDER BY (expiry_date IS NULL), expiry_date ASC'
@@ -109,9 +109,12 @@ final class SalesController extends Controller
         $stmt->execute(['p' => $bindingId]);
         $batches = $stmt->fetchAll();
         foreach ($batches as &$batch) {
-            // MRP/cost stored per base (loose) unit already; expose unit MRP.
+            // MRP/cost stored per base (loose) unit; PTR/PTS per pack.
             $batch['unit_mrp'] = round((float) $batch['mrp'], 2);
+            $batch['ptr'] = round((float) $batch['ptr'], 2);
+            $batch['pts'] = round((float) $batch['pts'], 2);
             $batch['units_per_pack'] = $upp;
+            $batch['packs'] = $upp > 0 ? intdiv((int) $batch['quantity'], $upp) : (int) $batch['quantity'];
         }
         unset($batch);
 

@@ -130,9 +130,11 @@ final class SalesService
                     'discount_pct' => $discPct,
                     'gst_rate'     => $gstRate,
                     'taxable'      => round($taxable, 2),
+                    'total_amt'    => round($lineGross, 2),
                     'cost_price'   => round($lineCostIncl, 2),
                     'line_total'   => round($sell, 2),
                     'profit'       => round($profit, 2),
+                    'sell_raw'     => $sell,
                 ];
             }
 
@@ -140,22 +142,42 @@ final class SalesService
             if (!empty($data['bill_discount_pct'])) {
                 $billDiscount += $sellTotal * (float) $data['bill_discount_pct'] / 100;
             }
-            $netAmount = max(0, $sellTotal - $billDiscount);
-            $profitTotal -= $billDiscount; // bill discount erodes realized profit
+
+            // Cash discount (wholesale): applied on the post-discount bill value.
+            $cdPct = (float) ($data['cd_disc_pct'] ?? 0);
+            $cdAmount = ($sellTotal - $billDiscount) * $cdPct / 100;
+
+            $netAmount = max(0, $sellTotal - $billDiscount - $cdAmount);
+            $profitTotal -= ($billDiscount + $cdAmount); // discounts erode realized profit
+
+            // Allocate CD across lines proportionally for the line grid.
+            foreach ($computed as &$cAlloc) {
+                $share = $sellTotal > 0 ? $cAlloc['sell_raw'] / $sellTotal : 0;
+                $cAlloc['cd_disc_amt'] = round($cdAmount * $share, 2);
+            }
+            unset($cAlloc);
+
+            // GST split: intra-state = CGST + SGST; inter-state = IGST.
+            $isInterstate = (int) ($data['is_interstate'] ?? 0) === 1;
+            $cgst = $isInterstate ? 0 : round($gstTotal / 2, 2);
+            $sgst = $isInterstate ? 0 : round($gstTotal - $cgst, 2);
+            $igst = $isInterstate ? round($gstTotal, 2) : 0;
 
             $sale = new Sale();
             $invoiceNo = $data['invoice_no'] ?? $sale->nextInvoiceNo($clientId, $branchId);
 
             $stmt = $db->prepare(
                 'INSERT INTO sales
-                    (client_id, branch_id, counter, sale_type, invoice_no, invoice_date, customer_id, customer_name,
-                     patient_name, contact_no, address, narration, reminder_days, doctor_name,
-                     gross_amount, taxable_amount, discount_amount, gst_amount, net_amount, profit_amount, payment_mode,
+                    (client_id, branch_id, counter, sale_type, bill_mode, rate_type, invoice_no, invoice_date,
+                     customer_id, customer_name, patient_name, contact_no, email, address, narration, reminder_days, doctor_name,
+                     gross_amount, taxable_amount, discount_amount, cd_disc_pct, cd_amount, gst_amount,
+                     is_interstate, cgst, sgst, igst, net_amount, profit_amount, payment_mode,
                      has_prescription, is_locked, created_by, created_at)
                  VALUES
-                    (:client_id, :branch_id, :counter, :sale_type, :invoice_no, :invoice_date, :customer_id, :customer_name,
-                     :patient_name, :contact_no, :address, :narration, :reminder_days, :doctor_name,
-                     :gross, :taxable, :discount, :gst, :net, :profit, :payment_mode,
+                    (:client_id, :branch_id, :counter, :sale_type, :bill_mode, :rate_type, :invoice_no, :invoice_date,
+                     :customer_id, :customer_name, :patient_name, :contact_no, :email, :address, :narration, :reminder_days, :doctor_name,
+                     :gross, :taxable, :discount, :cd_pct, :cd_amt, :gst,
+                     :interstate, :cgst, :sgst, :igst, :net, :profit, :payment_mode,
                      :has_presc, :is_locked, :created_by, :created_at)'
             );
             $stmt->execute([
@@ -163,12 +185,15 @@ final class SalesService
                 'branch_id'     => $branchId,
                 'counter'       => $data['counter'] ?? null,
                 'sale_type'     => $data['sale_type'] ?? 'Regular',
+                'bill_mode'     => $data['bill_mode'] ?? 'retail',
+                'rate_type'     => $data['rate_type'] ?? null,
                 'invoice_no'    => $invoiceNo,
                 'invoice_date'  => $data['invoice_date'] ?? now(),
                 'customer_id'   => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'] ?? ($data['patient_name'] ?? 'Walk-in'),
                 'patient_name'  => $data['patient_name'] ?? null,
                 'contact_no'    => $data['contact_no'] ?? null,
+                'email'         => $data['email'] ?? null,
                 'address'       => $data['address'] ?? null,
                 'narration'     => $data['narration'] ?? null,
                 'reminder_days' => !empty($data['reminder_days']) ? (int) $data['reminder_days'] : null,
@@ -176,7 +201,13 @@ final class SalesService
                 'gross'         => round($gross, 2),
                 'taxable'       => round($sellTotal - $gstTotal, 2),
                 'discount'      => round($discountTotal + $billDiscount, 2),
+                'cd_pct'        => $cdPct,
+                'cd_amt'        => round($cdAmount, 2),
                 'gst'           => round($gstTotal, 2),
+                'interstate'    => $isInterstate ? 1 : 0,
+                'cgst'          => $cgst,
+                'sgst'          => $sgst,
+                'igst'          => $igst,
                 'net'           => round($netAmount, 2),
                 'profit'        => round($profitTotal, 2),
                 'payment_mode'  => $data['payment_mode'] ?? 'cash',
@@ -191,11 +222,11 @@ final class SalesService
                 'INSERT INTO sale_items
                     (sale_id, product_binding_id, batch_id, product_name, pack, shelf, batch_no, expiry_date,
                      schedule_category, quantity, rate, mrp, unit_type, discount_pct, gst_rate, taxable,
-                     cost_price, line_total, profit)
+                     cost_price, line_total, total_amt, cd_disc_amt, profit)
                  VALUES
                     (:sale_id, :binding_id, :batch_id, :product_name, :pack, :shelf, :batch_no, :expiry_date,
                      :schedule, :quantity, :rate, :mrp, :unit_type, :discount_pct, :gst_rate, :taxable,
-                     :cost_price, :line_total, :profit)'
+                     :cost_price, :line_total, :total_amt, :cd_disc_amt, :profit)'
             );
             foreach ($computed as $c) {
                 $itemStmt->execute([
@@ -217,6 +248,8 @@ final class SalesService
                     'taxable'      => $c['taxable'],
                     'cost_price'   => $c['cost_price'],
                     'line_total'   => $c['line_total'],
+                    'total_amt'    => $c['total_amt'],
+                    'cd_disc_amt'  => $c['cd_disc_amt'] ?? 0,
                     'profit'       => $c['profit'],
                 ]);
             }
@@ -249,6 +282,10 @@ final class SalesService
                 'invoice_no'    => $invoiceNo,
                 'net_amount'    => round($netAmount, 2),
                 'gst_amount'    => round($gstTotal, 2),
+                'cd_amount'     => round($cdAmount, 2),
+                'cgst'          => $cgst,
+                'sgst'          => $sgst,
+                'igst'          => $igst,
                 'profit_amount' => round($profitTotal, 2),
                 'is_locked'     => $locked,
             ];

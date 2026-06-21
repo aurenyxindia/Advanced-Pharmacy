@@ -80,6 +80,7 @@ final class PurchaseService
                 $computedItems[] = [
                     'binding_id'   => $bindingId,
                     'product_name' => $item['product_name'] ?? '',
+                    'hsn_code'     => $item['hsn_code'] ?? null,
                     'batch_no'     => $item['batch_no'] ?? null,
                     'expiry_date'  => $this->normalizeExpiry($item['expiry_date'] ?? null),
                     'shelf'        => $item['shelf_location'] ?? null,
@@ -90,6 +91,9 @@ final class PurchaseService
                     'purchase_rate' => $rate,
                     'mrp'          => $mrp,
                     'unit_mrp'     => round($unitMrp, 2),
+                    'ptr'          => (float) ($item['ptr'] ?? 0),   // per pack
+                    'pts'          => (float) ($item['pts'] ?? 0),   // per pack
+                    'scheme_pct'   => (float) ($item['scheme_pct'] ?? 0),
                     'discount_pct' => $discPct,
                     'gst_rate'     => $gstRate,
                     'net_rate'     => round($netRate, 2),
@@ -134,18 +138,21 @@ final class PurchaseService
             // Insert items + post stock.
             $itemStmt = $db->prepare(
                 'INSERT INTO purchase_items
-                    (purchase_id, product_binding_id, product_name, batch_no, expiry_date, shelf_location, quantity,
-                     units_per_pack, free_quantity, purchase_rate, mrp, discount_pct, gst_rate, net_rate, line_total)
+                    (purchase_id, product_binding_id, product_name, hsn_code, batch_no, expiry_date, shelf_location, quantity,
+                     units_per_pack, free_quantity, purchase_rate, mrp, ptr, pts, scheme_pct, discount_pct, gst_rate, net_rate, line_total)
                  VALUES
-                    (:purchase_id, :binding_id, :product_name, :batch_no, :expiry_date, :shelf, :quantity,
-                     :upp, :free_quantity, :purchase_rate, :mrp, :discount_pct, :gst_rate, :net_rate, :line_total)'
+                    (:purchase_id, :binding_id, :product_name, :hsn, :batch_no, :expiry_date, :shelf, :quantity,
+                     :upp, :free_quantity, :purchase_rate, :mrp, :ptr, :pts, :scheme, :discount_pct, :gst_rate, :net_rate, :line_total)'
             );
+
+            $bindUpd = $db->prepare('UPDATE product_bindings SET ptr = :ptr, pts = :pts, updated_at = :now WHERE id = :id');
 
             foreach ($computedItems as $ci) {
                 $itemStmt->execute([
                     'purchase_id'   => $purchaseId,
                     'binding_id'    => $ci['binding_id'],
                     'product_name'  => $ci['product_name'],
+                    'hsn'           => $ci['hsn_code'],
                     'batch_no'      => $ci['batch_no'],
                     'expiry_date'   => $ci['expiry_date'] ?: null,
                     'shelf'         => $ci['shelf'],
@@ -154,13 +161,16 @@ final class PurchaseService
                     'free_quantity' => $ci['free_quantity'],
                     'purchase_rate' => $ci['purchase_rate'],
                     'mrp'           => $ci['mrp'],
+                    'ptr'           => $ci['ptr'],
+                    'pts'           => $ci['pts'],
+                    'scheme'        => $ci['scheme_pct'],
                     'discount_pct'  => $ci['discount_pct'],
                     'gst_rate'      => $ci['gst_rate'],
                     'net_rate'      => $ci['net_rate'],
                     'line_total'    => $ci['line_total'],
                 ]);
 
-                // Stock is posted in BASE units; MRP/cost stored per base unit.
+                // Stock posted in BASE units; MRP/cost per base unit, PTR/PTS per pack.
                 $this->inventory->addStock(
                     $clientId,
                     $branchId,
@@ -170,8 +180,15 @@ final class PurchaseService
                     (float) $ci['unit_mrp'],
                     (float) $ci['unit_cost'],
                     $ci['base_units'],
-                    $ci['shelf']
+                    $ci['shelf'],
+                    (float) $ci['ptr'],
+                    (float) $ci['pts']
                 );
+
+                // Keep the binding's latest wholesale rates.
+                if ($ci['ptr'] > 0 || $ci['pts'] > 0) {
+                    $bindUpd->execute(['ptr' => $ci['ptr'], 'pts' => $ci['pts'], 'now' => now(), 'id' => $ci['binding_id']]);
+                }
             }
 
             return [

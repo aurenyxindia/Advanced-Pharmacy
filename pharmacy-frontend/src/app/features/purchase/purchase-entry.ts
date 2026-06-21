@@ -3,41 +3,33 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  ProductSearchResult,
-  PurchaseService,
-} from '../../core/services/purchase.service';
+import { ProductSearchResult, PurchaseService } from '../../core/services/purchase.service';
 
-interface Line {
+interface Entry {
   master_product_id?: number;
   product_name: string;
   schedule_category: string;
+  hsn_code: string;
   batch_no: string;
   expiry_date: string;
   shelf_location: string;
-  quantity: number;
+  quantity: number;       // packs
   units_per_pack: number;
   free_quantity: number;
-  purchase_rate: number;
-  mrp: number;
-  discount_pct: number;
+  purchase_rate: number;  // per pack
+  mrp: number;            // per pack
+  ptr: number;
+  pts: number;
   gst_rate: number;
+  discount_pct: number;
+  scheme_pct: number;
 }
 
-function emptyLine(): Line {
+function emptyEntry(): Entry {
   return {
-    product_name: '',
-    schedule_category: 'OTC',
-    batch_no: '',
-    expiry_date: '',
-    shelf_location: '',
-    quantity: 1,
-    units_per_pack: 1,
-    free_quantity: 0,
-    purchase_rate: 0,
-    mrp: 0,
-    discount_pct: 0,
-    gst_rate: 12,
+    product_name: '', schedule_category: 'OTC', hsn_code: '', batch_no: '', expiry_date: '',
+    shelf_location: '', quantity: 1, units_per_pack: 1, free_quantity: 0, purchase_rate: 0,
+    mrp: 0, ptr: 0, pts: 0, gst_rate: 12, discount_pct: 0, scheme_pct: 0,
   };
 }
 
@@ -56,87 +48,77 @@ export class PurchaseEntry {
   readonly supplierName = signal('');
   readonly billDiscountPct = signal(0);
 
-  readonly lines = signal<Line[]>([emptyLine()]);
+  readonly entry = signal<Entry>(emptyEntry());
+  readonly lines = signal<Entry[]>([]);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly toast = signal<string | null>(null);
 
-  // Product typeahead state
+  // product typeahead for the entry row
   readonly searchResults = signal<ProductSearchResult[]>([]);
-  readonly activeIndex = signal<number | null>(null);
   private searchTimer?: ReturnType<typeof setTimeout>;
+  readonly showResults = signal(false);
 
   readonly scheduleOptions = ['OTC', 'H', 'H1', 'X', 'G', 'RESTRICTED'];
 
-  // ---- line maths ----
-  lineTaxable(l: Line): number {
-    return l.purchase_rate * l.quantity * (1 - l.discount_pct / 100);
-  }
-  lineGst(l: Line): number {
-    return this.lineTaxable(l) * (l.gst_rate / 100);
-  }
-  lineTotal(l: Line): number {
-    return this.lineTaxable(l) + this.lineGst(l);
+  // ---- entry edits ----
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  patch(field: keyof Entry, value: any): void {
+    this.entry.update((e) => ({ ...e, [field]: value }));
   }
 
-  readonly grossTotal = computed(() =>
-    this.lines().reduce((s, l) => s + l.purchase_rate * l.quantity, 0),
-  );
-  readonly discountTotal = computed(() => {
-    const lineDisc = this.lines().reduce((s, l) => s + l.purchase_rate * l.quantity * (l.discount_pct / 100), 0);
-    const itemsTotal = this.lines().reduce((s, l) => s + this.lineTotal(l), 0);
-    return lineDisc + itemsTotal * (this.billDiscountPct() / 100);
-  });
-  readonly gstTotal = computed(() => this.lines().reduce((s, l) => s + this.lineGst(l), 0));
-  readonly itemsTotal = computed(() => this.lines().reduce((s, l) => s + this.lineTotal(l), 0));
-  readonly netTotal = computed(() =>
-    Math.max(0, this.itemsTotal() - this.itemsTotal() * (this.billDiscountPct() / 100)),
-  );
-
-  // ---- line management ----
-  addLine(): void {
-    this.lines.update((ls) => [...ls, emptyLine()]);
-  }
-  removeLine(index: number): void {
-    this.lines.update((ls) => (ls.length > 1 ? ls.filter((_, i) => i !== index) : ls));
-  }
-  updateLine(index: number, patch: Partial<Line>): void {
-    this.lines.update((ls) => ls.map((l, i) => (i === index ? { ...l, ...patch } : l)));
-  }
-
-  // ---- product search ----
-  onProductInput(index: number, value: string): void {
-    this.updateLine(index, { product_name: value, master_product_id: undefined });
-    this.activeIndex.set(index);
+  onProductInput(value: string): void {
+    this.patch('product_name', value);
+    this.patch('master_product_id', undefined as unknown as number);
     clearTimeout(this.searchTimer);
-    if (value.trim().length < 2) {
-      this.searchResults.set([]);
-      return;
-    }
+    this.showResults.set(true);
+    if (value.trim().length < 2) { this.searchResults.set([]); return; }
     this.searchTimer = setTimeout(() => {
       this.purchaseSvc.searchProducts(value).subscribe((r) => this.searchResults.set(r));
-    }, 250);
+    }, 220);
   }
-
-  selectProduct(index: number, p: ProductSearchResult): void {
-    this.updateLine(index, {
+  selectProduct(p: ProductSearchResult): void {
+    this.entry.update((e) => ({
+      ...e,
       master_product_id: p.id,
       product_name: p.name,
       schedule_category: p.schedule_category,
+      hsn_code: p.hsn_code ?? '',
       gst_rate: Number(p.default_gst_rate) || 12,
       units_per_pack: p.units_per_pack || 1,
       shelf_location: p.shelf_location || '',
-    });
+    }));
     this.searchResults.set([]);
-    this.activeIndex.set(null);
+    this.showResults.set(false);
   }
 
-  closeSearch(): void {
-    setTimeout(() => {
-      this.searchResults.set([]);
-      this.activeIndex.set(null);
-    }, 180);
+  // ---- entry computed ----
+  netRate(e: Entry): number { return e.purchase_rate * (1 - e.discount_pct / 100); }
+  entryTaxable(e: Entry): number { return this.netRate(e) * e.quantity; }
+  entryTotal(e: Entry): number { return this.entryTaxable(e) * (1 + e.gst_rate / 100); }
+
+  addLine(): void {
+    const e = this.entry();
+    if (!e.product_name.trim() || e.quantity <= 0) {
+      this.error.set('Enter a product and quantity before adding.');
+      return;
+    }
+    this.error.set(null);
+    this.lines.update((ls) => [...ls, { ...e }]);
+    // keep gst default for fast entry
+    this.entry.set({ ...emptyEntry(), gst_rate: e.gst_rate });
   }
+  removeLine(i: number): void {
+    this.lines.update((ls) => ls.filter((_, idx) => idx !== i));
+  }
+
+  // ---- totals ----
+  readonly grossTotal = computed(() => this.lines().reduce((s, l) => s + l.purchase_rate * l.quantity, 0));
+  readonly gstTotal = computed(() => this.lines().reduce((s, l) => s + this.entryTaxable(l) * (l.gst_rate / 100), 0));
+  readonly itemsTotal = computed(() => this.lines().reduce((s, l) => s + this.entryTotal(l), 0));
+  readonly netTotal = computed(() =>
+    Math.max(0, this.itemsTotal() - this.itemsTotal() * (this.billDiscountPct() / 100)),
+  );
 
   // ---- CSV import ----
   onCsvSelected(event: Event): void {
@@ -145,10 +127,11 @@ export class PurchaseEntry {
     if (!file) return;
     this.purchaseSvc.importCsv(file).subscribe({
       next: (res) => {
-        const imported: Line[] = res.data.lines.map((l) => ({
+        const imported: Entry[] = res.data.lines.map((l) => ({
           master_product_id: l.master_product_id,
           product_name: l.product_name,
           schedule_category: 'OTC',
+          hsn_code: '',
           batch_no: l.batch_no ?? '',
           expiry_date: l.expiry_date ?? '',
           shelf_location: '',
@@ -157,11 +140,13 @@ export class PurchaseEntry {
           free_quantity: l.free_quantity || 0,
           purchase_rate: l.purchase_rate || 0,
           mrp: l.mrp || 0,
-          discount_pct: l.discount_pct || 0,
+          ptr: 0, pts: 0,
           gst_rate: l.gst_rate || 12,
+          discount_pct: l.discount_pct || 0,
+          scheme_pct: 0,
         }));
-        if (imported.length) this.lines.set(imported);
-        this.showToast(`${res.data.total_lines} lines imported (${res.data.matched} matched to catalog).`);
+        if (imported.length) this.lines.update((ls) => [...ls, ...imported]);
+        this.showToast(`${res.data.total_lines} lines imported (${res.data.matched} matched).`);
       },
       error: (err: HttpErrorResponse) => this.showToast(err.error?.message ?? 'Import failed.'),
     });
@@ -170,22 +155,15 @@ export class PurchaseEntry {
 
   // ---- save ----
   save(): void {
-    if (!this.invoiceNo().trim()) {
-      this.error.set('Invoice number is required.');
-      return;
-    }
-    const valid = this.lines().every((l) => l.product_name.trim() && l.quantity > 0);
-    if (!valid) {
-      this.error.set('Each line needs a product name and quantity.');
-      return;
-    }
-
+    if (!this.invoiceNo().trim()) { this.error.set('Invoice number is required.'); return; }
+    if (this.lines().length === 0) { this.error.set('Add at least one product to the list.'); return; }
     this.saving.set(true);
     this.error.set(null);
 
     const items = this.lines().map((l) => {
       const base = {
         product_name: l.product_name,
+        hsn_code: l.hsn_code,
         batch_no: l.batch_no,
         expiry_date: l.expiry_date,
         shelf_location: l.shelf_location,
@@ -194,6 +172,9 @@ export class PurchaseEntry {
         free_quantity: l.free_quantity,
         purchase_rate: l.purchase_rate,
         mrp: l.mrp,
+        ptr: l.ptr,
+        pts: l.pts,
+        scheme_pct: l.scheme_pct,
         discount_pct: l.discount_pct,
         gst_rate: l.gst_rate,
       };
@@ -202,33 +183,24 @@ export class PurchaseEntry {
         : {
             ...base,
             new_product: {
-              name: l.product_name,
-              schedule_category: l.schedule_category,
-              default_gst_rate: l.gst_rate,
-              units_per_pack: l.units_per_pack || 1,
-              shelf_location: l.shelf_location,
+              name: l.product_name, schedule_category: l.schedule_category,
+              default_gst_rate: l.gst_rate, units_per_pack: l.units_per_pack || 1,
+              shelf_location: l.shelf_location, hsn_code: l.hsn_code,
             },
           };
     });
 
-    this.purchaseSvc
-      .create({
-        invoice_no: this.invoiceNo(),
-        invoice_date: this.invoiceDate(),
-        supplier_name: this.supplierName(),
-        bill_discount_pct: this.billDiscountPct(),
-        items,
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.router.navigate(['/app/purchase']);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.saving.set(false);
-          this.error.set(err.error?.message ?? 'Could not save purchase.');
-        },
-      });
+    this.purchaseSvc.create({
+      invoice_no: this.invoiceNo(), invoice_date: this.invoiceDate(),
+      supplier_name: this.supplierName(), bill_discount_pct: this.billDiscountPct(),
+      items,
+    }).subscribe({
+      next: () => { this.saving.set(false); this.router.navigate(['/app/purchase']); },
+      error: (err: HttpErrorResponse) => {
+        this.saving.set(false);
+        this.error.set(err.error?.message ?? 'Could not save purchase.');
+      },
+    });
   }
 
   private showToast(msg: string): void {

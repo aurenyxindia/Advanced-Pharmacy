@@ -1,7 +1,16 @@
 <div class="billing">
-  <!-- Title bar -->
-  <div class="bill-titlebar">
-    <span class="title-text">RETAIL SALES BILL</span>
+  <!-- Title bar with mode switch -->
+  <div class="bill-titlebar" [class.ws]="isWholesale()">
+    <span class="title-text">{{ isWholesale() ? 'WHOLESALE / PCD SALES BILL' : 'RETAIL SALES BILL' }}</span>
+    @if (canSwitch()) {
+      <div class="mode-switch" [class.right]="isWholesale()">
+        <span class="mode-slider"></span>
+        <button class="mode-opt" [class.active]="!isWholesale()" (click)="setMode('retail')"><i class="bi bi-person me-1"></i>Retail</button>
+        <button class="mode-opt" [class.active]="isWholesale()" (click)="setMode('wholesale')"><i class="bi bi-box-seam me-1"></i>Wholesale</button>
+      </div>
+    } @else {
+      <span class="mode-fixed">{{ businessType() | titlecase }} only</span>
+    }
   </div>
 
   <!-- Counter tabs -->
@@ -13,21 +22,23 @@
           @if (counterCount(c) > 0) { <span class="badge text-bg-light ms-1">{{ counterCount(c) }}</span> }
         </button>
       }
-      <span class="text-secondary small ms-2 align-self-center d-none d-lg-inline">(Counters hold separate bills)</span>
     </div>
     <button class="btn btn-danger btn-sm view-sales" (click)="viewSales()">VIEW SALES (ALT + Q)</button>
   </div>
 
   @if (completed(); as done) {
-    <!-- success -->
     <div class="card-pharma p-4 text-center success-panel">
       <div class="success-icon"><i class="bi bi-check-lg"></i></div>
       <h4 class="fw-bold mt-3 mb-1">Bill Saved</h4>
-      <p class="text-secondary mb-3">Invoice <b>{{ done.invoice_no }}</b> · Net <b>{{ done.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></p>
+      <p class="text-secondary mb-2">Invoice <b>{{ done.invoice_no }}</b> · Net <b>{{ done.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></p>
+      <div class="text-secondary small mb-3">
+        GST {{ done.gst_amount | currency: 'INR' : 'symbol' : '1.2-2' }}
+        @if (done.igst) { · IGST {{ done.igst | currency: 'INR' : 'symbol' : '1.2-2' }} }
+        @else { · CGST {{ done.cgst | currency: 'INR' : 'symbol' : '1.2-2' }} · SGST {{ done.sgst | currency: 'INR' : 'symbol' : '1.2-2' }} }
+        @if (done.cd_amount) { · CD {{ done.cd_amount | currency: 'INR' : 'symbol' : '1.2-2' }} }
+      </div>
       @if (done.is_locked) {
-        <div class="alert alert-warning d-inline-flex align-items-center py-2">
-          <i class="bi bi-lock-fill me-2"></i> Scheduled-drug bill — locked (immutable).
-        </div>
+        <div class="alert alert-warning d-inline-flex align-items-center py-2"><i class="bi bi-lock-fill me-2"></i> Scheduled-drug bill — locked.</div>
       }
       <div class="d-flex gap-2 justify-content-center mt-2">
         <button class="btn btn-light border" (click)="printInvoice()"><i class="bi bi-printer me-1"></i> Print</button>
@@ -40,30 +51,23 @@
     <!-- Left: product search + list -->
     <div class="product-panel card-pharma">
       <div class="panel-head d-flex justify-content-between align-items-center">
-        <span class="fw-semibold small">SEARCH BY GENERIC (SUBSTITUTE)</span>
+        <span class="fw-semibold small">SEARCH BY GENERIC</span>
         @if (selectedGeneric()) { <button class="btn btn-sm btn-link p-0 text-danger" (click)="clearGeneric()">Clear</button> }
       </div>
       <div class="p-2">
         <select class="form-select form-select-sm mb-2" [ngModel]="selectedGeneric()" (ngModelChange)="onGenericChange($event ? +$event : null)">
-          <option [ngValue]="null">Select Generic</option>
+          <option [ngValue]="null">Select Generic (substitute)</option>
           @for (g of generics(); track g.id) { <option [ngValue]="g.id">{{ g.name }}</option> }
         </select>
-        <input class="form-control form-control-sm" placeholder="Search products..."
-          [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
+        <input class="form-control form-control-sm" placeholder="Search products..." [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
       </div>
       <div class="product-list">
         @for (p of searchResults(); track p.binding_id) {
           <button type="button" class="product-row" (click)="addProduct(p)">
-            <span class="pr-name">{{ p.product_name }}
-              <span class="text-secondary">({{ p.generic_name || '-' }} · {{ p.available_qty }})</span>
-            </span>
-            <span class="pr-meta">
-              <span class="badge sched-{{ p.schedule_category }}">{{ p.schedule_category }}</span>
-            </span>
+            <span class="pr-name">{{ p.product_name }} <span class="text-secondary">({{ p.generic_name || '-' }} · {{ p.available_qty }})</span></span>
+            <span class="badge sched-{{ p.schedule_category }}">{{ p.schedule_category }}</span>
           </button>
-        } @empty {
-          <div class="text-center text-secondary small py-4">No products. Adjust your search.</div>
-        }
+        } @empty { <div class="text-center text-secondary small py-4">No products.</div> }
       </div>
     </div>
 
@@ -71,14 +75,52 @@
     <div class="bill-main">
       @if (error()) { <div class="alert alert-danger py-2 mb-2">{{ error() }}</div> }
 
-      <!-- Customer & bill details -->
-      <div class="card-pharma p-3 mb-2 details-card">
-        <div class="section-label"><i class="bi bi-person-vcard me-1"></i> CUSTOMER &amp; BILL DETAILS</div>
-        <div class="row g-2">
+      <div class="card-pharma p-3 mb-2 details-card" [class.ws-card]="isWholesale()">
+        <div class="section-label">
+          <i class="bi" [class.bi-person-vcard]="!isWholesale()" [class.bi-building]="isWholesale()"></i>
+          {{ isWholesale() ? 'WHOLESALE CUSTOMER & BILL DETAILS' : 'CUSTOMER & BILL DETAILS' }}
+        </div>
+        <div class="row g-2 fade-section">
           <div class="col-6 col-md-2">
             <label>Bill Date</label>
             <input type="date" class="form-control form-control-sm" [ngModel]="bill().billDate" (ngModelChange)="set('billDate', $event)" />
           </div>
+
+          <!-- WHOLESALE: customer dropdown + rate type + CD -->
+          @if (isWholesale()) {
+            <div class="col-6 col-md-3">
+              <label>Customer Name <span class="req">*</span></label>
+              <select class="form-select form-select-sm" [ngModel]="bill().customerId" (ngModelChange)="onCustomerChange($event ? +$event : null)">
+                <option [ngValue]="null">Select Customer</option>
+                @for (c of customers(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label>Rate Type</label>
+              <select class="form-select form-select-sm" [ngModel]="bill().rateType" (ngModelChange)="setRateType($event)">
+                @for (rt of rateTypes; track rt.value) { <option [value]="rt.value">{{ rt.label }}</option> }
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label>CD Disc %</label>
+              <input type="number" class="form-control form-control-sm" [ngModel]="bill().cdDiscPct" (ngModelChange)="set('cdDiscPct', +$event)" />
+            </div>
+            <div class="col-6 col-md-3">
+              <label>Email</label>
+              <input class="form-control form-control-sm" placeholder="Email" [ngModel]="bill().email" (ngModelChange)="set('email', $event)" />
+            </div>
+          } @else {
+            <!-- RETAIL: patient + reminder -->
+            <div class="col-6 col-md-3">
+              <label>Patient Name</label>
+              <input class="form-control form-control-sm" placeholder="Patient Name" [ngModel]="bill().patientName" (ngModelChange)="set('patientName', $event)" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label>Reminder Days</label>
+              <input type="number" class="form-control form-control-sm" placeholder="Days" [ngModel]="bill().reminderDays" (ngModelChange)="set('reminderDays', $event ? +$event : null)" />
+            </div>
+          }
+
           <div class="col-6 col-md-2">
             <label>Sale Type</label>
             <select class="form-select form-select-sm" [ngModel]="bill().saleType" (ngModelChange)="set('saleType', $event)">
@@ -86,7 +128,7 @@
             </select>
           </div>
           <div class="col-6 col-md-2">
-            <label>Payment Mode</label>
+            <label>Payment</label>
             <select class="form-select form-select-sm" [ngModel]="bill().paymentMode" (ngModelChange)="set('paymentMode', $event)">
               @for (m of paymentModes; track m) { <option [value]="m">{{ m }}</option> }
             </select>
@@ -95,32 +137,32 @@
             <label>Contact</label>
             <input class="form-control form-control-sm" placeholder="Contact No" [ngModel]="bill().contact" (ngModelChange)="set('contact', $event)" />
           </div>
-          <div class="col-6 col-md-2">
-            <label>Patient Name</label>
-            <input class="form-control form-control-sm" placeholder="Patient Name" [ngModel]="bill().patientName" (ngModelChange)="set('patientName', $event)" />
-          </div>
-          <div class="col-6 col-md-2">
+          <div class="col-6 col-md-3">
             <label>Doctor</label>
             <input class="form-control form-control-sm" placeholder="Doctor" [ngModel]="bill().doctor" (ngModelChange)="set('doctor', $event)" />
           </div>
-          <div class="col-12 col-md-4">
+          <div class="col-12 col-md-3">
             <label>Address</label>
             <input class="form-control form-control-sm" placeholder="Address" [ngModel]="bill().address" (ngModelChange)="set('address', $event)" />
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col-6 col-md-2">
             <label>Prescription</label>
             <div class="d-flex gap-1">
               <label class="btn btn-sm btn-light border mb-0 flex-fill">
-                <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'Choose File' }}
+                <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'File' }}
                 <input type="file" accept="image/*,application/pdf" hidden (change)="onPrescriptionFile($event)" />
               </label>
               <button class="btn btn-sm btn-light border" (click)="openCamera()" title="Camera"><i class="bi bi-camera"></i></button>
             </div>
           </div>
-          <div class="col-6 col-md-2">
-            <label>Reminder Days</label>
-            <input type="number" class="form-control form-control-sm" placeholder="Days" [ngModel]="bill().reminderDays" (ngModelChange)="set('reminderDays', $event ? +$event : null)" />
-          </div>
+          @if (isWholesale()) {
+            <div class="col-6 col-md-2 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="interstate" [ngModel]="bill().isInterstate" (ngModelChange)="set('isInterstate', $event)" />
+                <label class="form-check-label small" for="interstate">Inter-state (IGST)</label>
+              </div>
+            </div>
+          }
           <div class="col-12 col-md-3">
             <label>Bill Narration</label>
             <input class="form-control form-control-sm" placeholder="..." [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
@@ -138,8 +180,8 @@
             <thead>
               <tr>
                 <th>Product</th><th>Qty</th><th>Unit</th><th>Disc%</th><th>B.No</th><th>Shelf</th>
-                <th>Rate</th><th>Exp.</th><th>Category</th><th>Pack</th><th class="text-end">MRP</th>
-                <th class="text-end">Taxable</th><th class="text-end">Discount</th>
+                <th>Rate</th><th>Exp.</th><th>Cat</th><th>Pack</th><th class="text-end">MRP</th>
+                <th class="text-end">Taxable</th><th class="text-end">Disc</th>
                 <th class="text-end">Profit</th><th class="text-end">GST</th><th class="text-end">Net</th><th></th>
               </tr>
             </thead>
@@ -149,25 +191,25 @@
                   <td class="prod-cell">{{ line.product_name }}</td>
                   <td><input type="number" class="g-input" style="width:54px" [ngModel]="line.qty" (ngModelChange)="updateLine($index, { qty: +$event })" /></td>
                   <td>
-                    <select class="g-input" style="width:64px" [ngModel]="line.unit_type" (ngModelChange)="onUnitTypeChange($index, $event)" [disabled]="!line.allow_loose">
+                    <select class="g-input" style="width:62px" [ngModel]="line.unit_type" (ngModelChange)="onUnitTypeChange($index, $event)" [disabled]="isWholesale() || !line.allow_loose">
                       <option value="unit">Unit</option>
                       <option value="pack">Pack</option>
                     </select>
                   </td>
-                  <td><input type="number" class="g-input" style="width:52px" [ngModel]="line.disc" (ngModelChange)="updateLine($index, { disc: +$event })" /></td>
+                  <td><input type="number" class="g-input" style="width:50px" [ngModel]="line.disc" (ngModelChange)="updateLine($index, { disc: +$event })" /></td>
                   <td>
                     @if (line.batches.length > 1) {
-                      <select class="g-input" style="width:90px" [ngModel]="line.batch_id" (ngModelChange)="selectBatch($index, +$event)">
+                      <select class="g-input" style="width:88px" [ngModel]="line.batch_id" (ngModelChange)="selectBatch($index, +$event)">
                         @for (b of line.batches; track b.batch_id) { <option [ngValue]="b.batch_id">{{ b.batch_no }}</option> }
                       </select>
                     } @else { <span class="small">{{ line.batch_no || '-' }}</span> }
                   </td>
                   <td class="small">{{ line.shelf || '-' }}</td>
-                  <td><input type="number" class="g-input" style="width:70px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
+                  <td><input type="number" class="g-input" style="width:72px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
                   <td class="small">{{ line.expiry ? (line.expiry | date: 'MM/yy') : '-' }}</td>
                   <td><span class="badge sched-{{ line.category }}">{{ line.category }}</span></td>
                   <td class="small">{{ line.pack || '-' }}</td>
-                  <td class="text-end small">{{ line.mrp | number: '1.2-2' }}</td>
+                  <td class="text-end small">{{ line.unit_mrp | number: '1.2-2' }}</td>
                   <td class="text-end small">{{ lineTaxable(line) | number: '1.2-2' }}</td>
                   <td class="text-end small">{{ lineDiscountAmt(line) | number: '1.2-2' }}</td>
                   <td class="text-end small text-success">{{ lineProfit(line) | number: '1.2-2' }}</td>
@@ -176,41 +218,33 @@
                   <td><button class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
                 </tr>
               } @empty {
-                <tr><td colspan="17" class="text-center text-secondary py-4">
-                  <i class="bi bi-arrow-left me-1"></i> Search and click a product to add it to the bill.
-                </td></tr>
+                <tr><td colspan="17" class="text-center text-secondary py-4"><i class="bi bi-arrow-left me-1"></i> Search and click a product to add it.</td></tr>
               }
             </tbody>
-            <tfoot>
-              <tr class="grid-foot">
-                <td colspan="11" class="text-end fw-semibold">Totals</td>
-                <td class="text-end">{{ (netTotal() - gstTotal()) | number: '1.2-2' }}</td>
-                <td></td>
-                <td class="text-end text-success">{{ profitTotal() | number: '1.2-2' }}</td>
-                <td class="text-end">{{ gstTotal() | number: '1.2-2' }}</td>
-                <td class="text-end fw-bold">{{ netTotal() | number: '1.2-2' }}</td>
-                <td></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
 
-        <!-- Footer bar -->
+        <!-- Footer -->
         <div class="grid-footer">
+          <div class="totals-chips">
+            <span>GST <b>{{ gstTotal() | number: '1.2-2' }}</b></span>
+            @if (isWholesale()) {
+              @if (bill().isInterstate) { <span>IGST <b>{{ igst() | number: '1.2-2' }}</b></span> }
+              @else { <span>CGST <b>{{ cgst() | number: '1.2-2' }}</b></span><span>SGST <b>{{ cgst() | number: '1.2-2' }}</b></span> }
+              <span>CD <b>{{ cdAmount() | number: '1.2-2' }}</b></span>
+            }
+            <span class="text-success">Profit <b>{{ profitTotal() | number: '1.2-2' }}</b></span>
+          </div>
           <div class="net-total">
             <span class="small text-secondary">NET TOTAL</span>
             <span class="net-amount">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
           </div>
           <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" disabled title="AI prescription parsing (configure provider)">
-              <i class="bi bi-robot me-1"></i> AI PRESCRIPTION
-            </button>
+            <button class="btn btn-outline-secondary" disabled title="Configure AI provider"><i class="bi bi-robot me-1"></i> AI PRESCRIPTION</button>
             <button class="btn btn-success" [disabled]="saving()" (click)="save(false)">
               @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } SAVE
             </button>
-            <button class="btn btn-pharma" [disabled]="saving()" (click)="save(true)">
-              <i class="bi bi-printer me-1"></i> SAVE &amp; PRINT
-            </button>
+            <button class="btn btn-pharma" [disabled]="saving()" (click)="save(true)"><i class="bi bi-printer me-1"></i> SAVE &amp; PRINT</button>
           </div>
         </div>
       </div>
@@ -223,10 +257,7 @@
     <div class="modal-backdrop-custom"></div>
     <div class="modal-custom">
       <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:520px;">
-        <div class="modal-head">
-          <h5 class="mb-0 fw-semibold">Capture Prescription</h5>
-          <button class="btn-close" (click)="closeCamera()"></button>
-        </div>
+        <div class="modal-head"><h5 class="mb-0 fw-semibold">Capture Prescription</h5><button class="btn-close" (click)="closeCamera()"></button></div>
         <div class="modal-body-custom text-center">
           <video #video class="camera-view" playsinline></video>
           <div class="d-flex gap-2 justify-content-center mt-3">

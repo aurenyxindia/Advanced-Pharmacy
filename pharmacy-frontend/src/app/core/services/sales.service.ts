@@ -26,8 +26,11 @@ export interface BatchOption {
   expiry_date: string | null;
   mrp: number;
   unit_mrp: number;
+  ptr: number;
+  pts: number;
   purchase_rate: number;
   quantity: number;
+  packs: number;
   shelf_location: string | null;
   units_per_pack: number;
 }
@@ -58,16 +61,21 @@ export interface SaleItemPayload {
 export interface SalePayload {
   counter?: string;
   sale_type?: string;
+  bill_mode?: string;
+  rate_type?: string;
   customer_name?: string;
   customer_id?: number | null;
   patient_name?: string;
   contact_no?: string;
+  email?: string;
   address?: string;
   narration?: string;
   reminder_days?: number | null;
   doctor_name?: string;
   payment_mode?: string;
   bill_discount_pct?: number;
+  cd_disc_pct?: number;
+  is_interstate?: number;
   prescription_id?: number | null;
   items: SaleItemPayload[];
 }
@@ -77,6 +85,10 @@ export interface SaleResult {
   invoice_no: string;
   net_amount: number;
   gst_amount: number;
+  cd_amount?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   profit_amount: number;
   is_locked: boolean;
 }

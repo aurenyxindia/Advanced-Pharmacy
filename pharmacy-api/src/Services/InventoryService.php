@@ -27,7 +27,9 @@ final class InventoryService
         float $mrp,
         float $costPerUnit,
         int $quantity,
-        ?string $shelf = null
+        ?string $shelf = null,
+        float $ptr = 0,
+        float $pts = 0
     ): int {
         $db = Connection::ops();
 
@@ -45,23 +47,23 @@ final class InventoryService
             $upd = $db->prepare(
                 'UPDATE inventory_batches
                  SET quantity = quantity + :q, mrp = :mrp, purchase_rate = :rate, expiry_date = :exp,
-                     shelf_location = COALESCE(:shelf, shelf_location), updated_at = :now
+                     shelf_location = COALESCE(:shelf, shelf_location), ptr = :ptr, pts = :pts, updated_at = :now
                  WHERE id = :id'
             );
             $upd->execute([
                 'q' => $quantity, 'mrp' => $mrp, 'rate' => $costPerUnit,
-                'exp' => $expiryDate, 'shelf' => $shelf, 'now' => now(), 'id' => $batchId,
+                'exp' => $expiryDate, 'shelf' => $shelf, 'ptr' => $ptr, 'pts' => $pts, 'now' => now(), 'id' => $batchId,
             ]);
         } else {
             $ins = $db->prepare(
                 'INSERT INTO inventory_batches
-                    (client_id, branch_id, product_binding_id, batch_no, expiry_date, shelf_location, mrp, purchase_rate, quantity, created_at, updated_at)
-                 VALUES (:c, :b, :p, :batch, :exp, :shelf, :mrp, :rate, :q, :now, :now2)'
+                    (client_id, branch_id, product_binding_id, batch_no, expiry_date, shelf_location, mrp, ptr, pts, purchase_rate, quantity, created_at, updated_at)
+                 VALUES (:c, :b, :p, :batch, :exp, :shelf, :mrp, :ptr, :pts, :rate, :q, :now, :now2)'
             );
             $ins->execute([
                 'c' => $clientId, 'b' => $branchId, 'p' => $bindingId, 'batch' => $batchNo,
-                'exp' => $expiryDate, 'shelf' => $shelf, 'mrp' => $mrp, 'rate' => $costPerUnit, 'q' => $quantity,
-                'now' => now(), 'now2' => now(),
+                'exp' => $expiryDate, 'shelf' => $shelf, 'mrp' => $mrp, 'ptr' => $ptr, 'pts' => $pts,
+                'rate' => $costPerUnit, 'q' => $quantity, 'now' => now(), 'now2' => now(),
             ]);
             $batchId = (int) $db->lastInsertId();
         }
