@@ -8,6 +8,7 @@ import {
   SaleProduct,
   SalesService,
   SaleResult,
+  Substitute,
 } from '../../core/services/sales.service';
 import { CrudService } from '../../core/services/crud.service';
 import { MetaService } from '../../core/services/meta.service';
@@ -107,13 +108,23 @@ export class Billing {
   readonly bill = computed(() => this.bills()[this.activeCounter()]);
   readonly isWholesale = computed(() => this.bill().mode === 'wholesale');
 
-  // search
+  // search / add
   readonly searchTerm = signal('');
   readonly searchResults = signal<SaleProduct[]>([]);
+  readonly highlight = signal(0);
+  readonly searching = signal(false);
   private searchTimer?: ReturnType<typeof setTimeout>;
   readonly generics = signal<{ id: number; name: string }[]>([]);
   readonly selectedGeneric = signal<number | null>(null);
+  readonly substituteMode = signal(false); // when true, search lists same-molecule alternatives
   readonly customers = signal<{ id: number; name: string; phone?: string; address?: string }[]>([]);
+
+  // substitute lookup for an existing line
+  readonly subOpen = signal(false);
+  readonly subLoading = signal(false);
+  readonly subs = signal<Substitute[]>([]);
+  readonly subSourceName = signal('');
+  private subReplaceIndex: number | null = null;
 
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -191,22 +202,48 @@ export class Billing {
 
   // ---- search ----
   loadInitial(): void {
-    this.salesSvc.searchProducts('').subscribe((r) => this.searchResults.set(r));
+    this.salesSvc.searchProducts('').subscribe((r) => { this.searchResults.set(r); this.highlight.set(0); });
+  }
+  private runSearch(): void {
+    this.searching.set(true);
+    this.salesSvc.searchProducts(this.searchTerm(), this.selectedGeneric() ?? undefined).subscribe({
+      next: (r) => { this.searchResults.set(r); this.highlight.set(0); this.searching.set(false); },
+      error: () => this.searching.set(false),
+    });
   }
   onSearch(value: string): void {
     this.searchTerm.set(value);
     clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => {
-      this.salesSvc.searchProducts(value, this.selectedGeneric() ?? undefined).subscribe((r) => this.searchResults.set(r));
-    }, 200);
+    this.searchTimer = setTimeout(() => this.runSearch(), 180);
   }
   onGenericChange(id: number | null): void {
     this.selectedGeneric.set(id);
-    this.salesSvc.searchProducts(this.searchTerm(), id ?? undefined).subscribe((r) => this.searchResults.set(r));
+    this.substituteMode.set(id !== null);
+    this.runSearch();
   }
   clearGeneric(): void {
     this.selectedGeneric.set(null);
-    this.onSearch(this.searchTerm());
+    this.substituteMode.set(false);
+    this.runSearch();
+  }
+
+  /** Keyboard navigation on the search box: Up/Down to move, Enter to add. */
+  onSearchKey(event: KeyboardEvent): void {
+    const n = this.searchResults().length;
+    if (n === 0) return;
+    if (event.key === 'ArrowDown') {
+      this.highlight.update((i) => Math.min(i + 1, n - 1));
+      event.preventDefault();
+    } else if (event.key === 'ArrowUp') {
+      this.highlight.update((i) => Math.max(i - 1, 0));
+      event.preventDefault();
+    } else if (event.key === 'Enter') {
+      const p = this.searchResults()[this.highlight()];
+      if (p) this.addProduct(p);
+      event.preventDefault();
+    } else if (event.key === 'Escape') {
+      this.searchResults.set([]);
+    }
   }
 
   // ---- lines ----
@@ -218,7 +255,7 @@ export class Billing {
     }
     this.salesSvc.batches(p.binding_id).subscribe((batches) => {
       const b = batches[0];
-      const upp = p.units_per_pack ?? 1;
+      const upp = b?.units_per_pack ?? p.units_per_pack ?? 1;
       const unitMrp = b?.unit_mrp ?? Number(p.mrp) ?? 0;
       const baseLine: BillLine = {
         binding_id: p.binding_id,
@@ -245,8 +282,44 @@ export class Billing {
       const line = this.repriceLine(baseLine, this.bill().mode, this.bill().rateType);
       this.patchBill({ lines: [...this.bill().lines, line] });
     });
+    // Clear the query for the next quick add but keep the result list usable.
     this.searchTerm.set('');
     this.searchResults.set([]);
+    this.highlight.set(0);
+  }
+
+  // ---- substitute lookup for a line (same molecule alternatives) ----
+  openSubstitutes(index: number): void {
+    const l = this.bill().lines[index];
+    this.subReplaceIndex = index;
+    this.subSourceName.set(l.product_name);
+    this.subOpen.set(true);
+    this.subLoading.set(true);
+    this.subs.set([]);
+    this.salesSvc.substitutes(l.binding_id).subscribe({
+      next: (s) => { this.subs.set(s); this.subLoading.set(false); },
+      error: () => this.subLoading.set(false),
+    });
+  }
+
+  /** Add a substitute as a new line, or replace the source line. */
+  addSubstitute(sub: Substitute, replace: boolean): void {
+    if (!sub.binding_id) return;
+    const product: SaleProduct = {
+      binding_id: sub.binding_id,
+      product_name: sub.name,
+      schedule_category: sub.schedule_category,
+      gst_rate: Number(sub.default_gst_rate) || 0,
+      master_product_id: sub.id,
+      available_qty: sub.available_qty,
+      mrp: null,
+      generic_name: sub.generic_name,
+    };
+    if (replace && this.subReplaceIndex !== null) {
+      this.removeLine(this.subReplaceIndex);
+    }
+    this.addProduct(product);
+    this.subOpen.set(false);
   }
 
   updateLine(index: number, patch: Partial<BillLine>): void {

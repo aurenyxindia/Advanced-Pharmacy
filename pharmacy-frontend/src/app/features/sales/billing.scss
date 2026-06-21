@@ -115,13 +115,24 @@
 @media (max-width: 991.98px) { .bill-body { grid-template-columns: 1fr; } }
 
 // ---- product panel ----
-.product-panel { display: flex; flex-direction: column; max-height: 78vh; }
+.product-panel { display: flex; flex-direction: column; max-height: 80vh; }
 .panel-head { padding: 0.6rem 0.75rem; border-bottom: 1px solid #e2e8f0; color: #475569; }
+.tiny { font-size: 0.66rem; }
+.add-search { font-weight: 500; }
+.add-search:focus { border-color: var(--pharma-primary); box-shadow: 0 0 0 0.15rem rgba(13,148,136,0.15); }
+
+.sub-banner {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .product-list { overflow-y: auto; flex: 1; }
 .product-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: block;
   width: 100%;
   text-align: left;
   border: none;
@@ -129,10 +140,18 @@
   border-bottom: 1px solid #f1f5f9;
   padding: 0.45rem 0.75rem;
   font-size: 0.82rem;
-  &:hover { background: #ecfdf5; }
+  border-left: 3px solid transparent;
+
+  &:hover, &.hl { background: #ecfdf5; border-left-color: var(--pharma-primary); }
+  &.oos { opacity: 0.6; }
 }
-.pr-name { font-weight: 500; }
-.pr-name .text-secondary { font-weight: 400; font-size: 0.75rem; }
+.pr-main { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.pr-name { font-weight: 600; }
+.pr-sub { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; margin-top: 0.1rem; }
+.pr-stats { white-space: nowrap; color: #475569; }
+
+.sub-link { font-size: 0.68rem; text-decoration: none; color: var(--pharma-primary); }
+.sub-list .list-group-item { border-color: #f1f5f9; }
 
 // ---- details ----
 .details-card label { font-size: 0.72rem; color: #64748b; margin-bottom: 0.1rem; display: block; }
