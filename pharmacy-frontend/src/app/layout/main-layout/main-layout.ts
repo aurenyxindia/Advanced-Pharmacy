@@ -25,17 +25,15 @@ export class MainLayout {
   readonly sidebarOpen = signal(true);
 
   readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard' },
-    { label: 'Masters', icon: 'bi-box-seam', route: '/app/masters' },
-    { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase' },
-    { label: 'Sales / Billing', icon: 'bi-receipt', route: '/app/sales' },
-    { label: 'Inventory', icon: 'bi-boxes', comingSoon: true },
-    { label: 'Refill Reminders', icon: 'bi-bell', route: '/app/refills' },
-    { label: 'Deliveries', icon: 'bi-truck', route: '/app/deliveries' },
-    { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts' },
-    { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports' },
+    { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+    { label: 'Masters', icon: 'bi-box-seam', route: '/app/masters', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+    { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+    { label: 'Sales / Billing', icon: 'bi-receipt', route: '/app/sales', roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
+    { label: 'Refill Reminders', icon: 'bi-bell', route: '/app/refills', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
+    { label: 'Deliveries', icon: 'bi-truck', route: '/app/deliveries', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
+    { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts', roles: ['ho_admin', 'branch_admin'] },
+    { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Head Office', icon: 'bi-buildings', route: '/app/ho', roles: ['ho_admin'] },
-    { label: 'Settings', icon: 'bi-gear', comingSoon: true },
   ];
 
   visibleNav(): NavItem[] {

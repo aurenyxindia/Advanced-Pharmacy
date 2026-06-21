@@ -1,213 +1,221 @@
 <div class="billing">
+  <!-- Title bar -->
+  <div class="bill-titlebar">
+    <span class="title-text">RETAIL SALES BILL</span>
+  </div>
+
+  <!-- Counter tabs -->
+  <div class="counter-bar">
+    <div class="counter-tabs">
+      @for (c of counters; track c) {
+        <button class="counter-tab" [class.active]="activeCounter() === c" (click)="switchCounter(c)">
+          <i class="bi bi-cart3 me-1"></i> {{ c }}
+          @if (counterCount(c) > 0) { <span class="badge text-bg-light ms-1">{{ counterCount(c) }}</span> }
+        </button>
+      }
+      <span class="text-secondary small ms-2 align-self-center d-none d-lg-inline">(Counters hold separate bills)</span>
+    </div>
+    <button class="btn btn-danger btn-sm view-sales" (click)="viewSales()">VIEW SALES (ALT + Q)</button>
+  </div>
+
   @if (completed(); as done) {
-    <!-- Success panel -->
+    <!-- success -->
     <div class="card-pharma p-4 text-center success-panel">
       <div class="success-icon"><i class="bi bi-check-lg"></i></div>
-      <h4 class="fw-bold mt-3 mb-1">Sale Completed</h4>
-      <p class="text-secondary mb-3">Invoice <b>{{ done.invoice_no }}</b></p>
-      <div class="row g-3 justify-content-center mb-4">
-        <div class="col-auto"><div class="mini-stat"><span>Net</span><b>{{ done.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
-        <div class="col-auto"><div class="mini-stat"><span>GST</span><b>{{ done.gst_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
-        <div class="col-auto"><div class="mini-stat"><span>Profit</span><b class="text-success">{{ done.profit_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
-      </div>
+      <h4 class="fw-bold mt-3 mb-1">Bill Saved</h4>
+      <p class="text-secondary mb-3">Invoice <b>{{ done.invoice_no }}</b> · Net <b>{{ done.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></p>
       @if (done.is_locked) {
         <div class="alert alert-warning d-inline-flex align-items-center py-2">
-          <i class="bi bi-lock-fill me-2"></i> This bill contains scheduled drugs and is now locked (immutable).
+          <i class="bi bi-lock-fill me-2"></i> Scheduled-drug bill — locked (immutable).
         </div>
       }
       <div class="d-flex gap-2 justify-content-center mt-2">
-        <button class="btn btn-light border" (click)="printInvoice()"><i class="bi bi-printer me-1"></i> Print Invoice</button>
-        <button class="btn btn-pharma" (click)="newBill()"><i class="bi bi-plus-lg me-1"></i> New Bill</button>
+        <button class="btn btn-light border" (click)="printInvoice()"><i class="bi bi-printer me-1"></i> Print</button>
+        <button class="btn btn-pharma" (click)="newBill()"><i class="bi bi-plus-lg me-1"></i> Next Bill</button>
       </div>
     </div>
   } @else {
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-      <div>
-        <h4 class="fw-bold mb-0">New Bill</h4>
-        <p class="text-secondary mb-0 small">GST is reverse-calculated from MRP. Profit is tracked per sale.</p>
+
+  <div class="bill-body">
+    <!-- Left: product search + list -->
+    <div class="product-panel card-pharma">
+      <div class="panel-head d-flex justify-content-between align-items-center">
+        <span class="fw-semibold small">SEARCH BY GENERIC (SUBSTITUTE)</span>
+        @if (selectedGeneric()) { <button class="btn btn-sm btn-link p-0 text-danger" (click)="clearGeneric()">Clear</button> }
+      </div>
+      <div class="p-2">
+        <select class="form-select form-select-sm mb-2" [ngModel]="selectedGeneric()" (ngModelChange)="onGenericChange($event ? +$event : null)">
+          <option [ngValue]="null">Select Generic</option>
+          @for (g of generics(); track g.id) { <option [ngValue]="g.id">{{ g.name }}</option> }
+        </select>
+        <input class="form-control form-control-sm" placeholder="Search products..."
+          [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
+      </div>
+      <div class="product-list">
+        @for (p of searchResults(); track p.binding_id) {
+          <button type="button" class="product-row" (click)="addProduct(p)">
+            <span class="pr-name">{{ p.product_name }}
+              <span class="text-secondary">({{ p.generic_name || '-' }} · {{ p.available_qty }})</span>
+            </span>
+            <span class="pr-meta">
+              <span class="badge sched-{{ p.schedule_category }}">{{ p.schedule_category }}</span>
+            </span>
+          </button>
+        } @empty {
+          <div class="text-center text-secondary small py-4">No products. Adjust your search.</div>
+        }
       </div>
     </div>
 
-    @if (error()) {
-      <div class="alert alert-danger py-2">{{ error() }}</div>
-    }
+    <!-- Right: bill details + grid -->
+    <div class="bill-main">
+      @if (error()) { <div class="alert alert-danger py-2 mb-2">{{ error() }}</div> }
 
-    <div class="row g-3">
-      <!-- Left: items -->
-      <div class="col-lg-8">
-        <div class="card-pharma p-3 mb-3">
-          <label class="form-label">Add Product</label>
-          <div class="position-relative">
-            <div class="input-group">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input class="form-control border-start-0" placeholder="Search your stocked products..."
-                [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
-            </div>
-            @if (searchResults().length) {
-              <div class="search-dropdown shadow-pharma-lg">
-                @for (p of searchResults(); track p.binding_id) {
-                  <button type="button" class="search-item" (click)="addProduct(p)">
-                    <span class="d-flex justify-content-between">
-                      <span class="fw-semibold">{{ p.product_name }}</span>
-                      <span class="badge text-bg-light">{{ p.schedule_category }}</span>
-                    </span>
-                    <span class="text-secondary small">
-                      MRP ₹{{ p.mrp }} · GST {{ p.gst_rate }}% ·
-                      <span [class.text-danger]="p.available_qty <= 0">stock {{ p.available_qty }}</span>
-                    </span>
-                  </button>
-                }
-              </div>
-            }
+      <!-- Customer & bill details -->
+      <div class="card-pharma p-3 mb-2 details-card">
+        <div class="section-label"><i class="bi bi-person-vcard me-1"></i> CUSTOMER &amp; BILL DETAILS</div>
+        <div class="row g-2">
+          <div class="col-6 col-md-2">
+            <label>Bill Date</label>
+            <input type="date" class="form-control form-control-sm" [ngModel]="bill().billDate" (ngModelChange)="set('billDate', $event)" />
           </div>
-        </div>
-
-        <div class="card-pharma">
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0 bill-table">
-              <thead>
-                <tr>
-                  <th>Product</th><th>Sch</th><th class="text-end">Qty</th>
-                  <th class="text-end">Rate</th><th class="text-end">Disc%</th>
-                  <th class="text-end">GST%</th><th class="text-end">Amount</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @if (lines().length === 0) {
-                  <tr><td colspan="8" class="text-center text-secondary py-5">
-                    <i class="bi bi-cart fs-3 d-block mb-2"></i> Search and add products to start billing.
-                  </td></tr>
-                } @else {
-                  @for (line of lines(); track line.binding_id) {
-                    <tr>
-                      <td>
-                        <div class="fw-semibold">{{ line.product_name }}</div>
-                        <button class="btn btn-link btn-sm p-0 text-decoration-none" (click)="openSubstitutes(line)">
-                          <i class="bi bi-arrow-left-right"></i> substitutes
-                        </button>
-                      </td>
-                      <td>
-                        <span class="badge"
-                          [ngClass]="line.schedule_category === 'OTC' ? 'text-bg-secondary' : 'text-bg-warning'">
-                          {{ line.schedule_category }}
-                        </span>
-                      </td>
-                      <td><input type="number" class="form-control form-control-sm text-end" style="width:64px"
-                        [ngModel]="line.quantity" (ngModelChange)="updateLine($index, { quantity: +$event })" /></td>
-                      <td><input type="number" class="form-control form-control-sm text-end" style="width:84px"
-                        [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
-                      <td><input type="number" class="form-control form-control-sm text-end" style="width:64px"
-                        [ngModel]="line.discount_pct" (ngModelChange)="updateLine($index, { discount_pct: +$event })" /></td>
-                      <td class="text-end">{{ line.gst_rate }}%</td>
-                      <td class="text-end fw-semibold">{{ lineSell(line) | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
-                      <td><button class="btn btn-sm btn-outline-danger" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
-                    </tr>
-                  }
-                }
-              </tbody>
-            </table>
+          <div class="col-6 col-md-2">
+            <label>Sale Type</label>
+            <select class="form-select form-select-sm" [ngModel]="bill().saleType" (ngModelChange)="set('saleType', $event)">
+              @for (t of saleTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
           </div>
-        </div>
-      </div>
-
-      <!-- Right: summary -->
-      <div class="col-lg-4">
-        <div class="card-pharma p-3 mb-3">
-          <label class="form-label">Customer</label>
-          <input class="form-control mb-2" [ngModel]="customerName()" (ngModelChange)="customerName.set($event)" />
-          <label class="form-label">Doctor (optional)</label>
-          <input class="form-control mb-2" [ngModel]="doctorName()" (ngModelChange)="doctorName.set($event)" />
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label">Payment</label>
-              <select class="form-select" [ngModel]="paymentMode()" (ngModelChange)="paymentMode.set($event)">
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="upi">UPI</option>
-                <option value="credit">Credit</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Bill Disc %</label>
-              <input type="number" class="form-control" [ngModel]="billDiscountPct()" (ngModelChange)="billDiscountPct.set(+$event)" />
-            </div>
+          <div class="col-6 col-md-2">
+            <label>Payment Mode</label>
+            <select class="form-select form-select-sm" [ngModel]="bill().paymentMode" (ngModelChange)="set('paymentMode', $event)">
+              @for (m of paymentModes; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
           </div>
-        </div>
-
-        <!-- Prescription -->
-        @if (prescriptionRequired()) {
-          <div class="card-pharma p-3 mb-3 presc-box">
-            <div class="d-flex align-items-center mb-2">
-              <i class="bi bi-file-earmark-medical text-danger me-2"></i>
-              <span class="fw-semibold">Prescription required</span>
-            </div>
-            @if (prescriptionId()) {
-              <div class="alert alert-success py-2 mb-2"><i class="bi bi-check-circle me-1"></i> {{ prescriptionName() }}</div>
-            } @else {
-              <p class="text-secondary small mb-2">Scheduled drugs (H1/X/G/Restricted) need a prescription.</p>
-            }
-            <div class="d-flex gap-2">
+          <div class="col-6 col-md-2">
+            <label>Contact</label>
+            <input class="form-control form-control-sm" placeholder="Contact No" [ngModel]="bill().contact" (ngModelChange)="set('contact', $event)" />
+          </div>
+          <div class="col-6 col-md-2">
+            <label>Patient Name</label>
+            <input class="form-control form-control-sm" placeholder="Patient Name" [ngModel]="bill().patientName" (ngModelChange)="set('patientName', $event)" />
+          </div>
+          <div class="col-6 col-md-2">
+            <label>Doctor</label>
+            <input class="form-control form-control-sm" placeholder="Doctor" [ngModel]="bill().doctor" (ngModelChange)="set('doctor', $event)" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label>Address</label>
+            <input class="form-control form-control-sm" placeholder="Address" [ngModel]="bill().address" (ngModelChange)="set('address', $event)" />
+          </div>
+          <div class="col-6 col-md-3">
+            <label>Prescription</label>
+            <div class="d-flex gap-1">
               <label class="btn btn-sm btn-light border mb-0 flex-fill">
-                <i class="bi bi-upload me-1"></i> Upload
+                <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'Choose File' }}
                 <input type="file" accept="image/*,application/pdf" hidden (change)="onPrescriptionFile($event)" />
               </label>
-              <button class="btn btn-sm btn-light border flex-fill" (click)="openCamera()">
-                <i class="bi bi-camera me-1"></i> Camera
-              </button>
+              <button class="btn btn-sm btn-light border" (click)="openCamera()" title="Camera"><i class="bi bi-camera"></i></button>
             </div>
-            @if (uploadingPrescription()) { <div class="small text-secondary mt-2"><span class="spinner-border spinner-border-sm me-1"></span>Uploading...</div> }
           </div>
+          <div class="col-6 col-md-2">
+            <label>Reminder Days</label>
+            <input type="number" class="form-control form-control-sm" placeholder="Days" [ngModel]="bill().reminderDays" (ngModelChange)="set('reminderDays', $event ? +$event : null)" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label>Bill Narration</label>
+            <input class="form-control form-control-sm" placeholder="..." [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
+          </div>
+        </div>
+        @if (prescriptionRequired() && !bill().prescriptionId) {
+          <div class="text-danger small mt-2"><i class="bi bi-exclamation-triangle me-1"></i> Schedule H1/X/G/Restricted item present — prescription required.</div>
         }
-
-        <div class="card-pharma p-3 summary">
-          <div class="d-flex justify-content-between"><span>Items</span><span>{{ itemCount() }}</span></div>
-          <div class="d-flex justify-content-between"><span>Gross (MRP)</span><span>{{ grossTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
-          <div class="d-flex justify-content-between text-secondary"><span>GST (incl)</span><span>{{ gstTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
-          <hr class="my-2" />
-          <div class="d-flex justify-content-between fw-bold fs-4"><span>Total</span><span class="text-pharma">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
-          <button class="btn btn-pharma w-100 mt-3 py-2" [disabled]="saving()" (click)="save()">
-            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-            <i class="bi bi-cart-check me-1"></i> Complete Sale
-          </button>
-        </div>
       </div>
-    </div>
-  }
 
-  <!-- Substitutes modal -->
-  @if (subsOpen()) {
-    <div class="modal-backdrop-custom" (click)="subsOpen.set(false)"></div>
-    <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg">
-        <div class="modal-head">
-          <h5 class="mb-0 fw-semibold">Substitutes</h5>
-          <button class="btn-close" (click)="subsOpen.set(false)"></button>
-        </div>
-        <div class="modal-body-custom">
-          @if (subsLoading()) {
-            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
-          } @else if (substitutes().length === 0) {
-            <p class="text-secondary text-center py-3">No substitutes found for this molecule.</p>
-          } @else {
-            <div class="list-group">
-              @for (sub of substitutes(); track sub.id) {
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <div class="fw-semibold">{{ sub.name }}</div>
-                    <div class="text-secondary small">{{ sub.manufacturer }} · {{ sub.generic_name }} · {{ sub.schedule_category }}</div>
-                  </div>
-                  @if (sub.binding_id && sub.available_qty > 0) {
-                    <button class="btn btn-sm btn-pharma" (click)="addSubstitute(sub)">Add ({{ sub.available_qty }})</button>
-                  } @else {
-                    <span class="badge text-bg-light">not in stock</span>
-                  }
-                </div>
+      <!-- Item grid -->
+      <div class="card-pharma grid-card">
+        <div class="table-responsive">
+          <table class="table table-sm bill-grid mb-0">
+            <thead>
+              <tr>
+                <th>Product</th><th>Qty</th><th>Unit</th><th>Disc%</th><th>B.No</th><th>Shelf</th>
+                <th>Rate</th><th>Exp.</th><th>Category</th><th>Pack</th><th class="text-end">MRP</th>
+                <th class="text-end">Taxable</th><th class="text-end">Discount</th>
+                <th class="text-end">Profit</th><th class="text-end">GST</th><th class="text-end">Net</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of bill().lines; track line.binding_id) {
+                <tr>
+                  <td class="prod-cell">{{ line.product_name }}</td>
+                  <td><input type="number" class="g-input" style="width:54px" [ngModel]="line.qty" (ngModelChange)="updateLine($index, { qty: +$event })" /></td>
+                  <td>
+                    <select class="g-input" style="width:64px" [ngModel]="line.unit_type" (ngModelChange)="onUnitTypeChange($index, $event)" [disabled]="!line.allow_loose">
+                      <option value="unit">Unit</option>
+                      <option value="pack">Pack</option>
+                    </select>
+                  </td>
+                  <td><input type="number" class="g-input" style="width:52px" [ngModel]="line.disc" (ngModelChange)="updateLine($index, { disc: +$event })" /></td>
+                  <td>
+                    @if (line.batches.length > 1) {
+                      <select class="g-input" style="width:90px" [ngModel]="line.batch_id" (ngModelChange)="selectBatch($index, +$event)">
+                        @for (b of line.batches; track b.batch_id) { <option [ngValue]="b.batch_id">{{ b.batch_no }}</option> }
+                      </select>
+                    } @else { <span class="small">{{ line.batch_no || '-' }}</span> }
+                  </td>
+                  <td class="small">{{ line.shelf || '-' }}</td>
+                  <td><input type="number" class="g-input" style="width:70px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
+                  <td class="small">{{ line.expiry ? (line.expiry | date: 'MM/yy') : '-' }}</td>
+                  <td><span class="badge sched-{{ line.category }}">{{ line.category }}</span></td>
+                  <td class="small">{{ line.pack || '-' }}</td>
+                  <td class="text-end small">{{ line.mrp | number: '1.2-2' }}</td>
+                  <td class="text-end small">{{ lineTaxable(line) | number: '1.2-2' }}</td>
+                  <td class="text-end small">{{ lineDiscountAmt(line) | number: '1.2-2' }}</td>
+                  <td class="text-end small text-success">{{ lineProfit(line) | number: '1.2-2' }}</td>
+                  <td class="text-end small">{{ lineGstAmt(line) | number: '1.2-2' }}</td>
+                  <td class="text-end fw-semibold">{{ lineSell(line) | number: '1.2-2' }}</td>
+                  <td><button class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="17" class="text-center text-secondary py-4">
+                  <i class="bi bi-arrow-left me-1"></i> Search and click a product to add it to the bill.
+                </td></tr>
               }
-            </div>
-          }
+            </tbody>
+            <tfoot>
+              <tr class="grid-foot">
+                <td colspan="11" class="text-end fw-semibold">Totals</td>
+                <td class="text-end">{{ (netTotal() - gstTotal()) | number: '1.2-2' }}</td>
+                <td></td>
+                <td class="text-end text-success">{{ profitTotal() | number: '1.2-2' }}</td>
+                <td class="text-end">{{ gstTotal() | number: '1.2-2' }}</td>
+                <td class="text-end fw-bold">{{ netTotal() | number: '1.2-2' }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Footer bar -->
+        <div class="grid-footer">
+          <div class="net-total">
+            <span class="small text-secondary">NET TOTAL</span>
+            <span class="net-amount">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" disabled title="AI prescription parsing (configure provider)">
+              <i class="bi bi-robot me-1"></i> AI PRESCRIPTION
+            </button>
+            <button class="btn btn-success" [disabled]="saving()" (click)="save(false)">
+              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } SAVE
+            </button>
+            <button class="btn btn-pharma" [disabled]="saving()" (click)="save(true)">
+              <i class="bi bi-printer me-1"></i> SAVE &amp; PRINT
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  </div>
   }
 
   <!-- Camera modal -->

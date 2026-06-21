@@ -1,4 +1,17 @@
-export type UserRole = 'ho_admin' | 'branch_admin' | 'pharmacist' | 'cashier';
+export type UserRole = 'ho_admin' | 'branch_admin' | 'purchase' | 'pharmacist' | 'cashier';
+
+/** Landing route per role. Pharmacist/cashier go straight to billing. */
+export function roleHome(role: string | undefined | null): string {
+  switch (role) {
+    case 'pharmacist':
+    case 'cashier':
+      return '/app/sales/new';
+    case 'purchase':
+      return '/app/purchase/new';
+    default:
+      return '/app/dashboard';
+  }
+}
 
 export interface AuthUser {
   id: number;

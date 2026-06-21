@@ -53,7 +53,9 @@
             <th>Schedule</th>
             <th>Batch</th>
             <th>Expiry</th>
-            <th class="text-end">Qty</th>
+            <th>Shelf</th>
+            <th class="text-end">Qty(pk)</th>
+            <th class="text-end">Units/Pk</th>
             <th class="text-end">Free</th>
             <th class="text-end">Rate</th>
             <th class="text-end">MRP</th>
@@ -97,8 +99,12 @@
                 [ngModel]="line.batch_no" (ngModelChange)="updateLine($index, { batch_no: $event })" /></td>
               <td><input class="form-control form-control-sm" style="width:110px" placeholder="MM/YYYY"
                 [ngModel]="line.expiry_date" (ngModelChange)="updateLine($index, { expiry_date: $event })" /></td>
-              <td><input type="number" class="form-control form-control-sm text-end" style="width:70px"
+              <td><input class="form-control form-control-sm" style="width:80px" placeholder="Shelf"
+                [ngModel]="line.shelf_location" (ngModelChange)="updateLine($index, { shelf_location: $event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:64px"
                 [ngModel]="line.quantity" (ngModelChange)="updateLine($index, { quantity: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:64px"
+                [ngModel]="line.units_per_pack" (ngModelChange)="updateLine($index, { units_per_pack: +$event })" /></td>
               <td><input type="number" class="form-control form-control-sm text-end" style="width:60px"
                 [ngModel]="line.free_quantity" (ngModelChange)="updateLine($index, { free_quantity: +$event })" /></td>
               <td><input type="number" class="form-control form-control-sm text-end" style="width:80px"

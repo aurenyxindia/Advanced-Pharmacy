@@ -8,6 +8,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
+import { roleHome } from '../../../core/models/auth.models';
 
 @Component({
   selector: 'app-login',
@@ -42,7 +43,7 @@ export class Login {
     this.errorMessage.set(null);
 
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: () => this.router.navigate(['/app/dashboard']),
+      next: (res) => this.router.navigateByUrl(roleHome(res.data.user.role)),
       error: (err: HttpErrorResponse) => {
         this.loading.set(false);
         this.errorMessage.set(err.error?.message ?? 'Unable to sign in. Please try again.');

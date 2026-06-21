@@ -1,26 +1,71 @@
-import { Component, computed, inject, signal, ElementRef, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
+  BatchOption,
   SaleProduct,
   SalesService,
   SaleResult,
-  Substitute,
 } from '../../core/services/sales.service';
+import { CrudService } from '../../core/services/crud.service';
+
+const PRESCRIPTION_SCHEDULES = ['H1', 'X', 'G', 'RESTRICTED'];
+const COUNTERS = ['COUNTER 1', 'COUNTER 2', 'COUNTER 3', 'CASH COUNTER', 'IPD COUNTER'];
 
 interface BillLine {
   binding_id: number;
   product_name: string;
-  schedule_category: string;
+  category: string;        // schedule
   gst_rate: number;
-  quantity: number;
-  rate: number;
-  discount_pct: number;
-  available_qty: number;
+  units_per_pack: number;
+  allow_loose: boolean;
+  pack: string | null;
+  shelf: string | null;
+  unit_type: 'unit' | 'pack';
+  batch_id: number | null;
+  batch_no: string | null;
+  expiry: string | null;
+  mrp: number;             // per unit
+  rate: number;            // per unit selling
+  qty: number;
+  disc: number;
+  cost: number;            // per unit incl gst (for profit estimate)
+  batches: BatchOption[];
 }
 
-const PRESCRIPTION_SCHEDULES = ['H1', 'X', 'G', 'RESTRICTED'];
+interface Bill {
+  billDate: string;
+  saleType: string;
+  paymentMode: string;
+  contact: string;
+  patientName: string;
+  address: string;
+  doctor: string;
+  narration: string;
+  reminderDays: number | null;
+  prescriptionId: number | null;
+  prescriptionName: string | null;
+  lines: BillLine[];
+}
+
+function emptyBill(): Bill {
+  return {
+    billDate: new Date().toISOString().slice(0, 10),
+    saleType: 'Regular',
+    paymentMode: 'Cash',
+    contact: '',
+    patientName: '',
+    address: '',
+    doctor: '',
+    narration: '',
+    reminderDays: null,
+    prescriptionId: null,
+    prescriptionName: null,
+    lines: [],
+  };
+}
 
 @Component({
   selector: 'app-billing',
@@ -30,136 +75,193 @@ const PRESCRIPTION_SCHEDULES = ['H1', 'X', 'G', 'RESTRICTED'];
 })
 export class Billing {
   private readonly salesSvc = inject(SalesService);
+  private readonly crud = inject(CrudService);
+  private readonly router = inject(Router);
   private readonly video = viewChild<ElementRef<HTMLVideoElement>>('video');
 
-  readonly customerName = signal('Walk-in');
-  readonly doctorName = signal('');
-  readonly paymentMode = signal('cash');
-  readonly billDiscountPct = signal(0);
+  readonly counters = COUNTERS;
+  readonly activeCounter = signal('COUNTER 1');
+  readonly bills = signal<Record<string, Bill>>(
+    Object.fromEntries(COUNTERS.map((c) => [c, emptyBill()])),
+  );
 
-  readonly lines = signal<BillLine[]>([]);
-  readonly saving = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly bill = computed(() => this.bills()[this.activeCounter()]);
 
   // search
   readonly searchTerm = signal('');
   readonly searchResults = signal<SaleProduct[]>([]);
   private searchTimer?: ReturnType<typeof setTimeout>;
+  readonly generics = signal<{ id: number; name: string }[]>([]);
+  readonly selectedGeneric = signal<number | null>(null);
 
-  // prescription
-  readonly prescriptionId = signal<number | null>(null);
-  readonly prescriptionName = signal<string | null>(null);
-  readonly uploadingPrescription = signal(false);
-
-  // substitutes
-  readonly subsOpen = signal(false);
-  readonly subsLoading = signal(false);
-  readonly substitutes = signal<Substitute[]>([]);
+  readonly saving = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly completed = signal<SaleResult | null>(null);
 
   // camera
   readonly cameraOpen = signal(false);
   private stream?: MediaStream;
+  readonly uploadingPrescription = signal(false);
 
-  // completed sale
-  readonly completed = signal<SaleResult | null>(null);
+  readonly paymentModes = ['Cash', 'Card', 'UPI', 'Credit'];
+  readonly saleTypes = ['Regular', 'Return'];
 
-  readonly prescriptionRequired = computed(() =>
-    this.lines().some((l) => PRESCRIPTION_SCHEDULES.includes(l.schedule_category)),
-  );
-
-  lineSell(l: BillLine): number {
-    return l.rate * l.quantity * (1 - l.discount_pct / 100);
-  }
-  lineGst(l: BillLine): number {
-    const sell = this.lineSell(l);
-    return sell - sell / (1 + l.gst_rate / 100);
+  constructor() {
+    this.crud.list<{ id: number; name: string }>('generics', { perPage: 500 }).subscribe((r) =>
+      this.generics.set(r.data),
+    );
+    this.loadInitial();
   }
 
-  readonly grossTotal = computed(() => this.lines().reduce((s, l) => s + l.rate * l.quantity, 0));
-  readonly gstTotal = computed(() => this.lines().reduce((s, l) => s + this.lineGst(l), 0));
-  readonly itemsSell = computed(() => this.lines().reduce((s, l) => s + this.lineSell(l), 0));
-  readonly netTotal = computed(() =>
-    Math.max(0, this.itemsSell() - this.itemsSell() * (this.billDiscountPct() / 100)),
-  );
-  readonly itemCount = computed(() => this.lines().reduce((s, l) => s + l.quantity, 0));
+  // ---- counter management ----
+  switchCounter(c: string): void {
+    this.activeCounter.set(c);
+    this.completed.set(null);
+    this.error.set(null);
+  }
 
-  // ---- search ----
+  counterCount(c: string): number {
+    return this.bills()[c].lines.length;
+  }
+
+  private patchBill(patch: Partial<Bill>): void {
+    this.bills.update((all) => ({ ...all, [this.activeCounter()]: { ...all[this.activeCounter()], ...patch } }));
+  }
+
+  // expose setters for template
+  set<K extends keyof Bill>(field: K, value: Bill[K]): void {
+    this.patchBill({ [field]: value } as Partial<Bill>);
+  }
+
+  // ---- product search ----
+  loadInitial(): void {
+    this.salesSvc.searchProducts('').subscribe((r) => this.searchResults.set(r));
+  }
+
   onSearch(value: string): void {
     this.searchTerm.set(value);
     clearTimeout(this.searchTimer);
-    if (value.trim().length < 2) {
-      this.searchResults.set([]);
-      return;
-    }
     this.searchTimer = setTimeout(() => {
-      this.salesSvc.searchProducts(value).subscribe((r) => this.searchResults.set(r));
-    }, 250);
+      this.salesSvc.searchProducts(value, this.selectedGeneric() ?? undefined).subscribe((r) =>
+        this.searchResults.set(r),
+      );
+    }, 200);
   }
 
+  onGenericChange(id: number | null): void {
+    this.selectedGeneric.set(id);
+    this.salesSvc.searchProducts(this.searchTerm(), id ?? undefined).subscribe((r) =>
+      this.searchResults.set(r),
+    );
+  }
+
+  clearGeneric(): void {
+    this.selectedGeneric.set(null);
+    this.onSearch(this.searchTerm());
+  }
+
+  // ---- add / edit lines ----
   addProduct(p: SaleProduct): void {
-    const existing = this.lines().findIndex((l) => l.binding_id === p.binding_id);
+    const existing = this.bill().lines.findIndex((l) => l.binding_id === p.binding_id);
     if (existing >= 0) {
-      this.updateLine(existing, { quantity: this.lines()[existing].quantity + 1 });
-    } else {
-      this.lines.update((ls) => [
-        ...ls,
-        {
-          binding_id: p.binding_id,
-          product_name: p.product_name,
-          schedule_category: p.schedule_category,
-          gst_rate: Number(p.gst_rate) || 0,
-          quantity: 1,
-          rate: Number(p.mrp) || 0,
-          discount_pct: 0,
-          available_qty: p.available_qty,
-        },
-      ]);
+      this.updateLine(existing, { qty: this.bill().lines[existing].qty + 1 });
+      return;
     }
+    // Fetch batches then push line.
+    this.salesSvc.batches(p.binding_id).subscribe((batches) => {
+      const b = batches[0];
+      const line: BillLine = {
+        binding_id: p.binding_id,
+        product_name: p.product_name,
+        category: p.schedule_category,
+        gst_rate: Number(p.gst_rate) || 0,
+        units_per_pack: p.units_per_pack ?? 1,
+        allow_loose: (p.allow_loose ?? 1) === 1,
+        pack: p.pack_size ?? null,
+        shelf: b?.shelf_location ?? p.shelf_location ?? null,
+        unit_type: 'unit',
+        batch_id: b?.batch_id ?? null,
+        batch_no: b?.batch_no ?? null,
+        expiry: b?.expiry_date ?? null,
+        mrp: b?.unit_mrp ?? Number(p.mrp) ?? 0,
+        rate: b?.unit_mrp ?? Number(p.mrp) ?? 0,
+        qty: 1,
+        disc: 0,
+        cost: b?.purchase_rate ?? 0,
+        batches: batches,
+      };
+      this.patchBill({ lines: [...this.bill().lines, line] });
+    });
     this.searchTerm.set('');
     this.searchResults.set([]);
   }
 
   updateLine(index: number, patch: Partial<BillLine>): void {
-    this.lines.update((ls) => ls.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+    const lines = this.bill().lines.map((l, i) => (i === index ? { ...l, ...patch } : l));
+    this.patchBill({ lines });
   }
+
+  onUnitTypeChange(index: number, type: 'unit' | 'pack'): void {
+    const l = this.bill().lines[index];
+    if (type === l.unit_type) return;
+    const upp = Math.max(1, l.units_per_pack);
+    const rate = type === 'pack' ? l.rate * upp : l.rate / upp;
+    this.updateLine(index, { unit_type: type, rate: Math.round(rate * 100) / 100 });
+  }
+
+  selectBatch(index: number, batchId: number): void {
+    const line = this.bill().lines[index];
+    const b = line.batches.find((x) => x.batch_id === batchId);
+    if (b) {
+      this.updateLine(index, {
+        batch_id: b.batch_id, batch_no: b.batch_no, expiry: b.expiry_date,
+        mrp: b.unit_mrp, rate: b.unit_mrp, cost: b.purchase_rate, shelf: b.shelf_location,
+      });
+    }
+  }
+
   removeLine(index: number): void {
-    this.lines.update((ls) => ls.filter((_, i) => i !== index));
+    this.patchBill({ lines: this.bill().lines.filter((_, i) => i !== index) });
   }
 
-  // ---- substitutes ----
-  openSubstitutes(line: BillLine): void {
-    this.subsOpen.set(true);
-    this.subsLoading.set(true);
-    this.substitutes.set([]);
-    this.salesSvc.substitutes(line.binding_id).subscribe({
-      next: (s) => { this.substitutes.set(s); this.subsLoading.set(false); },
-      error: () => this.subsLoading.set(false),
-    });
+  // ---- line maths ----
+  lineSell(l: BillLine): number {
+    return l.rate * l.qty * (1 - l.disc / 100);
   }
-  addSubstitute(sub: Substitute): void {
-    if (!sub.binding_id) return;
-    this.addProduct({
-      binding_id: sub.binding_id,
-      product_name: sub.name,
-      schedule_category: sub.schedule_category,
-      gst_rate: sub.default_gst_rate,
-      master_product_id: sub.id,
-      available_qty: sub.available_qty,
-      mrp: 0,
-    });
-    this.subsOpen.set(false);
+  lineTaxable(l: BillLine): number {
+    return this.lineSell(l) / (1 + l.gst_rate / 100);
+  }
+  lineGstAmt(l: BillLine): number {
+    return this.lineSell(l) - this.lineTaxable(l);
+  }
+  lineDiscountAmt(l: BillLine): number {
+    return l.rate * l.qty * (l.disc / 100);
+  }
+  lineProfit(l: BillLine): number {
+    // cost is per base unit; scale to the chosen unit (pack multiplies by units_per_pack).
+    const effCost = l.unit_type === 'pack' ? l.cost * Math.max(1, l.units_per_pack) : l.cost;
+    const costExcl = (effCost / (1 + l.gst_rate / 100)) * l.qty;
+    return this.lineTaxable(l) - costExcl;
   }
 
-  // ---- prescription upload ----
+  readonly netTotal = computed(() => this.bill().lines.reduce((s, l) => s + this.lineSell(l), 0));
+  readonly grossTotal = computed(() => this.bill().lines.reduce((s, l) => s + l.rate * l.qty, 0));
+  readonly gstTotal = computed(() => this.bill().lines.reduce((s, l) => s + this.lineGstAmt(l), 0));
+  readonly profitTotal = computed(() => this.bill().lines.reduce((s, l) => s + this.lineProfit(l), 0));
+
+  readonly prescriptionRequired = computed(() =>
+    this.bill().lines.some((l) => PRESCRIPTION_SCHEDULES.includes(l.category)),
+  );
+
+  // ---- prescription ----
   onPrescriptionFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
     this.uploadingPrescription.set(true);
-    this.salesSvc.uploadPrescription(file, 'upload', this.doctorName()).subscribe({
+    this.salesSvc.uploadPrescription(file, 'upload', this.bill().doctor).subscribe({
       next: (res) => {
-        this.prescriptionId.set(res.data.id);
-        this.prescriptionName.set(file.name);
+        this.patchBill({ prescriptionId: res.data.id, prescriptionName: file.name });
         this.uploadingPrescription.set(false);
       },
       error: () => this.uploadingPrescription.set(false),
@@ -167,7 +269,6 @@ export class Billing {
     input.value = '';
   }
 
-  // ---- camera ----
   async openCamera(): Promise<void> {
     this.cameraOpen.set(true);
     try {
@@ -183,16 +284,14 @@ export class Billing {
     const v = this.video()?.nativeElement;
     if (!v) return;
     const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth;
-    canvas.height = v.videoHeight;
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
     canvas.getContext('2d')!.drawImage(v, 0, 0);
     canvas.toBlob((blob) => {
       if (!blob) return;
       this.uploadingPrescription.set(true);
-      this.salesSvc.uploadPrescription(blob, 'camera', this.doctorName()).subscribe({
+      this.salesSvc.uploadPrescription(blob, 'camera', this.bill().doctor).subscribe({
         next: (res) => {
-          this.prescriptionId.set(res.data.id);
-          this.prescriptionName.set('Camera capture');
+          this.patchBill({ prescriptionId: res.data.id, prescriptionName: 'Camera capture' });
           this.uploadingPrescription.set(false);
           this.closeCamera();
         },
@@ -207,64 +306,74 @@ export class Billing {
   }
 
   // ---- save ----
-  save(): void {
-    if (this.lines().length === 0) {
-      this.error.set('Add at least one item.');
-      return;
-    }
-    if (this.prescriptionRequired() && !this.prescriptionId()) {
-      this.error.set('A prescription is mandatory for the scheduled drugs in this bill.');
+  save(printAfter = false): void {
+    const b = this.bill();
+    if (b.lines.length === 0) { this.error.set('Add at least one product.'); return; }
+    if (this.prescriptionRequired() && !b.prescriptionId) {
+      this.error.set('Prescription is mandatory for the scheduled drugs in this bill.');
       return;
     }
     this.saving.set(true);
     this.error.set(null);
 
-    this.salesSvc
-      .create({
-        customer_name: this.customerName(),
-        doctor_name: this.doctorName(),
-        payment_mode: this.paymentMode(),
-        bill_discount_pct: this.billDiscountPct(),
-        prescription_id: this.prescriptionId(),
-        items: this.lines().map((l) => ({
+    this.salesSvc.create({
+      counter: this.activeCounter(),
+      sale_type: b.saleType,
+      customer_name: b.patientName || 'Walk-in',
+      patient_name: b.patientName,
+      contact_no: b.contact,
+      address: b.address,
+      narration: b.narration,
+      reminder_days: b.reminderDays,
+      doctor_name: b.doctor,
+      payment_mode: b.paymentMode.toLowerCase(),
+      prescription_id: b.prescriptionId,
+      items: b.lines.map((l) => {
+        const upp = Math.max(1, l.units_per_pack);
+        // Backend tracks base (loose) units with a per-unit rate.
+        const baseQty = l.unit_type === 'pack' ? l.qty * upp : l.qty;
+        const baseRate = l.unit_type === 'pack' ? l.rate / upp : l.rate;
+        return {
           product_binding_id: l.binding_id,
-          schedule_category: l.schedule_category,
-          quantity: l.quantity,
-          rate: l.rate,
-          discount_pct: l.discount_pct,
-        })),
-      })
-      .subscribe({
-        next: (res) => {
-          this.saving.set(false);
-          this.completed.set(res.data);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.saving.set(false);
-          const errors = err.error?.errors;
-          const first = errors ? (Object.values(errors)[0] as string[])?.[0] : null;
-          this.error.set(first ?? err.error?.message ?? 'Could not complete the sale.');
-        },
-      });
-  }
-
-  printInvoice(): void {
-    const sale = this.completed();
-    if (!sale) return;
-    this.salesSvc.invoiceBlob(sale.id).subscribe((blob) => {
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+          schedule_category: l.category,
+          quantity: baseQty,
+          rate: Math.round(baseRate * 100) / 100,
+          discount_pct: l.disc,
+          batch_id: l.batch_id,
+          unit_type: l.unit_type,
+          pack: l.pack,
+          shelf: l.shelf,
+        };
+      }),
+    }).subscribe({
+      next: (res) => {
+        this.saving.set(false);
+        this.completed.set(res.data);
+        // Reset this counter for the next patient.
+        this.bills.update((all) => ({ ...all, [this.activeCounter()]: emptyBill() }));
+        if (printAfter) this.printInvoice(res.data.id);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.saving.set(false);
+        const errors = err.error?.errors;
+        const first = errors ? (Object.values(errors)[0] as string[])?.[0] : null;
+        this.error.set(first ?? err.error?.message ?? 'Could not complete the sale.');
+      },
     });
   }
 
+  printInvoice(id?: number): void {
+    const saleId = id ?? this.completed()?.id;
+    if (!saleId) return;
+    this.salesSvc.invoiceBlob(saleId).subscribe((blob) => window.open(URL.createObjectURL(blob), '_blank'));
+  }
+
   newBill(): void {
-    this.lines.set([]);
-    this.customerName.set('Walk-in');
-    this.doctorName.set('');
-    this.billDiscountPct.set(0);
-    this.prescriptionId.set(null);
-    this.prescriptionName.set(null);
     this.completed.set(null);
     this.error.set(null);
+  }
+
+  viewSales(): void {
+    this.router.navigate(['/app/sales']);
   }
 }

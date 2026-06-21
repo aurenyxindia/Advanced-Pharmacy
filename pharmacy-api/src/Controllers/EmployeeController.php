@@ -16,7 +16,7 @@ use App\Models\User;
  */
 final class EmployeeController extends Controller
 {
-    private const ROLES = ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'];
+    private const ROLES = ['ho_admin', 'branch_admin', 'purchase', 'pharmacist', 'cashier'];
 
     public function index(Request $request): Response
     {

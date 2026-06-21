@@ -14,7 +14,9 @@ interface Line {
   schedule_category: string;
   batch_no: string;
   expiry_date: string;
+  shelf_location: string;
   quantity: number;
+  units_per_pack: number;
   free_quantity: number;
   purchase_rate: number;
   mrp: number;
@@ -28,7 +30,9 @@ function emptyLine(): Line {
     schedule_category: 'OTC',
     batch_no: '',
     expiry_date: '',
+    shelf_location: '',
     quantity: 1,
+    units_per_pack: 1,
     free_quantity: 0,
     purchase_rate: 0,
     mrp: 0,
@@ -120,6 +124,8 @@ export class PurchaseEntry {
       product_name: p.name,
       schedule_category: p.schedule_category,
       gst_rate: Number(p.default_gst_rate) || 12,
+      units_per_pack: p.units_per_pack || 1,
+      shelf_location: p.shelf_location || '',
     });
     this.searchResults.set([]);
     this.activeIndex.set(null);
@@ -145,7 +151,9 @@ export class PurchaseEntry {
           schedule_category: 'OTC',
           batch_no: l.batch_no ?? '',
           expiry_date: l.expiry_date ?? '',
+          shelf_location: '',
           quantity: l.quantity || 1,
+          units_per_pack: 1,
           free_quantity: l.free_quantity || 0,
           purchase_rate: l.purchase_rate || 0,
           mrp: l.mrp || 0,
@@ -180,7 +188,9 @@ export class PurchaseEntry {
         product_name: l.product_name,
         batch_no: l.batch_no,
         expiry_date: l.expiry_date,
+        shelf_location: l.shelf_location,
         quantity: l.quantity,
+        units_per_pack: l.units_per_pack || 1,
         free_quantity: l.free_quantity,
         purchase_rate: l.purchase_rate,
         mrp: l.mrp,
@@ -195,6 +205,8 @@ export class PurchaseEntry {
               name: l.product_name,
               schedule_category: l.schedule_category,
               default_gst_rate: l.gst_rate,
+              units_per_pack: l.units_per_pack || 1,
+              shelf_location: l.shelf_location,
             },
           };
     });

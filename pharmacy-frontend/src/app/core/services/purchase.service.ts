@@ -14,6 +14,8 @@ export interface ProductSearchResult {
   generic_name: string | null;
   hsn_code: string | null;
   pack_size: string | null;
+  units_per_pack?: number;
+  shelf_location?: string | null;
 }
 
 export interface PurchaseLine {

@@ -13,6 +13,23 @@ export interface SaleProduct {
   master_product_id: number;
   available_qty: number;
   mrp: number | null;
+  units_per_pack?: number;
+  allow_loose?: number;
+  shelf_location?: string | null;
+  pack_size?: string | null;
+  generic_name?: string | null;
+}
+
+export interface BatchOption {
+  batch_id: number;
+  batch_no: string;
+  expiry_date: string | null;
+  mrp: number;
+  unit_mrp: number;
+  purchase_rate: number;
+  quantity: number;
+  shelf_location: string | null;
+  units_per_pack: number;
 }
 
 export interface Substitute {
@@ -32,11 +49,22 @@ export interface SaleItemPayload {
   quantity: number;
   rate: number;
   discount_pct: number;
+  batch_id?: number | null;
+  unit_type?: string;
+  pack?: string | null;
+  shelf?: string | null;
 }
 
 export interface SalePayload {
+  counter?: string;
+  sale_type?: string;
   customer_name?: string;
   customer_id?: number | null;
+  patient_name?: string;
+  contact_no?: string;
+  address?: string;
+  narration?: string;
+  reminder_days?: number | null;
   doctor_name?: string;
   payment_mode?: string;
   bill_discount_pct?: number;
@@ -58,10 +86,17 @@ export class SalesService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  searchProducts(q: string): Observable<SaleProduct[]> {
-    const params = new HttpParams().set('q', q);
+  searchProducts(q: string, genericId?: number): Observable<SaleProduct[]> {
+    let params = new HttpParams().set('q', q);
+    if (genericId) params = params.set('generic_id', String(genericId));
     return this.http
       .get<ApiResponse<SaleProduct[]>>(`${this.base}/sales/search-products`, { params })
+      .pipe(map((r) => r.data));
+  }
+
+  batches(bindingId: number): Observable<BatchOption[]> {
+    return this.http
+      .get<ApiResponse<BatchOption[]>>(`${this.base}/bound-products/${bindingId}/batches`)
       .pipe(map((r) => r.data));
   }
 

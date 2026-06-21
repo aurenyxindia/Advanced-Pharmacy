@@ -48,12 +48,13 @@ final class PurchaseService
             foreach ($items as $i => $item) {
                 $bindingId = $this->resolveBinding($clientId, $branchId, $item);
 
-                $qty      = (int) ($item['quantity'] ?? 0);
+                $qty      = (int) ($item['quantity'] ?? 0);   // packs
                 $free     = (int) ($item['free_quantity'] ?? 0);
-                $rate     = (float) ($item['purchase_rate'] ?? 0);
-                $mrp      = (float) ($item['mrp'] ?? 0);
+                $rate     = (float) ($item['purchase_rate'] ?? 0); // per pack
+                $mrp      = (float) ($item['mrp'] ?? 0);            // per pack
                 $discPct  = (float) ($item['discount_pct'] ?? 0);
                 $gstRate  = (float) ($item['gst_rate'] ?? 0);
+                $upp      = max(1, (int) ($item['units_per_pack'] ?? 1));
 
                 if ($qty <= 0 || $rate < 0) {
                     throw HttpException::validation(["items.$i" => ['Invalid quantity or rate.']]);
@@ -64,7 +65,11 @@ final class PurchaseService
                 $gstAmt    = $taxable * $gstRate / 100;
                 $lineTotal = $taxable + $gstAmt;
                 $netRate   = $rate * (1 - $discPct / 100);
-                $costPerUnit = ($qty + $free) > 0 ? $lineTotal / ($qty + $free) : $lineTotal;
+
+                // Convert to base (loose) units for inventory.
+                $baseUnits      = ($qty + $free) * $upp;
+                $unitCostIncl   = $baseUnits > 0 ? $lineTotal / $baseUnits : $lineTotal; // per base unit
+                $unitMrp        = $upp > 0 ? $mrp / $upp : $mrp;                          // per base unit
 
                 $gross        += $lineGross;
                 $scheme       += $free * $rate;
@@ -77,15 +82,19 @@ final class PurchaseService
                     'product_name' => $item['product_name'] ?? '',
                     'batch_no'     => $item['batch_no'] ?? null,
                     'expiry_date'  => $this->normalizeExpiry($item['expiry_date'] ?? null),
+                    'shelf'        => $item['shelf_location'] ?? null,
                     'quantity'     => $qty,
                     'free_quantity' => $free,
+                    'units_per_pack' => $upp,
+                    'base_units'   => $baseUnits,
                     'purchase_rate' => $rate,
                     'mrp'          => $mrp,
+                    'unit_mrp'     => round($unitMrp, 2),
                     'discount_pct' => $discPct,
                     'gst_rate'     => $gstRate,
                     'net_rate'     => round($netRate, 2),
                     'line_total'   => round($lineTotal, 2),
-                    'cost_per_unit' => round($costPerUnit, 4),
+                    'unit_cost'    => round($unitCostIncl, 4),
                 ];
             }
 
@@ -125,11 +134,11 @@ final class PurchaseService
             // Insert items + post stock.
             $itemStmt = $db->prepare(
                 'INSERT INTO purchase_items
-                    (purchase_id, product_binding_id, product_name, batch_no, expiry_date, quantity,
-                     free_quantity, purchase_rate, mrp, discount_pct, gst_rate, net_rate, line_total)
+                    (purchase_id, product_binding_id, product_name, batch_no, expiry_date, shelf_location, quantity,
+                     units_per_pack, free_quantity, purchase_rate, mrp, discount_pct, gst_rate, net_rate, line_total)
                  VALUES
-                    (:purchase_id, :binding_id, :product_name, :batch_no, :expiry_date, :quantity,
-                     :free_quantity, :purchase_rate, :mrp, :discount_pct, :gst_rate, :net_rate, :line_total)'
+                    (:purchase_id, :binding_id, :product_name, :batch_no, :expiry_date, :shelf, :quantity,
+                     :upp, :free_quantity, :purchase_rate, :mrp, :discount_pct, :gst_rate, :net_rate, :line_total)'
             );
 
             foreach ($computedItems as $ci) {
@@ -139,7 +148,9 @@ final class PurchaseService
                     'product_name'  => $ci['product_name'],
                     'batch_no'      => $ci['batch_no'],
                     'expiry_date'   => $ci['expiry_date'] ?: null,
+                    'shelf'         => $ci['shelf'],
                     'quantity'      => $ci['quantity'],
+                    'upp'           => $ci['units_per_pack'],
                     'free_quantity' => $ci['free_quantity'],
                     'purchase_rate' => $ci['purchase_rate'],
                     'mrp'           => $ci['mrp'],
@@ -149,15 +160,17 @@ final class PurchaseService
                     'line_total'    => $ci['line_total'],
                 ]);
 
+                // Stock is posted in BASE units; MRP/cost stored per base unit.
                 $this->inventory->addStock(
                     $clientId,
                     $branchId,
                     $ci['binding_id'],
                     (string) ($ci['batch_no'] ?: 'NA'),
                     $ci['expiry_date'] ?: null,
-                    (float) $ci['mrp'],
-                    (float) $ci['cost_per_unit'],
-                    $ci['quantity'] + $ci['free_quantity']
+                    (float) $ci['unit_mrp'],
+                    (float) $ci['unit_cost'],
+                    $ci['base_units'],
+                    $ci['shelf']
                 );
             }
 
@@ -191,6 +204,9 @@ final class PurchaseService
                 'hsn_code'          => $np['hsn_code'] ?? null,
                 'default_gst_rate'  => $np['default_gst_rate'] ?? ($item['gst_rate'] ?? 12),
                 'pack_size'         => $np['pack_size'] ?? null,
+                'units_per_pack'    => $np['units_per_pack'] ?? ($item['units_per_pack'] ?? 1),
+                'allow_loose'       => $np['allow_loose'] ?? 1,
+                'shelf_location'    => $np['shelf_location'] ?? ($item['shelf_location'] ?? null),
                 'uom'               => $np['uom'] ?? 'NOS',
                 'composition'       => $np['composition'] ?? null,
             ]);

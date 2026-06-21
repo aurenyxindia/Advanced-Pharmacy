@@ -128,8 +128,9 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->get('/sales/{id}/invoice', [SalesController::class, 'invoice']);
     $router->get('/sales/{id}', [SalesController::class, 'show']);
 
-    // Substitutes lookup for a bound product (used live during billing)
+    // Substitutes + batches lookup for a bound product (used live during billing)
     $router->get('/bound-products/{id}/substitutes', [SalesController::class, 'substitutes']);
+    $router->get('/bound-products/{id}/batches', [SalesController::class, 'batches']);
 
     // ---- Prescriptions ----
     $router->post('/prescriptions', [PrescriptionController::class, 'upload']);

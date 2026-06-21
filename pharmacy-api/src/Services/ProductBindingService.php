@@ -35,6 +35,10 @@ final class ProductBindingService
                 'schedule_category' => $product['schedule_category'],
                 'gst_rate'          => $product['default_gst_rate'],
                 'hsn_code'          => $product['hsn_code'],
+                'units_per_pack'    => $product['units_per_pack'] ?? 1,
+                'allow_loose'       => $product['allow_loose'] ?? 1,
+                'shelf_location'    => $product['shelf_location'] ?? null,
+                'pack_size'         => $product['pack_size'] ?? null,
                 'updated_at'        => now(),
             ]);
             return ['id' => (int) $existing['id'], 'rebound' => true];
@@ -49,6 +53,10 @@ final class ProductBindingService
             'schedule_category' => $product['schedule_category'],
             'gst_rate'          => $product['default_gst_rate'],
             'hsn_code'          => $product['hsn_code'],
+            'units_per_pack'    => $product['units_per_pack'] ?? 1,
+            'allow_loose'       => $product['allow_loose'] ?? 1,
+            'shelf_location'    => $product['shelf_location'] ?? null,
+            'pack_size'         => $product['pack_size'] ?? null,
             'reorder_level'     => $reorderLevel,
             'is_active'         => 1,
             'created_at'        => now(),

@@ -82,6 +82,7 @@ final class SalesService
                 $qty       = (int) ($item['quantity'] ?? 0);
                 $rate      = (float) ($item['rate'] ?? 0);
                 $discPct   = (float) ($item['discount_pct'] ?? 0);
+                $preferredBatchId = !empty($item['batch_id']) ? (int) $item['batch_id'] : null;
 
                 if ($bindingId <= 0 || $qty <= 0) {
                     throw HttpException::validation(["items.$i" => ['Invalid product or quantity.']]);
@@ -99,8 +100,10 @@ final class SalesService
                 $taxable   = $sell / (1 + $gstRate / 100);
                 $gstAmt    = $sell - $taxable;
 
-                // Consume stock FEFO; obtain weighted per-unit landed cost (incl GST).
-                [$batchNo, $batchId, $unitCostInclGst] = $this->consumeStock($db, $clientId, $branchId, $bindingId, $qty);
+                // Consume stock (preferred batch first, then FEFO). Quantities are
+                // tracked in base (loose) units, so loose sales work transparently.
+                [$batchNo, $batchId, $unitCostInclGst, $expiry, $shelf, $unitMrp] =
+                    $this->consumeStock($db, $clientId, $branchId, $bindingId, $qty, $preferredBatchId);
                 $lineCostIncl = $unitCostInclGst * $qty;
                 $lineCostExcl = $lineCostIncl / (1 + $gstRate / 100);
                 $profit       = $taxable - $lineCostExcl;
@@ -115,12 +118,18 @@ final class SalesService
                     'binding_id'   => $bindingId,
                     'batch_id'     => $batchId,
                     'batch_no'     => $batchNo,
+                    'expiry_date'  => $expiry,
+                    'shelf'        => $item['shelf'] ?? $shelf,
+                    'pack'         => $item['pack'] ?? $binding['pack_size'] ?? null,
+                    'mrp'          => $unitMrp,
+                    'unit_type'    => $item['unit_type'] ?? 'unit',
                     'product_name' => $binding['product_name'],
                     'schedule'     => $schedule,
                     'quantity'     => $qty,
                     'rate'         => round($rate, 2),
                     'discount_pct' => $discPct,
                     'gst_rate'     => $gstRate,
+                    'taxable'      => round($taxable, 2),
                     'cost_price'   => round($lineCostIncl, 2),
                     'line_total'   => round($sell, 2),
                     'profit'       => round($profit, 2),
@@ -139,23 +148,33 @@ final class SalesService
 
             $stmt = $db->prepare(
                 'INSERT INTO sales
-                    (client_id, branch_id, invoice_no, invoice_date, customer_id, customer_name, doctor_name,
-                     gross_amount, discount_amount, gst_amount, net_amount, profit_amount, payment_mode,
+                    (client_id, branch_id, counter, sale_type, invoice_no, invoice_date, customer_id, customer_name,
+                     patient_name, contact_no, address, narration, reminder_days, doctor_name,
+                     gross_amount, taxable_amount, discount_amount, gst_amount, net_amount, profit_amount, payment_mode,
                      has_prescription, is_locked, created_by, created_at)
                  VALUES
-                    (:client_id, :branch_id, :invoice_no, :invoice_date, :customer_id, :customer_name, :doctor_name,
-                     :gross, :discount, :gst, :net, :profit, :payment_mode,
+                    (:client_id, :branch_id, :counter, :sale_type, :invoice_no, :invoice_date, :customer_id, :customer_name,
+                     :patient_name, :contact_no, :address, :narration, :reminder_days, :doctor_name,
+                     :gross, :taxable, :discount, :gst, :net, :profit, :payment_mode,
                      :has_presc, :is_locked, :created_by, :created_at)'
             );
             $stmt->execute([
                 'client_id'     => $clientId,
                 'branch_id'     => $branchId,
+                'counter'       => $data['counter'] ?? null,
+                'sale_type'     => $data['sale_type'] ?? 'Regular',
                 'invoice_no'    => $invoiceNo,
                 'invoice_date'  => $data['invoice_date'] ?? now(),
                 'customer_id'   => $data['customer_id'] ?? null,
-                'customer_name' => $data['customer_name'] ?? 'Walk-in',
+                'customer_name' => $data['customer_name'] ?? ($data['patient_name'] ?? 'Walk-in'),
+                'patient_name'  => $data['patient_name'] ?? null,
+                'contact_no'    => $data['contact_no'] ?? null,
+                'address'       => $data['address'] ?? null,
+                'narration'     => $data['narration'] ?? null,
+                'reminder_days' => !empty($data['reminder_days']) ? (int) $data['reminder_days'] : null,
                 'doctor_name'   => $data['doctor_name'] ?? null,
                 'gross'         => round($gross, 2),
+                'taxable'       => round($sellTotal - $gstTotal, 2),
                 'discount'      => round($discountTotal + $billDiscount, 2),
                 'gst'           => round($gstTotal, 2),
                 'net'           => round($netAmount, 2),
@@ -170,11 +189,13 @@ final class SalesService
 
             $itemStmt = $db->prepare(
                 'INSERT INTO sale_items
-                    (sale_id, product_binding_id, batch_id, product_name, batch_no, schedule_category,
-                     quantity, rate, discount_pct, gst_rate, cost_price, line_total, profit)
+                    (sale_id, product_binding_id, batch_id, product_name, pack, shelf, batch_no, expiry_date,
+                     schedule_category, quantity, rate, mrp, unit_type, discount_pct, gst_rate, taxable,
+                     cost_price, line_total, profit)
                  VALUES
-                    (:sale_id, :binding_id, :batch_id, :product_name, :batch_no, :schedule,
-                     :quantity, :rate, :discount_pct, :gst_rate, :cost_price, :line_total, :profit)'
+                    (:sale_id, :binding_id, :batch_id, :product_name, :pack, :shelf, :batch_no, :expiry_date,
+                     :schedule, :quantity, :rate, :mrp, :unit_type, :discount_pct, :gst_rate, :taxable,
+                     :cost_price, :line_total, :profit)'
             );
             foreach ($computed as $c) {
                 $itemStmt->execute([
@@ -182,12 +203,18 @@ final class SalesService
                     'binding_id'   => $c['binding_id'],
                     'batch_id'     => $c['batch_id'],
                     'product_name' => $c['product_name'],
+                    'pack'         => $c['pack'],
+                    'shelf'        => $c['shelf'],
                     'batch_no'     => $c['batch_no'],
+                    'expiry_date'  => $c['expiry_date'] ?: null,
                     'schedule'     => $c['schedule'],
                     'quantity'     => $c['quantity'],
                     'rate'         => $c['rate'],
+                    'mrp'          => $c['mrp'],
+                    'unit_type'    => $c['unit_type'],
                     'discount_pct' => $c['discount_pct'],
                     'gst_rate'     => $c['gst_rate'],
+                    'taxable'      => $c['taxable'],
                     'cost_price'   => $c['cost_price'],
                     'line_total'   => $c['line_total'],
                     'profit'       => $c['profit'],
@@ -198,6 +225,23 @@ final class SalesService
             if (!empty($data['prescription_id'])) {
                 $upd = $db->prepare('UPDATE prescriptions SET sale_id = :sid WHERE id = :pid AND client_id = :cid');
                 $upd->execute(['sid' => $saleId, 'pid' => (int) $data['prescription_id'], 'cid' => $clientId]);
+            }
+
+            // Auto-schedule a refill reminder if reminder_days was provided.
+            if (!empty($data['reminder_days'])) {
+                $refillDate = date('Y-m-d', strtotime('+' . (int) $data['reminder_days'] . ' days'));
+                $rstmt = $db->prepare(
+                    'INSERT INTO refill_reminders
+                        (client_id, branch_id, sale_id, customer_name, phone, product_name, refill_date, status, created_at, updated_at)
+                     VALUES (:c, :b, :s, :name, :phone, :prod, :date, :status, :now, :now2)'
+                );
+                $rstmt->execute([
+                    'c' => $clientId, 'b' => $branchId, 's' => $saleId,
+                    'name' => $data['patient_name'] ?? ($data['customer_name'] ?? 'Customer'),
+                    'phone' => $data['contact_no'] ?? null,
+                    'prod' => $computed[0]['product_name'] ?? null,
+                    'date' => $refillDate, 'status' => 'pending', 'now' => now(), 'now2' => now(),
+                ]);
             }
 
             return [
@@ -225,18 +269,25 @@ final class SalesService
     }
 
     /**
-     * Consume $qty from batches FEFO. Returns [primaryBatchNo, primaryBatchId, weightedCostInclGst].
+     * Consume $qty (base units) from batches. If a preferred batch is given it is
+     * drained first, then remaining is taken FEFO.
+     * Returns [primaryBatchNo, primaryBatchId, weightedCostInclGst, expiryDate, shelf, unitMrp].
      */
-    private function consumeStock(PDO $db, int $clientId, int $branchId, int $bindingId, int $qty): array
+    private function consumeStock(PDO $db, int $clientId, int $branchId, int $bindingId, int $qty, ?int $preferredBatchId = null): array
     {
         $stmt = $db->prepare(
-            'SELECT id, batch_no, quantity, purchase_rate
+            'SELECT id, batch_no, quantity, purchase_rate, expiry_date, shelf_location, mrp
              FROM inventory_batches
              WHERE client_id = :c AND branch_id = :b AND product_binding_id = :p AND quantity > 0
              ORDER BY (expiry_date IS NULL), expiry_date ASC, id ASC'
         );
         $stmt->execute(['c' => $clientId, 'b' => $branchId, 'p' => $bindingId]);
         $batches = $stmt->fetchAll();
+
+        // Move the preferred batch to the front.
+        if ($preferredBatchId !== null) {
+            usort($batches, static fn ($a, $b) => ((int) $b['id'] === $preferredBatchId) <=> ((int) $a['id'] === $preferredBatchId));
+        }
 
         $available = array_sum(array_map(static fn ($b) => (int) $b['quantity'], $batches));
         if ($available < $qty) {
@@ -249,6 +300,9 @@ final class SalesService
         $costAccum = 0.0;
         $primaryBatchNo = null;
         $primaryBatchId = null;
+        $expiry = null;
+        $shelf = null;
+        $unitMrp = 0.0;
 
         foreach ($batches as $batch) {
             if ($remaining <= 0) {
@@ -259,6 +313,9 @@ final class SalesService
             if ($primaryBatchNo === null) {
                 $primaryBatchNo = $batch['batch_no'];
                 $primaryBatchId = (int) $batch['id'];
+                $expiry = $batch['expiry_date'];
+                $shelf = $batch['shelf_location'];
+                $unitMrp = round((float) $batch['mrp'], 2);
             }
             $this->inventory->reduceBatch((int) $batch['id'], $take);
             $remaining -= $take;
@@ -267,6 +324,6 @@ final class SalesService
         $this->inventory->bumpAggregate($clientId, $branchId, $bindingId, -$qty);
 
         $weightedCost = $qty > 0 ? $costAccum / $qty : 0.0;
-        return [$primaryBatchNo, $primaryBatchId, $weightedCost];
+        return [$primaryBatchNo, $primaryBatchId, $weightedCost, $expiry, $shelf, $unitMrp];
     }
 }

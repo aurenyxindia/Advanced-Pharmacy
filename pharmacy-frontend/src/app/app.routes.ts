@@ -30,42 +30,52 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
         path: 'dashboard',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () =>
           import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
         path: 'masters',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () =>
           import('./features/masters/masters-home').then((m) => m.MastersHome),
       },
       {
         path: 'masters/products',
-        data: { configKey: 'products' },
+        canActivate: [roleGuard],
+        data: { configKey: 'products', roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/generics',
-        data: { configKey: 'generics' },
+        canActivate: [roleGuard],
+        data: { configKey: 'generics', roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/customers',
-        data: { configKey: 'customers' },
+        canActivate: [roleGuard],
+        data: { configKey: 'customers', roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/doctors',
-        data: { configKey: 'doctors' },
+        canActivate: [roleGuard],
+        data: { configKey: 'doctors', roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/suppliers',
-        data: { configKey: 'suppliers' },
+        canActivate: [roleGuard],
+        data: { configKey: 'suppliers', roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/accounts',
-        data: { configKey: 'accounts' },
+        canActivate: [roleGuard],
+        data: { configKey: 'accounts', roles: ['ho_admin', 'branch_admin'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
@@ -76,22 +86,32 @@ export const routes: Routes = [
       },
       {
         path: 'purchase',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/purchase/purchase-list').then((m) => m.PurchaseList),
       },
       {
         path: 'purchase/new',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/purchase/purchase-entry').then((m) => m.PurchaseEntry),
       },
       {
         path: 'sales',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
         loadComponent: () => import('./features/sales/sales-list').then((m) => m.SalesList),
       },
       {
         path: 'sales/new',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
         loadComponent: () => import('./features/sales/billing').then((m) => m.Billing),
       },
       {
         path: 'reports',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
         loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
       },
       {
@@ -108,10 +128,14 @@ export const routes: Routes = [
       },
       {
         path: 'refills',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
         loadComponent: () => import('./features/refills/refills').then((m) => m.Refills),
       },
       {
         path: 'deliveries',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
         loadComponent: () => import('./features/deliveries/deliveries').then((m) => m.Deliveries),
       },
     ],
