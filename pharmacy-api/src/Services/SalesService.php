@@ -150,6 +150,7 @@ final class SalesService
                     'mrp'          => $unitMrp,
                     'unit_type'    => $item['unit_type'] ?? 'unit',
                     'product_name' => $binding['product_name'],
+                    'mfg'          => $binding['manufacturer_short'] ?? null,
                     'schedule'     => $schedule,
                     'quantity'     => $qty,
                     'rate'         => round($rate, 2),
@@ -247,11 +248,11 @@ final class SalesService
 
             $itemStmt = $db->prepare(
                 'INSERT INTO sale_items
-                    (sale_id, product_binding_id, batch_id, product_name, pack, shelf, batch_no, expiry_date,
+                    (sale_id, product_binding_id, batch_id, product_name, manufacturer_short, pack, shelf, batch_no, expiry_date,
                      schedule_category, quantity, rate, mrp, unit_type, discount_pct, gst_rate, taxable,
                      cost_price, line_total, total_amt, cd_disc_amt, profit)
                  VALUES
-                    (:sale_id, :binding_id, :batch_id, :product_name, :pack, :shelf, :batch_no, :expiry_date,
+                    (:sale_id, :binding_id, :batch_id, :product_name, :mfg, :pack, :shelf, :batch_no, :expiry_date,
                      :schedule, :quantity, :rate, :mrp, :unit_type, :discount_pct, :gst_rate, :taxable,
                      :cost_price, :line_total, :total_amt, :cd_disc_amt, :profit)'
             );
@@ -261,6 +262,7 @@ final class SalesService
                     'binding_id'   => $c['binding_id'],
                     'batch_id'     => $c['batch_id'],
                     'product_name' => $c['product_name'],
+                    'mfg'          => $c['mfg'] ?? null,
                     'pack'         => $c['pack'],
                     'shelf'        => $c['shelf'],
                     'batch_no'     => $c['batch_no'],

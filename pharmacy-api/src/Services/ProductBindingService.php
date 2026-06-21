@@ -31,6 +31,8 @@ final class ProductBindingService
             // Idempotent: refresh denormalized fields and return.
             $bindings->update((int) $existing['id'], [
                 'product_name'      => $product['name'],
+                'manufacturer'      => $product['manufacturer'] ?? null,
+                'manufacturer_short' => $product['manufacturer_short'] ?? null,
                 'generic_id'        => $product['generic_id'],
                 'schedule_category' => $product['schedule_category'],
                 'product_category'  => $product['product_category'] ?? 'Allopathy',
@@ -50,6 +52,8 @@ final class ProductBindingService
             'branch_id'         => $branchId,
             'master_product_id' => $masterProductId,
             'product_name'      => $product['name'],
+            'manufacturer'      => $product['manufacturer'] ?? null,
+            'manufacturer_short' => $product['manufacturer_short'] ?? null,
             'generic_id'        => $product['generic_id'],
             'schedule_category' => $product['schedule_category'],
             'product_category'  => $product['product_category'] ?? 'Allopathy',

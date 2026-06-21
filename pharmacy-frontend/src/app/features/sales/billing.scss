@@ -198,6 +198,16 @@
   td { vertical-align: middle; padding: 0.3rem 0.4rem; }
 }
 .prod-cell { font-weight: 600; min-width: 150px; }
+.mfg-chip {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+}
 .g-input {
   border: 1px solid #cbd5e1;
   border-radius: 0.3rem;

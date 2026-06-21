@@ -8,6 +8,8 @@ import { Paginated } from './crud.service';
 export interface SaleProduct {
   binding_id: number;
   product_name: string;
+  manufacturer?: string | null;
+  manufacturer_short?: string | null;
   schedule_category: string;
   gst_rate: number;
   master_product_id: number;

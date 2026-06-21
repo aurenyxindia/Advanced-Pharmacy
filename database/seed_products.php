@@ -183,6 +183,24 @@ $manufacturers = [
     'Dabur', 'Himalaya', 'Patanjali', 'Baidyanath', 'Charak',
 ];
 
+// Manufacturer short codes (Mfg) printed on bills.
+$mfrShort = [
+    'Cipla' => 'CIP', 'Sun Pharma' => 'SUN', 'Mankind Pharma' => 'MKD', 'Alkem Laboratories' => 'ALK',
+    "Dr. Reddy's" => 'DRL', 'Lupin' => 'LUP', 'Torrent Pharma' => 'TOR', 'Zydus Cadila' => 'ZYD',
+    'Abbott India' => 'ABT', 'GlaxoSmithKline' => 'GSK', 'Micro Labs' => 'MIC', 'Intas Pharma' => 'INT',
+    'Glenmark' => 'GLN', 'Aristo Pharma' => 'ARI', 'Macleods Pharma' => 'MAC', 'Ipca Laboratories' => 'IPC',
+    'Mankind' => 'MKD', 'Emcure' => 'EMC', 'Wockhardt' => 'WOC', 'Cadila Pharma' => 'CAD',
+    'USV' => 'USV', 'Sanofi India' => 'SAN', 'Pfizer India' => 'PFZ', 'Eris Lifesciences' => 'ERS',
+    'Ajanta Pharma' => 'AJA', 'FDC Ltd' => 'FDC', 'Hetero Drugs' => 'HET', 'Biocon' => 'BIO',
+    'Indoco Remedies' => 'IND', 'Unichem' => 'UNI', 'Albert David' => 'ALB', 'Bharat Serums' => 'BSV',
+    'Mylan' => 'MYL', 'Novartis India' => 'NOV', 'Troikaa' => 'TRK', 'Bal Pharma' => 'BAL',
+    'Khandelwal Lab' => 'KHA', 'Leeford' => 'LEE', 'Systopic' => 'SYS', 'Walter Bushnell' => 'WB',
+    'Akumentis' => 'AKU', 'Corona Remedies' => 'COR', 'La Renon' => 'LAR', 'Mankind Lifesciences' => 'MKL',
+    'Stadmed' => 'STD', 'Themis Medicare' => 'THM', 'Blue Cross' => 'BLU', 'Centaur Pharma' => 'CEN',
+    'East West Pharma' => 'EWP', 'Zuventus' => 'ZUV', 'Dabur' => 'DAB', 'Himalaya' => 'HIM',
+    'Patanjali' => 'PAT', 'Baidyanath' => 'BAI', 'Charak' => 'CHK',
+];
+
 // Plausible brand roots (combined with strength/form to form brand names).
 $brandRoots = [
     'Zicip','Dolo','Cefta','Azee','Moxi','Pantec','Calpol','Crocin','Combiflam','Allegra',
@@ -234,7 +252,7 @@ echo '  generics inserted: ' . count($genericMap) . "\n";
 // ----------------------------------------------------------------------------
 echo "Seeding {$target} products...\n";
 
-$cols = ['name','generic_id','manufacturer','schedule_category','product_category','hsn_code',
+$cols = ['name','generic_id','manufacturer','manufacturer_short','schedule_category','product_category','hsn_code',
          'default_gst_rate','ptr','pts','pack_size','units_per_pack','allow_loose','shelf_location',
          'uom','composition','is_active','created_at','updated_at'];
 $rowPlaceholder = '(' . implode(',', array_fill(0, count($cols), '?')) . ')';
@@ -293,8 +311,9 @@ while ($count < $target) {
     $ptr = round($netMrp / (1 + $ptrM / 100), 2);
     $pts = round($netMrp / (1 + $ptsM / 100), 2);
 
+    $short = $mfrShort[$mfr] ?? strtoupper(substr(str_replace(' ', '', $mfr), 0, 3));
     $buffer[] = [
-        $name, $gid, $mfr, $schedule, $category, '3004',
+        $name, $gid, $mfr, $short, $schedule, $category, '3004',
         $gst, $ptr, $pts, $form['pack'], $form['upp'], 1, $shelves[$i % count($shelves)],
         $form['uom'], $mol . ' ' . $strength, 1, $now, $now,
     ];

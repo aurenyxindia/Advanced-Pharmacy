@@ -57,11 +57,12 @@ final class InvoiceService
         $idx = 1;
         foreach ($sale['items'] as $item) {
             $rows .= '<tr>
-                <td width="6%">' . $idx++ . '</td>
-                <td width="34%">' . htmlspecialchars((string) $item['product_name']) . '</td>
-                <td width="14%">' . htmlspecialchars((string) ($item['batch_no'] ?? '-')) . '</td>
-                <td width="8%" align="center">' . $item['schedule_category'] . '</td>
-                <td width="8%" align="right">' . $item['quantity'] . '</td>
+                <td width="5%">' . $idx++ . '</td>
+                <td width="29%">' . htmlspecialchars((string) $item['product_name']) . '</td>
+                <td width="9%">' . htmlspecialchars((string) ($item['manufacturer_short'] ?? '-')) . '</td>
+                <td width="13%">' . htmlspecialchars((string) ($item['batch_no'] ?? '-')) . '</td>
+                <td width="7%" align="center">' . $item['schedule_category'] . '</td>
+                <td width="7%" align="right">' . $item['quantity'] . '</td>
                 <td width="10%" align="right">' . number_format((float) $item['rate'], 2) . '</td>
                 <td width="8%" align="right">' . number_format((float) $item['gst_rate'], 0) . '%</td>
                 <td width="12%" align="right">' . number_format((float) $item['line_total'], 2) . '</td>
@@ -72,8 +73,8 @@ final class InvoiceService
         <table border="0.5" cellpadding="3" style="font-size:9px;">
             <thead>
                 <tr style="background-color:#f1f5f9;font-weight:bold;">
-                    <td width="6%">#</td><td width="34%">Product</td><td width="14%">Batch</td>
-                    <td width="8%" align="center">Sch</td><td width="8%" align="right">Qty</td>
+                    <td width="5%">#</td><td width="29%">Product</td><td width="9%">Mfg</td><td width="13%">Batch</td>
+                    <td width="7%" align="center">Sch</td><td width="7%" align="right">Qty</td>
                     <td width="10%" align="right">Rate</td><td width="8%" align="right">GST</td>
                     <td width="12%" align="right">Amount</td>
                 </tr>

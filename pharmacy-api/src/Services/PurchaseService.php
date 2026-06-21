@@ -221,6 +221,7 @@ final class PurchaseService
                 'name'              => $np['name'] ?? ($item['product_name'] ?? 'Unnamed'),
                 'generic_id'        => $np['generic_id'] ?? null,
                 'manufacturer'      => $np['manufacturer'] ?? null,
+                'manufacturer_short' => $np['manufacturer_short'] ?? null,
                 'schedule_category' => $np['schedule_category'] ?? 'OTC',
                 'product_category'  => $np['product_category'] ?? 'Allopathy',
                 'hsn_code'          => $np['hsn_code'] ?? null,

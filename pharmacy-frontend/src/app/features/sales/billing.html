@@ -82,7 +82,7 @@
           <button type="button" class="product-row" [class.hl]="idx === highlight()"
             [class.oos]="p.available_qty <= 0" (click)="addProduct(p)" (mouseenter)="highlight.set(idx)">
             <div class="pr-main">
-              <span class="pr-name">{{ p.product_name }}</span>
+              <span class="pr-name">{{ p.product_name }} @if (p.manufacturer_short) { <span class="mfg-chip">{{ p.manufacturer_short }}</span> }</span>
               <span class="badge sched-{{ p.schedule_category }}">{{ p.schedule_category }}</span>
             </div>
             <div class="pr-sub">
@@ -212,7 +212,7 @@
           <table class="table table-sm bill-grid mb-0">
             <thead>
               <tr>
-                <th>Product</th><th>Qty</th><th>Unit</th><th>Disc%</th><th>B.No</th><th>Shelf</th>
+                <th>Product</th><th>Mfg</th><th>Qty</th><th>Unit</th><th>Disc%</th><th>B.No</th><th>Shelf</th>
                 <th>Rate</th><th>Exp.</th><th>Cat</th><th>Pack</th><th class="text-end">MRP</th>
                 <th class="text-end">Taxable</th><th class="text-end">Disc</th>
                 <th class="text-end">Profit</th><th class="text-end">GST</th><th class="text-end">Net</th><th></th>
@@ -227,6 +227,7 @@
                       <i class="bi bi-arrow-left-right"></i> substitutes
                     </button>
                   </td>
+                  <td><span class="mfg-chip">{{ line.mfg || '-' }}</span></td>
                   <td><input type="number" class="g-input" style="width:54px" [ngModel]="line.qty" (ngModelChange)="updateLine($index, { qty: +$event })" /></td>
                   <td>
                     <select class="g-input" style="width:62px" [ngModel]="line.unit_type" (ngModelChange)="onUnitTypeChange($index, $event)" [disabled]="isWholesale() || !line.allow_loose">
@@ -256,7 +257,7 @@
                   <td><button class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
                 </tr>
               } @empty {
-                <tr><td colspan="17" class="text-center text-secondary py-4"><i class="bi bi-arrow-left me-1"></i> Search and click a product to add it.</td></tr>
+                <tr><td colspan="18" class="text-center text-secondary py-4"><i class="bi bi-arrow-left me-1"></i> Search and click a product to add it.</td></tr>
               }
             </tbody>
           </table>

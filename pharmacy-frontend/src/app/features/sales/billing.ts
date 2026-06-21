@@ -22,6 +22,7 @@ const COUNTERS = ['COUNTER 1', 'COUNTER 2', 'COUNTER 3', 'CASH COUNTER', 'IPD CO
 interface BillLine {
   binding_id: number;
   product_name: string;
+  mfg: string | null;
   category: string;
   gst_rate: number;
   units_per_pack: number;
@@ -307,6 +308,7 @@ export class Billing {
       const baseLine: BillLine = {
         binding_id: p.binding_id,
         product_name: p.product_name,
+        mfg: p.manufacturer_short ?? null,
         category: p.schedule_category,
         gst_rate: Number(p.gst_rate) || 0,
         units_per_pack: upp,

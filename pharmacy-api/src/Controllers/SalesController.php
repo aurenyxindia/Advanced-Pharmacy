@@ -58,7 +58,8 @@ final class SalesController extends Controller
         $genericId = (int) $request->query('generic_id', 0);
 
         $sql =
-            'SELECT pb.id AS binding_id, pb.product_name, pb.schedule_category, pb.gst_rate, pb.master_product_id,
+            'SELECT pb.id AS binding_id, pb.product_name, pb.manufacturer, pb.manufacturer_short,
+                    pb.schedule_category, pb.gst_rate, pb.master_product_id,
                     pb.units_per_pack, pb.allow_loose, pb.shelf_location, pb.pack_size, pb.generic_id,
                     g.name AS generic_name,
                     COALESCE(st.quantity, 0) AS available_qty,

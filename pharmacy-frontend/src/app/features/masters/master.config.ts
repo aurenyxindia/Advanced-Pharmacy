@@ -87,6 +87,7 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
     columns: [
       { key: 'name', label: 'Product' },
       { key: 'manufacturer', label: 'Manufacturer' },
+      { key: 'manufacturer_short', label: 'Mfg' },
       { key: 'schedule_category', label: 'Schedule', type: 'badge', badgeClass: scheduleBadge },
       { key: 'default_gst_rate', label: 'GST %', type: 'number' },
       { key: 'pack_size', label: 'Pack' },
@@ -94,7 +95,8 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
     fields: [
       { key: 'name', label: 'Product Name', type: 'text', required: true, col: 'col-md-6' },
       { key: 'generic_id', label: 'Generic', type: 'select', optionSource: 'generics', col: 'col-md-6' },
-      { key: 'manufacturer', label: 'Manufacturer', type: 'text', col: 'col-md-6' },
+      { key: 'manufacturer', label: 'Manufacturer', type: 'text', col: 'col-md-4' },
+      { key: 'manufacturer_short', label: 'Mfg Short (bill code)', type: 'text', col: 'col-md-2', placeholder: 'e.g. CIP' },
       {
         key: 'schedule_category',
         label: 'Schedule Category',
