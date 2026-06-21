@@ -79,9 +79,19 @@ export interface SalePayload {
   cd_disc_pct?: number;
   is_interstate?: number;
   gst_inclusive?: number;
+  is_chronic?: number;
   ipd_admission_id?: number | null;
   prescription_id?: number | null;
   items: SaleItemPayload[];
+}
+
+export interface CustomerLookup {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  is_chronic: number;
 }
 
 export interface SaleResult {
@@ -131,6 +141,14 @@ export class SalesService {
 
   create(payload: SalePayload): Observable<ApiResponse<SaleResult>> {
     return this.http.post<ApiResponse<SaleResult>>(`${this.base}/sales`, payload);
+  }
+
+  /** Look up an existing patient by mobile number. Returns null when not found. */
+  lookupCustomer(phone: string): Observable<CustomerLookup | null> {
+    const params = new HttpParams().set('phone', phone);
+    return this.http
+      .get<ApiResponse<CustomerLookup | null>>(`${this.base}/customers/lookup`, { params })
+      .pipe(map((r) => r.data));
   }
 
   list(opts: { search?: string; page?: number } = {}): Observable<Paginated<Record<string, unknown>>> {

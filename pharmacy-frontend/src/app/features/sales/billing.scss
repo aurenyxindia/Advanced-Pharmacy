@@ -282,3 +282,18 @@
 .modal-head { display: flex; align-items: center; justify-content: space-between;
   padding: 1.1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
 .modal-body-custom { padding: 1.5rem; }
+
+.chronic-check {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  width: 100%;
+  transition: all 0.15s ease;
+  .form-check-label { cursor: pointer; color: #64748b; }
+  .form-check-input { cursor: pointer; }
+  &.is-chronic {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+    .form-check-label { color: #b91c1c; font-weight: 600; }
+  }
+}

@@ -72,6 +72,8 @@ interface Bill {
   reminderDays: number | null;
   cdDiscPct: number;
   isInterstate: boolean;
+  isChronic: boolean;
+  customerKnown: boolean;   // true when the phone matched an existing patient
   prescriptionId: number | null;
   prescriptionName: string | null;
   lines: BillLine[];
@@ -94,6 +96,8 @@ function emptyBill(mode: BillMode): Bill {
     reminderDays: null,
     cdDiscPct: 0,
     isInterstate: false,
+    isChronic: false,
+    customerKnown: false,
     prescriptionId: null,
     prescriptionName: null,
     lines: [],
@@ -137,6 +141,8 @@ export class Billing {
   readonly selectedGeneric = signal<number | null>(null);
   readonly substituteMode = signal(false); // when true, search lists same-molecule alternatives
   readonly customers = signal<{ id: number; name: string; phone?: string; address?: string }[]>([]);
+  readonly doctors = signal<{ id: number; name: string }[]>([]);
+  readonly lookingUp = signal(false);
 
   // substitute lookup for an existing line
   readonly subOpen = signal(false);
@@ -172,6 +178,7 @@ export class Billing {
     this.crud.list<{ id: number; name: string }>('generics', { perPage: 500 }).subscribe((r) => this.generics.set(r.data));
     this.crud.list<{ id: number; name: string; phone?: string; address?: string }>('customers', { perPage: 500 })
       .subscribe((r) => this.customers.set(r.data));
+    this.crud.list<{ id: number; name: string }>('doctors', { perPage: 500 }).subscribe((r) => this.doctors.set(r.data));
     this.loadInitial();
 
     // If opened from an IPD admission, tag this bill to it.
@@ -259,6 +266,31 @@ export class Billing {
   onCustomerChange(id: number | null): void {
     const c = this.customers().find((x) => x.id === id);
     this.patchBill({ customerId: id, patientName: c?.name ?? '', contact: c?.phone ?? '', address: c?.address ?? '' });
+  }
+
+  /** When a mobile number is entered, fetch the saved patient (if any) and auto-fill. */
+  onContactChange(phone: string): void {
+    // Reset the "known" flag while the user edits the number.
+    this.patchBill({ contact: phone, customerKnown: false });
+    const clean = phone.trim();
+    if (clean.length < 10) return;
+    this.lookingUp.set(true);
+    this.salesSvc.lookupCustomer(clean).subscribe({
+      next: (c) => {
+        this.lookingUp.set(false);
+        if (c) {
+          this.patchBill({
+            customerId: c.id,
+            patientName: c.name,
+            address: c.address ?? '',
+            email: c.email ?? '',
+            isChronic: c.is_chronic === 1,
+            customerKnown: true,
+          });
+        }
+      },
+      error: () => this.lookingUp.set(false),
+    });
   }
 
   // ---- search ----
@@ -546,6 +578,7 @@ export class Billing {
       cd_disc_pct: b.mode === 'wholesale' ? b.cdDiscPct : 0,
       is_interstate: b.isInterstate ? 1 : 0,
       gst_inclusive: this.gstInclusive() ? 1 : 0,
+      is_chronic: b.isChronic ? 1 : 0,
       ipd_admission_id: this.ipdAdmissionId(),
       prescription_id: b.prescriptionId,
       items: b.lines.map((l) => {

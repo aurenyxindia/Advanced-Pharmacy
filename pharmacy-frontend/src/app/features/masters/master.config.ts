@@ -147,6 +147,10 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
       { key: 'email', label: 'Email', type: 'email', col: 'col-md-6' },
       { key: 'dob', label: 'Date of Birth', type: 'date', col: 'col-md-6' },
       { key: 'gstin', label: 'GSTIN', type: 'text', col: 'col-md-6' },
+      {
+        key: 'is_chronic', label: 'Chronic Patient', type: 'select', col: 'col-md-6',
+        options: [{ value: 0, label: 'No' }, { value: 1, label: 'Yes' }],
+      },
       { key: 'address', label: 'Address', type: 'textarea', col: 'col-12' },
     ],
   },

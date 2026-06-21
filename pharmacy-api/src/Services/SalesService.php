@@ -306,6 +306,14 @@ final class SalesService
                 $upd->execute(['sid' => $saleId, 'pid' => (int) $data['prescription_id'], 'cid' => $clientId]);
             }
 
+            // Maintain the patient (customer) + doctor masters from this bill.
+            $resolvedCustomerId = $this->syncCustomer($db, $clientId, $data);
+            if ($resolvedCustomerId !== null && empty($data['customer_id'])) {
+                $db->prepare('UPDATE sales SET customer_id = :cid WHERE id = :sid')
+                   ->execute(['cid' => $resolvedCustomerId, 'sid' => $saleId]);
+            }
+            $this->syncDoctor($db, $clientId, $data);
+
             // Auto-schedule a refill reminder if reminder_days was provided.
             if (!empty($data['reminder_days'])) {
                 $refillDate = date('Y-m-d', strtotime('+' . (int) $data['reminder_days'] . ' days'));
@@ -336,6 +344,70 @@ final class SalesService
                 'is_locked'     => $locked,
             ];
         });
+    }
+
+    /**
+     * Upsert the patient into the customer master keyed by phone (within the client).
+     * Returns the customer id, or null when there is nothing worth saving.
+     */
+    private function syncCustomer(PDO $db, int $clientId, array $data): ?int
+    {
+        $phone = trim((string) ($data['contact_no'] ?? ''));
+        $name  = trim((string) ($data['patient_name'] ?? '')) ?: trim((string) ($data['customer_name'] ?? ''));
+        if ($name === '' || strtolower($name) === 'walk-in') {
+            return null;
+        }
+        // Without a phone we cannot reliably de-duplicate; only persist when a phone is given.
+        if ($phone === '') {
+            return !empty($data['customer_id']) ? (int) $data['customer_id'] : null;
+        }
+
+        $chronic = (int) ($data['is_chronic'] ?? 0) === 1 ? 1 : 0;
+        $email   = $data['email'] ?? null;
+        $address = $data['address'] ?? null;
+
+        $find = $db->prepare('SELECT id, is_chronic FROM customers WHERE client_id = :c AND phone = :p LIMIT 1');
+        $find->execute(['c' => $clientId, 'p' => $phone]);
+        $existing = $find->fetch();
+
+        if ($existing) {
+            // Keep an already-chronic patient flagged even if this bill did not tick it.
+            $newChronic = $chronic === 1 ? 1 : (int) $existing['is_chronic'];
+            $db->prepare(
+                'UPDATE customers SET name = :name, email = :email, address = :address,
+                    is_chronic = :chronic, updated_at = :u WHERE id = :id'
+            )->execute([
+                'name' => $name, 'email' => $email, 'address' => $address,
+                'chronic' => $newChronic, 'u' => now(), 'id' => (int) $existing['id'],
+            ]);
+            return (int) $existing['id'];
+        }
+
+        $db->prepare(
+            'INSERT INTO customers (client_id, name, phone, email, address, is_chronic, created_at, updated_at)
+             VALUES (:c, :name, :phone, :email, :address, :chronic, :ca, :ua)'
+        )->execute([
+            'c' => $clientId, 'name' => $name, 'phone' => $phone, 'email' => $email,
+            'address' => $address, 'chronic' => $chronic, 'ca' => now(), 'ua' => now(),
+        ]);
+        return (int) $db->lastInsertId();
+    }
+
+    /** Add the doctor to the doctor master if not already present (by name, within the client). */
+    private function syncDoctor(PDO $db, int $clientId, array $data): void
+    {
+        $name = trim((string) ($data['doctor_name'] ?? ''));
+        if ($name === '') {
+            return;
+        }
+        $find = $db->prepare('SELECT id FROM doctors WHERE client_id = :c AND name = :n LIMIT 1');
+        $find->execute(['c' => $clientId, 'n' => $name]);
+        if ($find->fetch()) {
+            return;
+        }
+        $db->prepare(
+            'INSERT INTO doctors (client_id, name, created_at, updated_at) VALUES (:c, :n, :ca, :ua)'
+        )->execute(['c' => $clientId, 'n' => $name, 'ca' => now(), 'ua' => now()]);
     }
 
     private function binding(PDO $db, int $clientId, int $branchId, int $bindingId): array

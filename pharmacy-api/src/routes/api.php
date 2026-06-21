@@ -98,6 +98,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Tenant masters ----
     $router->get('/customers', [CustomerController::class, 'index']);
+    $router->get('/customers/lookup', [CustomerController::class, 'lookup']);
     $router->post('/customers', [CustomerController::class, 'store']);
     $router->get('/customers/{id}', [CustomerController::class, 'show']);
     $router->put('/customers/{id}', [CustomerController::class, 'update']);
