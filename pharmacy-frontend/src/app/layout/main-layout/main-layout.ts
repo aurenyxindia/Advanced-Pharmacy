@@ -31,8 +31,8 @@ export class MainLayout {
     { label: 'Sales / Billing', icon: 'bi-receipt', route: '/app/sales' },
     { label: 'Inventory', icon: 'bi-boxes', comingSoon: true },
     { label: 'Prescriptions', icon: 'bi-file-medical', comingSoon: true },
-    { label: 'Accounts', icon: 'bi-cash-coin', comingSoon: true },
-    { label: 'Reports', icon: 'bi-bar-chart-line', comingSoon: true },
+    { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts' },
+    { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports' },
     { label: 'Branches', icon: 'bi-shop-window', roles: ['ho_admin'], comingSoon: true },
     { label: 'Settings', icon: 'bi-gear', comingSoon: true },
   ];

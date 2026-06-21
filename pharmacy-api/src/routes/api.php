@@ -13,6 +13,7 @@ use App\Controllers\ImportController;
 use App\Controllers\MetaController;
 use App\Controllers\PrescriptionController;
 use App\Controllers\PurchaseController;
+use App\Controllers\ReportController;
 use App\Controllers\SalesController;
 use App\Controllers\ProductBindingController;
 use App\Controllers\ProductController;
@@ -119,6 +120,15 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Prescriptions ----
     $router->post('/prescriptions', [PrescriptionController::class, 'upload']);
+
+    // ---- Reports ----
+    $router->get('/reports/sales-register', [ReportController::class, 'salesRegister']);
+    $router->get('/reports/purchase-register', [ReportController::class, 'purchaseRegister']);
+    $router->get('/reports/gst-summary', [ReportController::class, 'gstSummary']);
+    $router->get('/reports/stock', [ReportController::class, 'stock']);
+    $router->get('/reports/expiry', [ReportController::class, 'expiry']);
+    $router->get('/reports/profit', [ReportController::class, 'profit']);
+    $router->get('/reports/schedule-register', [ReportController::class, 'scheduleRegister']);
 
     // ---- Employees / users (HO) - admin only ----
     $router->group(['middleware' => ['role:ho_admin,branch_admin']], function (Router $router): void {

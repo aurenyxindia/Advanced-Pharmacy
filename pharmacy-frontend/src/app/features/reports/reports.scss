@@ -1,0 +1,40 @@
+:host { display: block; }
+
+.report-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.report-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  border-radius: 0.55rem;
+  text-align: left;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  i { font-size: 1.05rem; }
+
+  &:hover { background: #f1f5f9; }
+
+  &.active {
+    background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-primary-dark));
+    color: #fff;
+  }
+}
+
+.form-label { font-weight: 500; margin-bottom: 0.2rem; }
+
+.table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
+  white-space: nowrap;
+}

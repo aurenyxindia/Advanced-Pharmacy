@@ -1,0 +1,145 @@
+<div class="reports">
+  <div class="mb-3">
+    <h4 class="fw-bold mb-0">Reports</h4>
+    <p class="text-secondary mb-0 small">Sales, purchase, GST, stock, expiry, profit &amp; compliance</p>
+  </div>
+
+  <div class="row g-3">
+    <!-- Report selector -->
+    <div class="col-lg-3">
+      <div class="card-pharma p-2 report-nav">
+        @for (r of reports; track r.key) {
+          <button class="report-nav-item" [class.active]="active().key === r.key" (click)="select(r)">
+            <i class="bi" [ngClass]="r.icon"></i> {{ r.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Report content -->
+    <div class="col-lg-9">
+      <!-- Filters -->
+      @if (active().hasDate) {
+        <div class="card-pharma p-3 mb-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-auto">
+              <label class="form-label small">From</label>
+              <input type="date" class="form-control form-control-sm" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+            </div>
+            <div class="col-auto">
+              <label class="form-label small">To</label>
+              <input type="date" class="form-control form-control-sm" [ngModel]="to()" (ngModelChange)="to.set($event)" />
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-sm btn-pharma" (click)="run()"><i class="bi bi-funnel me-1"></i>Apply</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="card-pharma p-5 text-center"><span class="spinner-border text-pharma"></span></div>
+      } @else if (data()) {
+        <!-- GST summary -->
+        @if (active().key === 'gst') {
+          <div class="row g-3">
+            <div class="col-md-4"><div class="card-pharma p-3 text-center">
+              <div class="text-secondary small">Output GST (Sales)</div>
+              <div class="fs-4 fw-bold">{{ data().output_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
+            </div></div>
+            <div class="col-md-4"><div class="card-pharma p-3 text-center">
+              <div class="text-secondary small">Input GST (Purchase)</div>
+              <div class="fs-4 fw-bold">{{ data().input_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
+            </div></div>
+            <div class="col-md-4"><div class="card-pharma p-3 text-center">
+              <div class="text-secondary small">Net Payable</div>
+              <div class="fs-4 fw-bold" [class.text-success]="data().net_payable <= 0" [class.text-danger]="data().net_payable > 0">
+                {{ data().net_payable | currency: 'INR' : 'symbol' : '1.2-2' }}
+              </div>
+            </div></div>
+          </div>
+        }
+
+        <!-- Profit report -->
+        @else if (active().key === 'profit') {
+          <div class="card-pharma p-3 mb-3">
+            <div class="d-flex justify-content-between">
+              <h6 class="fw-semibold mb-0">Total Profit</h6>
+              <span class="fw-bold text-success">{{ data().total_profit | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+            </div>
+          </div>
+          <div class="card-pharma">
+            <div class="p-3 border-bottom fw-semibold">Top Products by Profit</div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Revenue</th><th class="text-end">Profit</th></tr></thead>
+                <tbody>
+                  @for (p of data().by_product; track p.product_name) {
+                    <tr>
+                      <td>{{ p.product_name }}</td>
+                      <td class="text-end">{{ p.qty }}</td>
+                      <td class="text-end">{{ +p.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                      <td class="text-end text-success">{{ +p.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" class="text-center text-secondary py-4">No data for this period.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        <!-- Tabular reports -->
+        @else {
+          <div class="card-pharma">
+            @if (data().totals) {
+              <div class="p-3 border-bottom d-flex flex-wrap gap-4">
+                <span class="text-secondary small">Records: <b class="text-dark">{{ data().totals.count }}</b></span>
+                @if (data().totals.net != null) { <span class="text-secondary small">Net: <b class="text-dark">{{ data().totals.net | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
+                @if (data().totals.gst != null) { <span class="text-secondary small">GST: <b class="text-dark">{{ data().totals.gst | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
+                @if (data().totals.profit != null) { <span class="text-secondary small">Profit: <b class="text-success">{{ data().totals.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
+              </div>
+            }
+            @if (active().key === 'stock' && data().total_value != null) {
+              <div class="p-3 border-bottom d-flex flex-wrap gap-4">
+                <span class="text-secondary small">Items: <b class="text-dark">{{ data().total_items }}</b></span>
+                <span class="text-secondary small">Stock Value: <b class="text-dark">{{ data().total_value | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
+              </div>
+            }
+            <div class="table-responsive">
+              <table class="table table-hover table-sm mb-0">
+                <thead>
+                  <tr>
+                    @for (col of activeColumns(); track col.key) {
+                      <th [class.text-end]="col.align === 'end'">{{ col.label }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of (data().rows || []); track $index) {
+                    <tr>
+                      @for (col of activeColumns(); track col.key) {
+                        <td [class.text-end]="col.align === 'end'">
+                          @if (col.type === 'badge') {
+                            <span class="badge text-bg-light">{{ row[col.key] }}</span>
+                          } @else {
+                            {{ cell(row, col) }}
+                          }
+                        </td>
+                      }
+                    </tr>
+                  } @empty {
+                    <tr><td [attr.colspan]="activeColumns().length" class="text-center text-secondary py-5">
+                      <i class="bi bi-inbox fs-3 d-block mb-2"></i> No records.
+                    </td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>
