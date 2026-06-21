@@ -51,6 +51,18 @@ final class MetaController extends Controller
         ], 'Profile.');
     }
 
+    /** Standard pack sizes for the manual-entry dropdown. */
+    public function packSizes(Request $request): Response
+    {
+        return $this->success(\App\Support\PackSize::standard(), 'Standard pack sizes.');
+    }
+
+    /** Normalise any distributor pack text to a standard pack + units-per-pack. */
+    public function parsePack(Request $request): Response
+    {
+        return $this->success(\App\Support\PackSize::parse((string) $request->query('raw', '')), 'Parsed pack.');
+    }
+
     public function roles(Request $request): Response
     {
         $rows = Connection::ho()

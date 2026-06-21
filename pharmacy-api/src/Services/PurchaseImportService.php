@@ -30,6 +30,7 @@ final class PurchaseImportService
         'mrp'           => ['mrp', 'm.r.p'],
         'discount_pct'  => ['discount', 'disc', 'disc_pct', 'discount_pct'],
         'gst_rate'      => ['gst', 'gst_rate', 'tax', 'gst%'],
+        'pack'          => ['pack', 'pack_size', 'packing', 'pack size', 'packsize'],
     ];
 
     public function parseCsv(string $filePath): array
@@ -104,16 +105,23 @@ final class PurchaseImportService
     {
         $get = static fn (string $key) => isset($map[$key]) ? trim((string) ($cells[$map[$key]] ?? '')) : '';
 
+        // Detect pack size & units-per-pack from the distributor's free-text pack column.
+        $packRaw = $get('pack');
+        $pack = \App\Support\PackSize::parse($packRaw);
+
         return [
-            'product_name'  => $get('product_name'),
-            'batch_no'      => $get('batch_no'),
-            'expiry_date'   => $this->normalizeExpiry($get('expiry_date')),
-            'quantity'      => (int) $get('quantity'),
-            'free_quantity' => (int) ($get('free_quantity') ?: 0),
-            'purchase_rate' => (float) $get('purchase_rate'),
-            'mrp'           => (float) $get('mrp'),
-            'discount_pct'  => (float) ($get('discount_pct') ?: 0),
-            'gst_rate'      => (float) ($get('gst_rate') ?: 0),
+            'product_name'   => $get('product_name'),
+            'batch_no'       => $get('batch_no'),
+            'expiry_date'    => $this->normalizeExpiry($get('expiry_date')),
+            'pack_raw'       => $packRaw,
+            'pack_size'      => $pack['pack_size'],
+            'units_per_pack' => $pack['units_per_pack'],
+            'quantity'       => (int) $get('quantity'),
+            'free_quantity'  => (int) ($get('free_quantity') ?: 0),
+            'purchase_rate'  => (float) $get('purchase_rate'),
+            'mrp'            => (float) $get('mrp'),
+            'discount_pct'   => (float) ($get('discount_pct') ?: 0),
+            'gst_rate'       => (float) ($get('gst_rate') ?: 0),
         ];
     }
 

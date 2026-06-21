@@ -30,6 +30,9 @@ export interface PurchaseLine {
   mrp: number;
   discount_pct: number;
   gst_rate: number;
+  units_per_pack?: number;
+  pack_size?: string;
+  pack_raw?: string;
   new_product?: Record<string, unknown>;
 }
 

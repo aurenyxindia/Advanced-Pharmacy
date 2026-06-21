@@ -61,6 +61,12 @@
       <div class="col-6 col-md-1"><label>Qty(pk)</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().quantity" (ngModelChange)="patch('quantity', +$event)" /></div>
     </div>
     <div class="row g-2 mt-1">
+      <div class="col-6 col-md-2"><label title="Standard pack; auto-detects units">Pack Size</label>
+        <select class="form-select form-select-sm" [ngModel]="packSelect()" (ngModelChange)="onPackChange($event)">
+          <option value="">Custom…</option>
+          @for (p of packSizes(); track p.pack) { <option [value]="p.pack">{{ p.pack }} ({{ p.units }}u)</option> }
+        </select>
+      </div>
       <div class="col-6 col-md-1"><label>Units/Pk</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().units_per_pack" (ngModelChange)="patch('units_per_pack', +$event)" /></div>
       <div class="col-6 col-md-1"><label title="Free quantity in saleable units">Free (units)</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().free_quantity" (ngModelChange)="patch('free_quantity', +$event)" /></div>
       <div class="col-6 col-md-1"><label>Pur.Rate</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>

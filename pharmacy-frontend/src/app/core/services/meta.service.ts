@@ -32,6 +32,16 @@ export class MetaService {
   readonly roles = signal<RoleOption[]>([]);
   readonly businessType = signal<'retail' | 'wholesale' | 'both'>('both');
   readonly state = signal<string | null>(null);
+  readonly packSizes = signal<{ pack: string; units: number; form: string }[]>([]);
+
+  loadPackSizes() {
+    return this.http
+      .get<ApiResponse<{ pack: string; units: number; form: string }[]>>(`${environment.apiUrl}/meta/pack-sizes`)
+      .pipe(
+        map((r) => r.data),
+        tap((d) => this.packSizes.set(d)),
+      );
+  }
 
   loadProfile() {
     return this.http

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ProductSearchResult, PurchaseService } from '../../core/services/purchase.service';
+import { MetaService } from '../../core/services/meta.service';
 
 interface Entry {
   master_product_id?: number;
@@ -14,6 +15,7 @@ interface Entry {
   batch_no: string;
   expiry_date: string;
   shelf_location: string;
+  pack_size: string;
   quantity: number;       // packs
   units_per_pack: number;
   free_quantity: number;
@@ -29,7 +31,7 @@ interface Entry {
 function emptyEntry(): Entry {
   return {
     product_name: '', schedule_category: 'OTC', product_category: 'Allopathy', hsn_code: '', batch_no: '', expiry_date: '',
-    shelf_location: '', quantity: 1, units_per_pack: 1, free_quantity: 0, purchase_rate: 0,
+    shelf_location: '', pack_size: '', quantity: 1, units_per_pack: 1, free_quantity: 0, purchase_rate: 0,
     mrp: 0, ptr: 0, pts: 0, gst_rate: 12, discount_pct: 0, scheme_pct: 0,
   };
 }
@@ -42,7 +44,9 @@ function emptyEntry(): Entry {
 })
 export class PurchaseEntry {
   private readonly purchaseSvc = inject(PurchaseService);
+  private readonly meta = inject(MetaService);
   readonly router = inject(Router);
+  readonly packSizes = this.meta.packSizes;
 
   readonly invoiceNo = signal('');
   readonly invoiceDate = signal(new Date().toISOString().slice(0, 10));
@@ -62,7 +66,21 @@ export class PurchaseEntry {
 
   readonly scheduleOptions = ['OTC', 'H', 'H1', 'X', 'G', 'RESTRICTED'];
   readonly categoryOptions = ['Allopathy', 'Ayurvedic', 'Generic', 'Surgical', 'Cosmetic'];
+  readonly packSelect = signal('');
   private rateTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.meta.loadPackSizes().subscribe();
+  }
+
+  /** Standard pack chosen -> set units-per-pack + pack label. */
+  onPackChange(pack: string): void {
+    this.packSelect.set(pack);
+    const found = this.packSizes().find((p) => p.pack === pack);
+    if (found) {
+      this.entry.update((e) => ({ ...e, units_per_pack: found.units, pack_size: pack }));
+    }
+  }
 
   // ---- entry edits ----
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +151,7 @@ export class PurchaseEntry {
     this.lines.update((ls) => [...ls, { ...e }]);
     // keep gst default for fast entry
     this.entry.set({ ...emptyEntry(), gst_rate: e.gst_rate });
+    this.packSelect.set('');
   }
   removeLine(i: number): void {
     this.lines.update((ls) => ls.filter((_, idx) => idx !== i));
@@ -162,8 +181,9 @@ export class PurchaseEntry {
           batch_no: l.batch_no ?? '',
           expiry_date: l.expiry_date ?? '',
           shelf_location: '',
+          pack_size: l.pack_size ?? '',
           quantity: l.quantity || 1,
-          units_per_pack: 1,
+          units_per_pack: l.units_per_pack || 1,
           free_quantity: l.free_quantity || 0,
           purchase_rate: l.purchase_rate || 0,
           mrp: l.mrp || 0,
@@ -213,7 +233,7 @@ export class PurchaseEntry {
               name: l.product_name, schedule_category: l.schedule_category,
               product_category: l.product_category,
               default_gst_rate: l.gst_rate, units_per_pack: l.units_per_pack || 1,
-              shelf_location: l.shelf_location, hsn_code: l.hsn_code,
+              shelf_location: l.shelf_location, hsn_code: l.hsn_code, pack_size: l.pack_size,
             },
           };
     });
