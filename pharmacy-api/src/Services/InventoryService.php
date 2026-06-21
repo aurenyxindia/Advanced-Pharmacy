@@ -29,7 +29,11 @@ final class InventoryService
         int $quantity,
         ?string $shelf = null,
         float $ptr = 0,
-        float $pts = 0
+        float $pts = 0,
+        string $txnType = 'purchase',
+        ?string $txnDate = null,
+        ?string $refType = null,
+        ?int $refId = null
     ): int {
         $db = Connection::ops();
 
@@ -69,16 +73,60 @@ final class InventoryService
         }
 
         $this->bumpAggregate($clientId, $branchId, $bindingId, $quantity);
+        $this->ledger($clientId, $branchId, $bindingId, $batchId, $txnType, $quantity, 0, $txnDate, $refType, $refId);
 
         return $batchId;
     }
 
-    /** Deduct stock (used by sales). Returns true on success. */
-    public function reduceBatch(int $batchId, int $quantity): void
-    {
+    /** Records a stock movement into the ledger (basis for stock book / FDA tally). */
+    public function ledger(
+        int $clientId,
+        int $branchId,
+        int $bindingId,
+        ?int $batchId,
+        string $txnType,
+        int $qtyIn,
+        int $qtyOut,
+        ?string $txnDate = null,
+        ?string $refType = null,
+        ?int $refId = null,
+        ?string $note = null
+    ): void {
+        $stmt = Connection::ops()->prepare(
+            'INSERT INTO stock_ledger
+                (client_id, branch_id, product_binding_id, batch_id, txn_date, txn_type, qty_in, qty_out, ref_type, ref_id, note, created_at)
+             VALUES (:c, :b, :p, :batch, :date, :type, :in, :out, :rt, :rid, :note, :now)'
+        );
+        $stmt->execute([
+            'c' => $clientId, 'b' => $branchId, 'p' => $bindingId, 'batch' => $batchId,
+            'date' => $txnDate ?: date('Y-m-d'), 'type' => $txnType, 'in' => $qtyIn, 'out' => $qtyOut,
+            'rt' => $refType, 'rid' => $refId, 'note' => $note, 'now' => now(),
+        ]);
+    }
+
+    /** Deduct stock (used by sales/transfer/expiry) and log an OUT movement. */
+    public function reduceBatch(
+        int $batchId,
+        int $quantity,
+        string $txnType = 'sale',
+        ?string $txnDate = null,
+        ?string $refType = null,
+        ?int $refId = null
+    ): void {
         $db = Connection::ops();
+        $row = $db->prepare('SELECT client_id, branch_id, product_binding_id FROM inventory_batches WHERE id = :id');
+        $row->execute(['id' => $batchId]);
+        $b = $row->fetch();
+
         $stmt = $db->prepare('UPDATE inventory_batches SET quantity = quantity - :q, updated_at = :now WHERE id = :id');
         $stmt->execute(['q' => $quantity, 'now' => now(), 'id' => $batchId]);
+
+        if ($b) {
+            $this->ledger(
+                (int) $b['client_id'], (int) $b['branch_id'], (int) $b['product_binding_id'], $batchId,
+                $txnType, 0, $quantity, $txnDate, $refType, $refId
+            );
+        }
     }
 
     public function bumpAggregate(int $clientId, int $branchId, int $bindingId, int $delta): void

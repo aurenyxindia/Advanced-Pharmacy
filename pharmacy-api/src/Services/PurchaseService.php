@@ -186,7 +186,11 @@ final class PurchaseService
                     $ci['base_units'],
                     $ci['shelf'],
                     (float) $ci['ptr'],
-                    (float) $ci['pts']
+                    (float) $ci['pts'],
+                    'purchase',
+                    $data['invoice_date'] ?? date('Y-m-d'),
+                    'purchase',
+                    $purchaseId
                 );
 
                 // Keep the binding's latest wholesale rates.

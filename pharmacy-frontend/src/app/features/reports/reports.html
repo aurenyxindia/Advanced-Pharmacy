@@ -46,7 +46,10 @@
           <div class="col-auto">
             <button class="btn btn-sm btn-pharma" (click)="run()"><i class="bi bi-funnel me-1"></i>Apply</button>
           </div>
-          <div class="col-auto ms-auto">
+          <div class="col-auto ms-auto d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-success" [disabled]="!canDownload()" (click)="downloadCsv()">
+              <i class="bi bi-download me-1"></i>CSV
+            </button>
             <span class="badge text-bg-light">{{ active().label }}</span>
           </div>
         </div>

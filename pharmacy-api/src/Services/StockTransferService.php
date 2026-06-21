@@ -80,7 +80,14 @@ final class StockTransferService
                     null,
                     0.0,
                     $cost,
-                    $qty
+                    $qty,
+                    null,
+                    0,
+                    0,
+                    'transfer_in',
+                    $data['transfer_date'] ?? date('Y-m-d'),
+                    'transfer',
+                    null
                 );
 
                 $lineValue = $cost * $qty;
@@ -153,7 +160,7 @@ final class StockTransferService
             $take = min($remaining, (int) $batch['quantity']);
             $costAccum += $take * (float) $batch['purchase_rate'];
             $primaryBatch ??= $batch['batch_no'];
-            $this->inventory->reduceBatch((int) $batch['id'], $take);
+            $this->inventory->reduceBatch((int) $batch['id'], $take, 'transfer_out', date('Y-m-d'), 'transfer', null);
             $remaining -= $take;
         }
         $this->inventory->bumpAggregate($clientId, $branchId, $bindingId, -$qty);

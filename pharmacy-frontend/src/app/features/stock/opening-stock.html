@@ -1,0 +1,63 @@
+<div class="opening-stock">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Opening Stock</h4>
+      <p class="text-secondary mb-0 small">Add opening balances; movements post to the stock ledger / stock book.</p>
+    </div>
+    <button class="btn btn-outline-danger" (click)="writeOff()"><i class="bi bi-trash3 me-1"></i> Write off Expired</button>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+
+  <div class="card-pharma p-3 mb-3">
+    <div class="row g-2">
+      <div class="col-md-4 position-relative">
+        <label>Product <span class="text-danger">*</span></label>
+        <input class="form-control form-control-sm" placeholder="Search product..."
+          [ngModel]="form().product_name" (ngModelChange)="onProductInput($event)" (blur)="showResults.set(false)" />
+        @if (form().master_product_id) { <span class="badge text-bg-success entry-badge">selected</span> }
+        @if (showResults() && searchResults().length) {
+          <div class="entry-dropdown shadow-pharma-lg">
+            @for (p of searchResults(); track p.id) {
+              <button type="button" class="entry-item" (mousedown)="selectProduct(p)">
+                {{ p.name }} <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+      <div class="col-6 col-md-2"><label>Batch <span class="text-danger">*</span></label><input class="form-control form-control-sm" [ngModel]="form().batch_no" (ngModelChange)="patch('batch_no', $event)" /></div>
+      <div class="col-6 col-md-2"><label>Expiry</label><input class="form-control form-control-sm" placeholder="MM/YYYY" [ngModel]="form().expiry_date" (ngModelChange)="patch('expiry_date', $event)" /></div>
+      <div class="col-6 col-md-2"><label>Shelf</label><input class="form-control form-control-sm" [ngModel]="form().shelf_location" (ngModelChange)="patch('shelf_location', $event)" /></div>
+      <div class="col-6 col-md-2"><label>Opening Date</label><input type="date" class="form-control form-control-sm" [ngModel]="form().opening_date" (ngModelChange)="patch('opening_date', $event)" /></div>
+    </div>
+    <div class="row g-2 mt-1">
+      <div class="col-6 col-md-2"><label>Quantity (units) <span class="text-danger">*</span></label><input type="number" class="form-control form-control-sm" [ngModel]="form().quantity" (ngModelChange)="patch('quantity', +$event)" /></div>
+      <div class="col-6 col-md-2"><label>MRP (per unit)</label><input type="number" class="form-control form-control-sm" [ngModel]="form().mrp" (ngModelChange)="patch('mrp', +$event)" /></div>
+      <div class="col-6 col-md-2"><label>Net Rate (cost/unit)</label><input type="number" class="form-control form-control-sm" [ngModel]="form().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-pharma btn-sm" [disabled]="saving()" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } <i class="bi bi-plus-lg me-1"></i> Add Opening Stock
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma">
+    <div class="p-3 border-bottom fw-semibold">Recent Opening Entries</div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Date</th><th>Product</th><th>Mfg</th><th class="text-end">Qty</th></tr></thead>
+        <tbody>
+          @for (r of rows(); track $index) {
+            <tr><td>{{ r.txn_date | date: 'dd MMM yyyy' }}</td><td>{{ r.product_name }}</td><td>{{ r.manufacturer_short || '-' }}</td><td class="text-end">{{ r.quantity }}</td></tr>
+          } @empty {
+            <tr><td colspan="4" class="text-center text-secondary py-4">No opening stock entries yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  @if (toast()) { <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div> }
+</div>

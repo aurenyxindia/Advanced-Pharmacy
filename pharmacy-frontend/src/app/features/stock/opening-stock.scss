@@ -1,0 +1,10 @@
+:host { display: block; }
+label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.1rem; display: block; }
+.entry-badge { position: absolute; top: -4px; right: 10px; font-size: 0.56rem; }
+.entry-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 40; background: #fff;
+  border-radius: 0.5rem; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; }
+.entry-item { display: block; width: 100%; text-align: left; border: none; background: transparent;
+  padding: 0.45rem 0.7rem; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem; &:hover { background: #ecfdf5; } }
+.table thead th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8; }
+.toast-custom { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border-radius: 0.7rem;
+  padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; }

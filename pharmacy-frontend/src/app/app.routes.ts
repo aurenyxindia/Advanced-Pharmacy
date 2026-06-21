@@ -115,6 +115,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/sales/billing').then((m) => m.Billing),
       },
       {
+        path: 'opening-stock',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        loadComponent: () => import('./features/stock/opening-stock').then((m) => m.OpeningStock),
+      },
+      {
         path: 'reports',
         canActivate: [roleGuard],
         data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },

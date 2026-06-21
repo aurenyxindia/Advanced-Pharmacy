@@ -45,7 +45,10 @@ export class Reports {
     { key: 'schedule', label: 'All Schedule Register', icon: 'bi-shield-check', path: 'schedule-register', hasDate: true, group: 'Compliance' },
     { key: 'chronic', label: 'Chronic / Repeat Patients', icon: 'bi-heart-pulse', path: 'chronic', hasDate: false, group: 'Patients' },
     { key: 'purchase', label: 'Purchase Register', icon: 'bi-cart', path: 'purchase-register', hasDate: true, group: 'Purchase' },
-    { key: 'stock', label: 'Stock Report', icon: 'bi-boxes', path: 'stock', hasDate: false, group: 'Inventory' },
+    { key: 'stock', label: 'Stock Report (Live)', icon: 'bi-boxes', path: 'stock', hasDate: false, group: 'Inventory' },
+    { key: 'asof', label: 'Closing Stock (As-of)', icon: 'bi-calendar-check', path: 'stock-as-of', hasDate: true, group: 'Inventory' },
+    { key: 'stockbook', label: 'Stock Book (Movements)', icon: 'bi-journal-text', path: 'stock-book', hasDate: true, group: 'Inventory' },
+    { key: 'fda', label: 'FDA Tally', icon: 'bi-clipboard-data', path: 'fda-tally', hasDate: true, group: 'Inventory' },
     { key: 'nonmoving', label: 'Non-Moving Stock', icon: 'bi-snow', path: 'non-moving', hasDate: false, group: 'Inventory' },
     { key: 'expiry', label: 'Expiry Report', icon: 'bi-hourglass-split', path: 'expiry', hasDate: false, group: 'Inventory' },
     { key: 'expalert', label: 'Expiry Alert', icon: 'bi-exclamation-octagon', path: 'expiry-alert', hasDate: false, group: 'Inventory' },
@@ -120,6 +123,21 @@ export class Reports {
       { key: 'date', label: 'Date', type: 'date' }, { key: 'in', label: 'Cash In', type: 'currency', align: 'end' },
       { key: 'out', label: 'Cash Out', type: 'currency', align: 'end' }, { key: 'net', label: 'Net', type: 'currency', align: 'end' },
     ],
+    asof: [
+      { key: 'product_name', label: 'Product' }, { key: 'manufacturer_short', label: 'Mfg' },
+      { key: 'schedule_category', label: 'Sch', type: 'badge' }, { key: 'balance', label: 'Closing Qty', type: 'number', align: 'end' },
+    ],
+    stockbook: [
+      { key: 'txn_date', label: 'Date', type: 'date' }, { key: 'product_name', label: 'Product' },
+      { key: 'manufacturer_short', label: 'Mfg' }, { key: 'txn_type', label: 'Type', type: 'badge' },
+      { key: 'qty_in', label: 'In', type: 'number', align: 'end' }, { key: 'qty_out', label: 'Out', type: 'number', align: 'end' },
+    ],
+    fda: [
+      { key: 'product_name', label: 'Product' }, { key: 'manufacturer_short', label: 'Mfg' },
+      { key: 'opening', label: 'Opening', type: 'number', align: 'end' }, { key: 'purchase', label: 'Purchase', type: 'number', align: 'end' },
+      { key: 'sale', label: 'Sale', type: 'number', align: 'end' }, { key: 'expired', label: 'Expired', type: 'number', align: 'end' },
+      { key: 'closing', label: 'Closing', type: 'number', align: 'end' },
+    ],
     schedule: this.scheduleCols,
     h1: this.scheduleCols,
     x: this.scheduleCols,
@@ -159,6 +177,8 @@ export class Reports {
       if (this.to()) params['to'] = this.to();
     }
     if (this.isHo() && this.branchId()) params['branch_id'] = String(this.branchId());
+    // Closing-stock-as-of uses a single 'date' (taken from the To field).
+    if (this.active().key === 'asof') params['date'] = this.to() || new Date().toISOString().slice(0, 10);
 
     this.reportSvc.get(this.active().path, params).subscribe({
       next: (d) => { this.data.set(d); this.loading.set(false); },
@@ -168,6 +188,31 @@ export class Reports {
 
   activeColumns(): Column[] {
     return this.columns[this.active().key] ?? [];
+  }
+
+  /** Download the current report's rows as CSV. */
+  downloadCsv(): void {
+    const cols = this.activeColumns();
+    const rows = this.data()?.rows ?? [];
+    if (cols.length === 0 || rows.length === 0) return;
+
+    const esc = (v: unknown) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const header = cols.map((c) => esc(c.label)).join(',');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lines = rows.map((r: any) => cols.map((c) => esc(r[c.key])).join(','));
+    const csv = [header, ...lines].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `${this.active().path}-${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  canDownload(): boolean {
+    return (this.data()?.rows?.length ?? 0) > 0;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

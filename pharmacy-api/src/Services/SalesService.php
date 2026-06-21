@@ -128,8 +128,9 @@ final class SalesService
                 // Consume stock (preferred batch first, then FEFO). Quantities are
                 // tracked in base (loose) units, so loose sales work transparently.
                 // The batch purchase_rate IS the Net Rate (cost per unit, excl GST).
+                $saleDate = date('Y-m-d', strtotime((string) ($data['invoice_date'] ?? 'now')));
                 [$batchNo, $batchId, $unitNetRate, $expiry, $shelf, $unitMrp] =
-                    $this->consumeStock($db, $clientId, $branchId, $bindingId, $qty, $preferredBatchId);
+                    $this->consumeStock($db, $clientId, $branchId, $bindingId, $qty, $preferredBatchId, $saleDate);
                 // Profit = (Sale rate - discount - tax) - Purchase Net Rate
                 $lineCost = $unitNetRate * $qty;   // already excl GST
                 $profit   = $taxable - $lineCost;
@@ -339,7 +340,7 @@ final class SalesService
      * drained first, then remaining is taken FEFO.
      * Returns [primaryBatchNo, primaryBatchId, weightedCostInclGst, expiryDate, shelf, unitMrp].
      */
-    private function consumeStock(PDO $db, int $clientId, int $branchId, int $bindingId, int $qty, ?int $preferredBatchId = null): array
+    private function consumeStock(PDO $db, int $clientId, int $branchId, int $bindingId, int $qty, ?int $preferredBatchId = null, ?string $txnDate = null): array
     {
         $stmt = $db->prepare(
             'SELECT id, batch_no, quantity, purchase_rate, expiry_date, shelf_location, mrp
@@ -383,7 +384,7 @@ final class SalesService
                 $shelf = $batch['shelf_location'];
                 $unitMrp = round((float) $batch['mrp'], 2);
             }
-            $this->inventory->reduceBatch((int) $batch['id'], $take);
+            $this->inventory->reduceBatch((int) $batch['id'], $take, 'sale', $txnDate, 'sale', null);
             $remaining -= $take;
         }
 

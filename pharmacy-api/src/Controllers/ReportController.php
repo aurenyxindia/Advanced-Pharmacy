@@ -335,6 +335,129 @@ final class ReportController extends Controller
         return $this->success(['rows' => $rows], 'Chronic / repeat patients.');
     }
 
+    /**
+     * Stock Book: movement ledger with running + closing balance.
+     * For a single product (binding_id) gives a true running balance; otherwise
+     * lists recent movements across products.
+     */
+    public function stockBook(Request $request): Response
+    {
+        $clientId = (int) $request->clientId();
+        $branch = $this->resolveBranch($request);
+        $bindingId = (int) $request->query('binding_id', 0);
+        $from = $request->query('from') ?: date('Y-m-01');
+        $to = $request->query('to') ?: date('Y-m-d');
+
+        $branchClause = $branch !== null ? ' AND l.branch_id = ' . $branch : '';
+
+        if ($bindingId > 0) {
+            $openRow = $this->run(
+                "SELECT COALESCE(SUM(qty_in - qty_out),0) bal FROM stock_ledger
+                 WHERE client_id = :c {$branchClause} AND product_binding_id = :p AND txn_date < :from",
+                ['c' => $clientId, 'p' => $bindingId, 'from' => $from]
+            );
+            $opening = (int) ($openRow[0]['bal'] ?? 0);
+
+            $rows = $this->run(
+                "SELECT l.txn_date, l.txn_type, l.qty_in, l.qty_out, l.batch_id, pb.product_name, pb.manufacturer_short
+                 FROM stock_ledger l JOIN product_bindings pb ON pb.id = l.product_binding_id
+                 WHERE l.client_id = :c {$branchClause} AND l.product_binding_id = :p
+                   AND l.txn_date BETWEEN :from AND :to
+                 ORDER BY l.txn_date ASC, l.id ASC",
+                ['c' => $clientId, 'p' => $bindingId, 'from' => $from, 'to' => $to]
+            );
+
+            $bal = $opening;
+            foreach ($rows as &$r) {
+                $bal += (int) $r['qty_in'] - (int) $r['qty_out'];
+                $r['balance'] = $bal;
+            }
+            unset($r);
+
+            return $this->success([
+                'opening_balance' => $opening,
+                'closing_balance' => $bal,
+                'rows'            => $rows,
+                'from'            => $from,
+                'to'              => $to,
+            ], 'Stock book.');
+        }
+
+        $rows = $this->run(
+            "SELECT l.txn_date, l.txn_type, l.qty_in, l.qty_out, pb.product_name, pb.manufacturer_short
+             FROM stock_ledger l JOIN product_bindings pb ON pb.id = l.product_binding_id
+             WHERE l.client_id = :c {$branchClause} AND l.txn_date BETWEEN :from AND :to
+             ORDER BY l.txn_date DESC, l.id DESC LIMIT 1000",
+            ['c' => $clientId, 'from' => $from, 'to' => $to]
+        );
+        return $this->success(['rows' => $rows, 'from' => $from, 'to' => $to], 'Stock movements.');
+    }
+
+    /** Closing stock balance as of a given date (per product). */
+    public function stockAsOf(Request $request): Response
+    {
+        $clientId = (int) $request->clientId();
+        $branch = $this->resolveBranch($request);
+        $asOf = $request->query('date') ?: date('Y-m-d');
+        $branchClause = $branch !== null ? ' AND l.branch_id = ' . $branch : '';
+        $search = $request->query('search');
+        $searchClause = '';
+        $bind = ['c' => $clientId, 'd' => $asOf];
+        if ($search) {
+            $searchClause = ' AND pb.product_name LIKE :s';
+            $bind['s'] = '%' . $search . '%';
+        }
+
+        $rows = $this->run(
+            "SELECT pb.product_name, pb.manufacturer_short, pb.schedule_category,
+                    SUM(l.qty_in - l.qty_out) AS balance
+             FROM stock_ledger l JOIN product_bindings pb ON pb.id = l.product_binding_id
+             WHERE l.client_id = :c {$branchClause} AND l.txn_date <= :d {$searchClause}
+             GROUP BY l.product_binding_id HAVING balance <> 0
+             ORDER BY pb.product_name ASC LIMIT 1000",
+            $bind
+        );
+        return $this->success(['rows' => $rows, 'as_of' => $asOf], 'Stock as of ' . $asOf);
+    }
+
+    /** FDA tally: opening + purchase + sale + expired => closing, per product. */
+    public function fdaTally(Request $request): Response
+    {
+        $clientId = (int) $request->clientId();
+        $branch = $this->resolveBranch($request);
+        $from = $request->query('from') ?: date('Y-m-01');
+        $to = $request->query('to') ?: date('Y-m-d');
+        $branchClause = $branch !== null ? ' AND l.branch_id = ' . $branch : '';
+        $search = $request->query('search');
+        $searchClause = '';
+        // Native prepared statements require a unique placeholder per occurrence.
+        $bind = [
+            'c' => $clientId,
+            'f1' => $from, 'f2' => $from, 'f3' => $from, 'f4' => $from,
+            't1' => $to, 't2' => $to, 't3' => $to, 't4' => $to,
+        ];
+        if ($search) {
+            $searchClause = ' AND pb.product_name LIKE :s';
+            $bind['s'] = '%' . $search . '%';
+        }
+
+        $rows = $this->run(
+            "SELECT pb.product_name, pb.manufacturer_short,
+                    SUM(CASE WHEN l.txn_date < :f1 THEN l.qty_in - l.qty_out ELSE 0 END) AS opening,
+                    SUM(CASE WHEN l.txn_date BETWEEN :f2 AND :t1 AND l.txn_type IN ('purchase','transfer_in','opening','sale_return') THEN l.qty_in ELSE 0 END) AS purchase,
+                    SUM(CASE WHEN l.txn_date BETWEEN :f3 AND :t2 AND l.txn_type IN ('sale','transfer_out','purchase_return') THEN l.qty_out ELSE 0 END) AS sale,
+                    SUM(CASE WHEN l.txn_date BETWEEN :f4 AND :t3 AND l.txn_type = 'expiry' THEN l.qty_out ELSE 0 END) AS expired,
+                    SUM(CASE WHEN l.txn_date <= :t4 THEN l.qty_in - l.qty_out ELSE 0 END) AS closing
+             FROM stock_ledger l JOIN product_bindings pb ON pb.id = l.product_binding_id
+             WHERE l.client_id = :c {$branchClause} {$searchClause}
+             GROUP BY l.product_binding_id
+             HAVING opening <> 0 OR purchase <> 0 OR sale <> 0 OR expired <> 0 OR closing <> 0
+             ORDER BY pb.product_name ASC LIMIT 1000",
+            $bind
+        );
+        return $this->success(['rows' => $rows, 'from' => $from, 'to' => $to], 'FDA tally report.');
+    }
+
     /** Branches list for the HO report branch selector. */
     public function branches(Request $request): Response
     {

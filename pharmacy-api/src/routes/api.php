@@ -25,6 +25,7 @@ use App\Controllers\RateMarginController;
 use App\Controllers\RefillController;
 use App\Controllers\ReportController;
 use App\Controllers\SalesController;
+use App\Controllers\StockController;
 use App\Controllers\ProductBindingController;
 use App\Controllers\ProductController;
 use App\Controllers\RegistrationController;
@@ -186,8 +187,16 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->put('/debit-notes/{id}', [DebitNoteController::class, 'update']);
     $router->delete('/debit-notes/{id}', [DebitNoteController::class, 'destroy']);
 
+    // ---- Stock book / opening stock ----
+    $router->get('/stock/opening', [StockController::class, 'openingList']);
+    $router->post('/stock/opening', [StockController::class, 'openingStore']);
+    $router->post('/stock/write-off-expired', [StockController::class, 'writeOffExpired']);
+
     // ---- Reports ----
     $router->get('/reports/branches', [ReportController::class, 'branches']);
+    $router->get('/reports/stock-book', [ReportController::class, 'stockBook']);
+    $router->get('/reports/stock-as-of', [ReportController::class, 'stockAsOf']);
+    $router->get('/reports/fda-tally', [ReportController::class, 'fdaTally']);
     $router->get('/reports/sales-register', [ReportController::class, 'salesRegister']);
     $router->get('/reports/purchase-register', [ReportController::class, 'purchaseRegister']);
     $router->get('/reports/gst-summary', [ReportController::class, 'gstSummary']);
