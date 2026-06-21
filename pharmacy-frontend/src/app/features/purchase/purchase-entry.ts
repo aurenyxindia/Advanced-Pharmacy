@@ -112,6 +112,7 @@ export class PurchaseEntry {
     }, 220);
   }
   selectProduct(p: ProductSearchResult): void {
+    // Fetch the full product definition from the Product Master into the line.
     this.entry.update((e) => ({
       ...e,
       master_product_id: p.id,
@@ -121,8 +122,14 @@ export class PurchaseEntry {
       hsn_code: p.hsn_code ?? '',
       gst_rate: Number(p.default_gst_rate) || 12,
       units_per_pack: p.units_per_pack || 1,
+      pack_size: p.pack_size ?? '',
       shelf_location: p.shelf_location || '',
+      ptr: Number(p.ptr) || 0,
+      pts: Number(p.pts) || 0,
     }));
+    // Sync the standard Pack Size dropdown to the master's pack (if it matches).
+    const match = this.packSizes().find((ps) => ps.pack === (p.pack_size ?? ''));
+    this.packSelect.set(match ? match.pack : '');
     this.searchResults.set([]);
     this.showResults.set(false);
     setTimeout(() => this.autoRates(), 50);

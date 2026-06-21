@@ -17,6 +17,9 @@ export interface ProductSearchResult {
   units_per_pack?: number;
   shelf_location?: string | null;
   product_category?: string;
+  manufacturer_short?: string | null;
+  ptr?: number;
+  pts?: number;
 }
 
 export interface PurchaseLine {
