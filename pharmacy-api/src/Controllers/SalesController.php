@@ -69,7 +69,11 @@ final class SalesController extends Controller
              FROM product_bindings pb
              LEFT JOIN inventory_stock st ON st.product_binding_id = pb.id
              LEFT JOIN pharma_master.generics g ON g.id = pb.generic_id
-             WHERE pb.client_id = :c AND pb.branch_id = :b AND pb.is_active = 1';
+             WHERE pb.client_id = :c AND pb.branch_id = :b AND pb.is_active = 1
+               AND EXISTS (
+                   SELECT 1 FROM inventory_batches ib2
+                   WHERE ib2.product_binding_id = pb.id AND ib2.quantity > 0
+               )';
         $bind = ['c' => $request->clientId(), 'b' => $request->branchId()];
 
         if ($genericId > 0) {
