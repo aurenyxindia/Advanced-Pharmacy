@@ -26,7 +26,7 @@ use PDO;
  */
 final class SalesService
 {
-    private const PRESCRIPTION_REQUIRED = ['H1', 'X', 'G', 'RESTRICTED'];
+    private const PRESCRIPTION_REQUIRED = ['X', 'G', 'RESTRICTED'];
     private const LOCK_SCHEDULES = ['H', 'H1', 'X', 'G', 'RESTRICTED'];
 
     private InventoryService $inventory;
@@ -45,10 +45,26 @@ final class SalesService
 
         // Pre-flight compliance check before opening a transaction.
         $needsPrescription = false;
+        $hasH1 = false;
         foreach ($items as $item) {
             $schedule = strtoupper((string) ($item['schedule_category'] ?? 'OTC'));
             if (in_array($schedule, self::PRESCRIPTION_REQUIRED, true)) {
                 $needsPrescription = true;
+            }
+            if ($schedule === 'H1') {
+                $hasH1 = true;
+            }
+        }
+
+        // Schedule H1: doctor + customer details are mandatory (register requirement).
+        if ($hasH1) {
+            $doctor = trim((string) ($data['doctor_name'] ?? ''));
+            $customer = trim((string) ($data['patient_name'] ?? '')) ?: trim((string) ($data['customer_name'] ?? ''));
+            if ($doctor === '') {
+                throw HttpException::validation(['doctor_name' => ['Schedule H1: Doctor details are mandatory.']]);
+            }
+            if ($customer === '' || strtolower($customer) === 'walk-in') {
+                throw HttpException::validation(['customer_name' => ['Schedule H1: Customer details are mandatory.']]);
             }
         }
         if ($needsPrescription) {

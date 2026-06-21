@@ -16,7 +16,10 @@ import { MetaService } from '../../core/services/meta.service';
 type BillMode = 'retail' | 'wholesale';
 type RateType = 'mrp' | 'ptr' | 'pts';
 
-const PRESCRIPTION_SCHEDULES = ['H1', 'X', 'G', 'RESTRICTED'];
+// Schedule X / G / Restricted -> prescription upload mandatory.
+const PRESCRIPTION_SCHEDULES = ['X', 'G', 'RESTRICTED'];
+// Schedule H1 & X -> blink red alert in the bill.
+const ALERT_SCHEDULES = ['H1', 'X'];
 const COUNTERS = ['COUNTER 1', 'COUNTER 2', 'COUNTER 3', 'CASH COUNTER', 'IPD COUNTER'];
 
 /** Human meaning of each drug schedule (X = narcotic/psychotropic). */
@@ -456,9 +459,14 @@ export class Billing {
   readonly prescriptionRequired = computed(() =>
     this.bill().lines.some((l) => PRESCRIPTION_SCHEDULES.includes(l.category)),
   );
+  readonly hasX = computed(() => this.bill().lines.some((l) => l.category === 'X'));
+  readonly hasH1 = computed(() => this.bill().lines.some((l) => l.category === 'H1'));
 
   scheduleMeaning(code: string): string {
     return SCHEDULE_MEANING[code] ?? code;
+  }
+  isAlertSchedule(code: string): boolean {
+    return ALERT_SCHEDULES.includes(code);
   }
 
   // ---- prescription / camera ----
@@ -507,8 +515,15 @@ export class Billing {
     const b = this.bill();
     if (b.lines.length === 0) { this.error.set('Add at least one product.'); return; }
     if (this.prescriptionRequired() && !b.prescriptionId) {
-      this.error.set('Prescription is mandatory for the scheduled drugs in this bill.');
+      this.error.set(this.hasX()
+        ? 'Schedule X (Narcotic): prescription upload is mandatory.'
+        : 'Prescription is mandatory for the scheduled drugs in this bill.');
       return;
+    }
+    // Schedule H1: doctor & customer details are mandatory (register requirement).
+    if (this.hasH1()) {
+      if (!b.doctor.trim()) { this.error.set('Schedule H1: Doctor details are mandatory.'); return; }
+      if (!b.patientName.trim()) { this.error.set('Schedule H1: Customer / Patient details are mandatory.'); return; }
     }
     this.saving.set(true);
     this.error.set(null);

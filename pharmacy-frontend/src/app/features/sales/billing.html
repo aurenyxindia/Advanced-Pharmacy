@@ -89,7 +89,7 @@
             [class.oos]="p.available_qty <= 0" (click)="addProduct(p)" (mouseenter)="highlight.set(idx)">
             <div class="pr-main">
               <span class="pr-name">{{ p.product_name }} @if (p.manufacturer_short) { <span class="mfg-chip">{{ p.manufacturer_short }}</span> }</span>
-              <span class="badge sched-{{ p.schedule_category }}" [title]="scheduleMeaning(p.schedule_category)">{{ p.schedule_category }}</span>
+              <span class="badge sched-{{ p.schedule_category }}" [class.blink-red]="isAlertSchedule(p.schedule_category)" [title]="scheduleMeaning(p.schedule_category)">{{ p.schedule_category }}</span>
             </div>
             <div class="pr-sub">
               <span class="text-secondary">{{ p.generic_name || '-' }}</span>
@@ -207,8 +207,13 @@
             <input class="form-control form-control-sm" placeholder="..." [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
           </div>
         </div>
-        @if (prescriptionRequired() && !bill().prescriptionId) {
-          <div class="text-danger small mt-2"><i class="bi bi-exclamation-triangle me-1"></i> Schedule H1/X/G/Restricted item present — prescription required.</div>
+        @if (hasX() && !bill().prescriptionId) {
+          <div class="sched-alert blink-red mt-2"><i class="bi bi-exclamation-octagon-fill me-1"></i> Schedule X (Narcotic): prescription upload is MANDATORY.</div>
+        } @else if (prescriptionRequired() && !bill().prescriptionId) {
+          <div class="text-danger small mt-2"><i class="bi bi-exclamation-triangle me-1"></i> Prescription required for the scheduled item(s) in this bill.</div>
+        }
+        @if (hasH1()) {
+          <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Schedule H1: Doctor &amp; Customer details are MANDATORY.</div>
         }
       </div>
 
@@ -252,7 +257,7 @@
                   <td class="small">{{ line.shelf || '-' }}</td>
                   <td><input type="number" class="g-input" style="width:72px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
                   <td class="small">{{ line.expiry ? (line.expiry | date: 'MM/yy') : '-' }}</td>
-                  <td><span class="badge sched-{{ line.category }}" [title]="scheduleMeaning(line.category)">{{ line.category }}</span></td>
+                  <td><span class="badge sched-{{ line.category }}" [class.blink-red]="isAlertSchedule(line.category)" [title]="scheduleMeaning(line.category)">{{ line.category }}</span></td>
                   <td class="small">{{ line.pack || '-' }}</td>
                   <td class="text-end small">{{ line.unit_mrp | number: '1.2-2' }}</td>
                   <td class="text-end small">{{ lineTaxable(line) | number: '1.2-2' }}</td>

@@ -232,6 +232,32 @@
 .net-total { display: flex; flex-direction: column; }
 .net-amount { font-size: 1.6rem; font-weight: 800; color: var(--pharma-primary); }
 
+// Blinking red alert for Schedule H1 / X
+.blink-red { animation: pharma-blink 0.9s steps(1, end) infinite; }
+@keyframes pharma-blink {
+  0%, 100% { background: #dc2626 !important; color: #fff !important; }
+  50% { background: #fee2e2 !important; color: #991b1b !important; }
+}
+.sched-alert {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.6rem;
+}
+.sched-alert-amber {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  animation: pharma-blink-amber 1s steps(1, end) infinite;
+}
+@keyframes pharma-blink-amber {
+  0%, 100% { background: #f59e0b; color: #fff; }
+  50% { background: #fef3c7; color: #92400e; }
+}
+
 // schedule badges
 .sched-OTC { background: #e2e8f0; color: #475569; }
 .sched-H { background: #fef3c7; color: #92400e; }
