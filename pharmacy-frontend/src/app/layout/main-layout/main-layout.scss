@@ -1,0 +1,238 @@
+:host {
+  display: block;
+}
+
+$sidebar-width: 248px;
+$sidebar-collapsed: 76px;
+$topbar-height: 64px;
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+// ---------- Sidebar ----------
+.sidebar {
+  width: $sidebar-width;
+  background: var(--pharma-sidebar);
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1030;
+  transition: width 0.2s ease;
+}
+
+.sidebar-brand {
+  height: $topbar-height;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1.25rem;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  .brand-icon {
+    font-size: 1.6rem;
+    color: #5eead4;
+  }
+  .brand-text {
+    font-weight: 700;
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.6rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  margin-bottom: 0.25rem;
+  font-size: 0.93rem;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  i {
+    font-size: 1.15rem;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  &:hover {
+    background: var(--pharma-sidebar-hover);
+    color: #fff;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-primary-dark));
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35);
+  }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.badge-soon {
+  margin-left: auto;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+}
+
+.sidebar-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+// ---------- Collapsed state ----------
+.sidebar-collapsed {
+  .sidebar {
+    width: $sidebar-collapsed;
+  }
+  .nav-label,
+  .brand-text,
+  .badge-soon {
+    display: none;
+  }
+  .main-column {
+    margin-left: $sidebar-collapsed;
+  }
+}
+
+// ---------- Main column ----------
+.main-column {
+  flex: 1;
+  margin-left: $sidebar-width;
+  transition: margin-left 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  height: $topbar-height;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.toggle-btn {
+  border-radius: 0.5rem;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notif-dot {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #fff;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f1f5f9;
+  border-radius: 0.7rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.4rem;
+
+  &::after {
+    margin-left: 0.25rem;
+  }
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-accent));
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-meta {
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.user-role {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  background: var(--pharma-bg);
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    width: $sidebar-collapsed;
+  }
+  .nav-label,
+  .brand-text,
+  .badge-soon {
+    display: none;
+  }
+  .main-column {
+    margin-left: $sidebar-collapsed;
+  }
+}

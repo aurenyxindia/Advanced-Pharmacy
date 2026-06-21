@@ -1,0 +1,174 @@
+<div class="dashboard">
+  <!-- Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+      <h4 class="fw-bold mb-1">Dashboard</h4>
+      <p class="text-secondary mb-0">
+        @if (user()?.scope === 'ho' || user()?.role === 'ho_admin') {
+          Consolidated overview across all branches
+        } @else {
+          Your branch performance at a glance
+        }
+      </p>
+    </div>
+    <button class="btn btn-light border" (click)="load()" [disabled]="loading()">
+      <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-pharma" role="status"></div>
+      <p class="text-secondary mt-3">Loading analytics...</p>
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  } @else if (kpis(); as k) {
+    <!-- KPI cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-xl-3">
+        <div class="kpi-card card-pharma">
+          <div class="kpi-icon bg-soft-teal"><i class="bi bi-cash-stack"></i></div>
+          <div>
+            <div class="kpi-label">Today's Sales</div>
+            <div class="kpi-value">{{ k.today_sales | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="kpi-card card-pharma">
+          <div class="kpi-icon bg-soft-indigo"><i class="bi bi-graph-up-arrow"></i></div>
+          <div>
+            <div class="kpi-label">Month Sales</div>
+            <div class="kpi-value">{{ k.month_sales | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="kpi-card card-pharma">
+          <div class="kpi-icon bg-soft-green"><i class="bi bi-piggy-bank"></i></div>
+          <div>
+            <div class="kpi-label">Month Profit</div>
+            <div class="kpi-value">{{ k.month_profit | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="kpi-card card-pharma">
+          <div class="kpi-icon bg-soft-blue"><i class="bi bi-bag-check"></i></div>
+          <div>
+            <div class="kpi-label">Today's Purchase</div>
+            <div class="kpi-value">{{ k.today_purchase | currency: 'INR' : 'symbol' : '1.0-0' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-pill card-pharma">
+          <i class="bi bi-box-seam text-pharma"></i>
+          <div><span class="stat-num">{{ k.product_count }}</span><span class="stat-cap">Products</span></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill card-pharma">
+          <i class="bi bi-people text-pharma"></i>
+          <div><span class="stat-num">{{ k.customer_count }}</span><span class="stat-cap">Customers</span></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill card-pharma warn">
+          <i class="bi bi-exclamation-triangle text-warning"></i>
+          <div><span class="stat-num">{{ k.low_stock_count }}</span><span class="stat-cap">Low stock</span></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill card-pharma danger">
+          <i class="bi bi-hourglass-split text-danger"></i>
+          <div><span class="stat-num">{{ k.expiring_count }}</span><span class="stat-cap">Expiring &le; 90d</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-lg-8">
+        <div class="card-pharma p-3 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-semibold mb-0">Sales Trend (14 days)</h6>
+            <span class="badge text-bg-light">Net amount</span>
+          </div>
+          <div class="chart-box">
+            <app-chart [config]="salesTrendConfig()" />
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="card-pharma p-3 h-100">
+          <h6 class="fw-semibold mb-2">Product Categories</h6>
+          @if (hasCategoryData()) {
+            <div class="chart-box">
+              <app-chart [config]="categoryConfig()" />
+            </div>
+          } @else {
+            <div class="empty-state">
+              <i class="bi bi-pie-chart"></i>
+              <p>No products bound yet. Add them via Masters / Purchase.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="card-pharma p-3 h-100">
+          <h6 class="fw-semibold mb-2">Top Selling Products</h6>
+          @if (hasTopProducts()) {
+            <div class="chart-box">
+              <app-chart [config]="topProductsConfig()" />
+            </div>
+          } @else {
+            <div class="empty-state">
+              <i class="bi bi-bar-chart"></i>
+              <p>Sales data will appear here once billing begins.</p>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="card-pharma p-3 h-100">
+          <h6 class="fw-semibold mb-3">Recent Sales</h6>
+          @if (data()?.recent_sales?.length) {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Invoice</th><th>Date</th><th>Customer</th><th class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (sale of data()!.recent_sales; track sale.invoice_no) {
+                    <tr>
+                      <td class="fw-semibold">{{ sale.invoice_no }}</td>
+                      <td>{{ sale.invoice_date | date: 'dd MMM' }}</td>
+                      <td>{{ sale.customer_name || 'Walk-in' }}</td>
+                      <td class="text-end">{{ sale.net_amount | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <i class="bi bi-receipt"></i>
+              <p>No sales recorded yet.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

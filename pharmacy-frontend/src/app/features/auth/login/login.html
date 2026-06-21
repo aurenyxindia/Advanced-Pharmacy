@@ -1,0 +1,99 @@
+<div class="auth-wrapper bg-auth">
+  <div class="auth-card shadow-pharma-lg">
+    <!-- Branding panel -->
+    <div class="auth-brand d-none d-lg-flex">
+      <div class="brand-inner">
+        <div class="brand-logo">
+          <i class="bi bi-capsule-pill"></i>
+        </div>
+        <h1>Advanced Pharmacy Suite</h1>
+        <p class="brand-tag">
+          Multi-pharmacy retail &amp; distribution platform with intelligent inventory,
+          billing and analytics.
+        </p>
+        <ul class="brand-points">
+          <li><i class="bi bi-check-circle-fill"></i> Batch-wise inventory &amp; expiry control</li>
+          <li><i class="bi bi-check-circle-fill"></i> GST billing with profit analytics</li>
+          <li><i class="bi bi-check-circle-fill"></i> Schedule H/H1/X compliance</li>
+          <li><i class="bi bi-check-circle-fill"></i> Centralized multi-branch control</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Form panel -->
+    <div class="auth-form">
+      <div class="form-inner">
+        <div class="text-center mb-4">
+          <div class="mobile-logo d-lg-none">
+            <i class="bi bi-capsule-pill"></i>
+          </div>
+          <h2 class="fw-bold mb-1">Welcome back</h2>
+          <p class="text-secondary mb-0">Sign in to your pharmacy dashboard</p>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="alert alert-danger d-flex align-items-center py-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email address</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input
+                type="email"
+                class="form-control"
+                placeholder="you@pharmacy.com"
+                formControlName="email"
+                autocomplete="username"
+                [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
+              />
+            </div>
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <div class="text-danger small mt-1">Enter a valid email address.</div>
+            }
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Password</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input
+                [type]="showPassword() ? 'text' : 'password'"
+                class="form-control"
+                placeholder="Enter your password"
+                formControlName="password"
+                autocomplete="current-password"
+                [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+              />
+              <button class="btn btn-outline-secondary" type="button" (click)="togglePassword()">
+                <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+              </button>
+            </div>
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <div class="text-danger small mt-1">Password is required (min 6 characters).</div>
+            }
+          </div>
+
+          <button type="submit" class="btn btn-pharma w-100 py-2 fw-semibold" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner-border spinner-border-sm me-2"></span> Signing in...
+            } @else {
+              <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
+            }
+          </button>
+        </form>
+
+        <p class="text-center mt-4 mb-0 text-secondary">
+          New pharmacy?
+          <a routerLink="/register" class="text-pharma fw-semibold text-decoration-none">
+            Register your business
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,102 @@
+// ============================================================
+// Global styles - Advanced Pharmacy Suite
+// Bootstrap 5 + custom pharmacy theme
+// ============================================================
+
+// Customize a few Bootstrap variables before importing.
+$primary: #0d9488;      // teal - clinical / pharmacy
+$secondary: #475569;    // slate
+$success: #16a34a;
+$info: #0ea5e9;
+$warning: #f59e0b;
+$danger: #dc2626;
+$border-radius: 0.65rem;
+$border-radius-lg: 0.9rem;
+$font-family-sans-serif: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+@import "bootstrap/scss/bootstrap";
+
+:root {
+  --pharma-primary: #0d9488;
+  --pharma-primary-dark: #0f766e;
+  --pharma-accent: #6366f1;
+  --pharma-bg: #f1f5f9;
+  --pharma-sidebar: #0f172a;
+  --pharma-sidebar-hover: #1e293b;
+  --pharma-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --pharma-card-shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: $font-family-sans-serif;
+  background: var(--pharma-bg);
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+// ---- Shared utility classes ----
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--pharma-primary) 0%, var(--pharma-primary-dark) 100%);
+}
+
+.bg-auth {
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(13, 148, 136, 0.25), transparent 50%),
+    radial-gradient(1000px 500px at 90% 90%, rgba(99, 102, 241, 0.25), transparent 50%),
+    linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
+}
+
+.card-pharma {
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--pharma-card-shadow);
+  background: #fff;
+}
+
+.shadow-pharma {
+  box-shadow: var(--pharma-card-shadow);
+}
+
+.shadow-pharma-lg {
+  box-shadow: var(--pharma-card-shadow-lg);
+}
+
+.text-pharma {
+  color: var(--pharma-primary) !important;
+}
+
+.btn-pharma {
+  background: linear-gradient(135deg, var(--pharma-primary) 0%, var(--pharma-primary-dark) 100%);
+  color: #fff;
+  border: none;
+
+  &:hover,
+  &:focus {
+    color: #fff;
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+  }
+}
+
+// Thin custom scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 8px;
+}

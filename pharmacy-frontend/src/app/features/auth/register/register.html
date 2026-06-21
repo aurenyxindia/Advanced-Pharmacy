@@ -1,0 +1,116 @@
+<div class="reg-wrapper bg-auth">
+  <div class="reg-card card-pharma shadow-pharma-lg">
+    <div class="reg-header bg-gradient-primary">
+      <div class="d-flex align-items-center gap-3">
+        <div class="reg-logo"><i class="bi bi-capsule-pill"></i></div>
+        <div>
+          <h2 class="mb-0 fw-bold text-white">Register your pharmacy</h2>
+          <p class="mb-0 text-white-50">Start your 14-day free trial — no card required</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reg-body">
+      @if (errorMessage()) {
+        <div class="alert alert-danger d-flex align-items-center py-2">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <h6 class="section-title"><i class="bi bi-shop me-2"></i>Business details</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Business / Pharmacy name <span class="req">*</span></label>
+            <input class="form-control" formControlName="business_name"
+              [class.is-invalid]="(form.controls.business_name.touched && form.controls.business_name.invalid) || fieldError('business_name')" />
+            <div class="invalid-feedback d-block" *ngIf="fieldError('business_name')">{{ fieldError('business_name') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Owner / Proprietor name <span class="req">*</span></label>
+            <input class="form-control" formControlName="owner_name"
+              [class.is-invalid]="form.controls.owner_name.touched && form.controls.owner_name.invalid" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Drug License Number <span class="req">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-patch-check"></i></span>
+              <input class="form-control" formControlName="drug_license_no" placeholder="e.g. MH-DL-20B-12345"
+                [class.is-invalid]="(form.controls.drug_license_no.touched && form.controls.drug_license_no.invalid) || fieldError('drug_license_no')" />
+            </div>
+            <div class="invalid-feedback d-block" *ngIf="fieldError('drug_license_no')">{{ fieldError('drug_license_no') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">GSTIN</label>
+            <input class="form-control" formControlName="gstin" placeholder="15-digit GSTIN" />
+          </div>
+        </div>
+
+        <h6 class="section-title mt-4"><i class="bi bi-telephone me-2"></i>Contact &amp; address</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Email address <span class="req">*</span></label>
+            <input class="form-control" formControlName="email"
+              [class.is-invalid]="(form.controls.email.touched && form.controls.email.invalid) || fieldError('email')" />
+            <div class="invalid-feedback d-block" *ngIf="fieldError('email')">{{ fieldError('email') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Phone <span class="req">*</span></label>
+            <input class="form-control" formControlName="phone"
+              [class.is-invalid]="form.controls.phone.touched && form.controls.phone.invalid" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Address</label>
+            <input class="form-control" formControlName="address" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">City</label>
+            <input class="form-control" formControlName="city" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">State</label>
+            <input class="form-control" formControlName="state" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Pincode</label>
+            <input class="form-control" formControlName="pincode" />
+          </div>
+        </div>
+
+        <h6 class="section-title mt-4"><i class="bi bi-shield-lock me-2"></i>Account security</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Password <span class="req">*</span></label>
+            <input type="password" class="form-control" formControlName="password"
+              [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid" />
+            <div class="text-danger small mt-1" *ngIf="form.controls.password.touched && form.controls.password.invalid">
+              Minimum 8 characters.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirm password <span class="req">*</span></label>
+            <input type="password" class="form-control" formControlName="password_confirmation"
+              [class.is-invalid]="form.controls.password_confirmation.touched && (form.controls.password_confirmation.invalid || form.errors?.['mismatch'])" />
+            <div class="text-danger small mt-1" *ngIf="form.errors?.['mismatch'] && form.controls.password_confirmation.touched">
+              Passwords do not match.
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-pharma w-100 py-2 mt-4 fw-semibold" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner-border spinner-border-sm me-2"></span> Creating your account...
+          } @else {
+            <i class="bi bi-rocket-takeoff me-2"></i> Create account &amp; start trial
+          }
+        </button>
+
+        <p class="text-center mt-3 mb-0 text-secondary">
+          Already registered?
+          <a routerLink="/login" class="text-pharma fw-semibold text-decoration-none">Sign in</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</div>
