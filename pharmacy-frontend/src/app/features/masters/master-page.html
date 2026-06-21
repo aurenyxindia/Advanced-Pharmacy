@@ -1,0 +1,171 @@
+<div class="master-page">
+  <!-- Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <div class="master-icon"><i class="bi" [ngClass]="config.icon"></i></div>
+      <div>
+        <h4 class="fw-bold mb-0">{{ config.title }}</h4>
+        <p class="text-secondary mb-0 small">{{ config.subtitle }}</p>
+      </div>
+    </div>
+    @if (config.canCreate) {
+      <button class="btn btn-pharma" (click)="openCreate()">
+        <i class="bi bi-plus-lg me-1"></i> Add New
+      </button>
+    }
+  </div>
+
+  <!-- Toolbar -->
+  <div class="card-pharma p-3 mb-3">
+    <div class="input-group">
+      <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+      <input
+        class="form-control border-start-0"
+        placeholder="Search {{ config.title.toLowerCase() }}..."
+        #searchBox
+        (input)="onSearch(searchBox.value)"
+      />
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            @for (col of config.columns; track col.key) {
+              <th [class.text-end]="col.type === 'currency' || col.type === 'number'">{{ col.label }}</th>
+            }
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td [attr.colspan]="config.columns.length + 1" class="text-center py-5">
+              <span class="spinner-border text-pharma"></span>
+            </td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td [attr.colspan]="config.columns.length + 1" class="text-center py-5 text-secondary">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i> No records found.
+            </td></tr>
+          } @else {
+            @for (row of rows(); track row['id']) {
+              <tr>
+                @for (col of config.columns; track col.key) {
+                  <td [class.text-end]="col.type === 'currency' || col.type === 'number'">
+                    @if (col.type === 'badge') {
+                      <span class="badge" [ngClass]="(col.badgeClass && col.badgeClass[row[col.key] + '']) || 'text-bg-light'">
+                        {{ row[col.key] || '-' }}
+                      </span>
+                    } @else {
+                      {{ formatCell(row, col) }}
+                    }
+                  </td>
+                }
+                <td class="text-end text-nowrap">
+                  @if (config.bindable) {
+                    <button class="btn btn-sm btn-outline-success me-1" title="Add to my branch" (click)="bind(row)">
+                      <i class="bi bi-box-arrow-in-down"></i>
+                    </button>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary me-1" title="Edit" (click)="openEdit(row)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  @if (config.canDelete) {
+                    <button class="btn btn-sm btn-outline-danger" title="Delete" (click)="remove(row)">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="d-flex justify-content-between align-items-center p-3 border-top">
+        <span class="text-secondary small">{{ total() }} records</span>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-light border" [disabled]="page() === 1" (click)="goToPage(page() - 1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button class="btn btn-sm btn-light border" disabled>{{ page() }} / {{ totalPages() }}</button>
+          <button class="btn btn-sm btn-light border" [disabled]="page() === totalPages()" (click)="goToPage(page() + 1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Modal form -->
+  @if (modalOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeModal()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold">
+            {{ editingId() ? 'Edit' : 'Add' }} {{ config.title }}
+          </h5>
+          <button class="btn-close" (click)="closeModal()"></button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="save()" class="modal-body-custom">
+          @if (formError()) {
+            <div class="alert alert-danger py-2">{{ formError() }}</div>
+          }
+          <div class="row g-3">
+            @for (field of config.fields; track field.key) {
+              <div [ngClass]="field.col || 'col-md-6'">
+                <label class="form-label">
+                  {{ field.label }}
+                  @if (field.required) { <span class="text-danger">*</span> }
+                </label>
+
+                @switch (field.type) {
+                  @case ('select') {
+                    <select class="form-select" [formControlName]="field.key"
+                      [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid">
+                      <option value="">-- Select --</option>
+                      @for (opt of optionsFor(field); track opt.value) {
+                        <option [value]="opt.value">{{ opt.label }}</option>
+                      }
+                    </select>
+                  }
+                  @case ('textarea') {
+                    <textarea class="form-control" rows="2" [formControlName]="field.key"
+                      [placeholder]="field.placeholder || ''"></textarea>
+                  }
+                  @default {
+                    <input [type]="field.type" class="form-control" [formControlName]="field.key"
+                      [placeholder]="field.placeholder || ''"
+                      [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid" />
+                  }
+                }
+              </div>
+            }
+          </div>
+
+          <div class="modal-foot">
+            <button type="button" class="btn btn-light border" (click)="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-pharma" [disabled]="saving()">
+              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Toast -->
+  @if (toast()) {
+    <div class="toast-custom shadow-pharma-lg">
+      <i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}
+    </div>
+  }
+</div>

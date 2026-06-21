@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -23,6 +23,47 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () =>
           import('./features/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      {
+        path: 'masters',
+        loadComponent: () =>
+          import('./features/masters/masters-home').then((m) => m.MastersHome),
+      },
+      {
+        path: 'masters/products',
+        data: { configKey: 'products' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/generics',
+        data: { configKey: 'generics' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/customers',
+        data: { configKey: 'customers' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/doctors',
+        data: { configKey: 'doctors' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/suppliers',
+        data: { configKey: 'suppliers' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/accounts',
+        data: { configKey: 'accounts' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/employees',
+        canActivate: [roleGuard],
+        data: { configKey: 'employees', roles: ['ho_admin', 'branch_admin'] },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
     ],
   },

@@ -99,6 +99,71 @@ abstract class Model
         return $stmt->execute(['id' => $id]);
     }
 
+    public function table(): string
+    {
+        return $this->table;
+    }
+
+    public function connectionName(): string
+    {
+        return $this->connection;
+    }
+
+    /**
+     * Paginated + searchable listing.
+     *
+     * @param array<string,mixed> $conditions Exact-match scope filters (e.g. tenant keys)
+     * @param string[]            $searchColumns Columns to LIKE-match against $search
+     * @return array{data: array, total: int, page: int, per_page: int}
+     */
+    public function paginate(
+        array $conditions = [],
+        ?string $search = null,
+        array $searchColumns = [],
+        int $page = 1,
+        int $perPage = 25,
+        string $orderBy = 'id DESC'
+    ): array {
+        $page    = max(1, $page);
+        $perPage = max(1, min(200, $perPage));
+        $offset  = ($page - 1) * $perPage;
+
+        $clauses  = [];
+        $bindings = [];
+        foreach ($conditions as $column => $value) {
+            $param = 'c_' . str_replace('.', '_', $column);
+            $clauses[] = "`{$column}` = :{$param}";
+            $bindings[$param] = $value;
+        }
+
+        if ($search !== null && $search !== '' && $searchColumns !== []) {
+            $likes = [];
+            foreach ($searchColumns as $i => $column) {
+                $param = "s_{$i}";
+                $likes[] = "`{$column}` LIKE :{$param}";
+                $bindings[$param] = '%' . $search . '%';
+            }
+            $clauses[] = '(' . implode(' OR ', $likes) . ')';
+        }
+
+        $where = $clauses !== [] ? 'WHERE ' . implode(' AND ', $clauses) : '';
+
+        $countStmt = $this->db()->prepare("SELECT COUNT(*) FROM `{$this->table}` {$where}");
+        $countStmt->execute($bindings);
+        $total = (int) $countStmt->fetchColumn();
+
+        $sql = "SELECT * FROM `{$this->table}` {$where} ORDER BY {$orderBy} LIMIT {$perPage} OFFSET {$offset}";
+        $stmt = $this->db()->prepare($sql);
+        $stmt->execute($bindings);
+
+        return [
+            'data'     => $stmt->fetchAll(),
+            'total'    => $total,
+            'page'     => $page,
+            'per_page' => $perPage,
+        ];
+    }
+
     public function rawOne(string $sql, array $bindings = []): ?array
     {
         $stmt = $this->db()->prepare($sql);
