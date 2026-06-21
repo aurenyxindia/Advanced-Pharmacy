@@ -13,7 +13,9 @@ use App\Controllers\EmployeeController;
 use App\Controllers\GenericController;
 use App\Controllers\ImportController;
 use App\Controllers\MetaController;
+use App\Controllers\OrderController;
 use App\Controllers\PrescriptionController;
+use App\Controllers\PublicController;
 use App\Controllers\PurchaseController;
 use App\Controllers\RefillController;
 use App\Controllers\ReportController;
@@ -40,6 +42,14 @@ $router->group(['prefix' => '/api/auth'], function (Router $router): void {
     $router->post('/login', [AuthController::class, 'login']);
     $router->post('/refresh', [AuthController::class, 'refresh']);
     $router->post('/logout', [AuthController::class, 'logout']);
+});
+
+// ---- Public ePharmacy (no authentication) ----
+$router->group(['prefix' => '/api/public'], function (Router $router): void {
+    $router->get('/branches', [PublicController::class, 'branches']);
+    $router->get('/catalog', [PublicController::class, 'catalog']);
+    $router->post('/orders', [PublicController::class, 'placeOrder']);
+    $router->get('/orders/track', [PublicController::class, 'track']);
 });
 
 // ---- Authenticated -----------------------------------------------------
@@ -123,6 +133,11 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Prescriptions ----
     $router->post('/prescriptions', [PrescriptionController::class, 'upload']);
+
+    // ---- Online orders / delivery (staff) ----
+    $router->get('/orders', [OrderController::class, 'index']);
+    $router->get('/orders/{id}', [OrderController::class, 'show']);
+    $router->put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
 
     // ---- Refill reminders ----
     $router->get('/refills/summary', [RefillController::class, 'summary']);

@@ -1,0 +1,17 @@
+:host { display: block; }
+
+.table thead th {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8; white-space: nowrap;
+}
+.form-label { font-weight: 500; margin-bottom: 0.2rem; }
+
+.modal-backdrop-custom { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1050; }
+.modal-custom { position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 3rem 1rem; pointer-events: none; overflow-y: auto; }
+.modal-card { width: 100%; max-width: 600px; pointer-events: auto; }
+.modal-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
+.modal-body-custom { padding: 1.5rem; }
+
+.toast-custom { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff;
+  border-radius: 0.7rem; padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; }

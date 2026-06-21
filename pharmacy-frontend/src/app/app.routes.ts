@@ -2,6 +2,15 @@ import { Routes } from '@angular/router';
 import { authGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  // ---- Public ePharmacy storefront (no authentication) ----
+  {
+    path: 'shop',
+    loadComponent: () => import('./features/shop/shop').then((m) => m.Shop),
+  },
+  {
+    path: 'track',
+    loadComponent: () => import('./features/shop/track').then((m) => m.Track),
+  },
   {
     path: 'login',
     canActivate: [guestGuard],
@@ -100,6 +109,10 @@ export const routes: Routes = [
       {
         path: 'refills',
         loadComponent: () => import('./features/refills/refills').then((m) => m.Refills),
+      },
+      {
+        path: 'deliveries',
+        loadComponent: () => import('./features/deliveries/deliveries').then((m) => m.Deliveries),
       },
     ],
   },

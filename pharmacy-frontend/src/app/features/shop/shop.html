@@ -1,0 +1,129 @@
+<div class="shop">
+  <!-- Public header -->
+  <header class="shop-header">
+    <div class="container d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-capsule-pill brand-icon"></i>
+        <span class="fw-bold">ePharmacy</span>
+      </div>
+      <a routerLink="/track" class="btn btn-sm btn-light"><i class="bi bi-truck me-1"></i> Track Order</a>
+    </div>
+  </header>
+
+  <div class="container py-4">
+    @if (confirmation(); as conf) {
+      <!-- Order confirmation -->
+      <div class="card-pharma p-4 text-center conf-panel">
+        <div class="success-icon"><i class="bi bi-bag-check"></i></div>
+        <h4 class="fw-bold mt-3">Order Placed!</h4>
+        <p class="text-secondary">Your order number is <b>{{ conf.order_no }}</b></p>
+        <div class="alert alert-info d-inline-block text-start">
+          <div class="small text-secondary mb-1">Tracking number (save this):</div>
+          <code class="track-token">{{ conf.tracking_token }}</code>
+        </div>
+        <p class="mb-3">Estimated total: <b>{{ conf.total_estimate | currency: 'INR' : 'symbol' : '1.2-2' }}</b> (pay on delivery)</p>
+        <a [routerLink]="['/track']" [queryParams]="{ q: conf.tracking_token }" class="btn btn-pharma me-2">
+          <i class="bi bi-truck me-1"></i> Track this order
+        </a>
+        <button class="btn btn-light border" (click)="confirmation.set(null)">Place another order</button>
+      </div>
+    } @else {
+      <h3 class="fw-bold mb-1">Order medicines online</h3>
+      <p class="text-secondary mb-4">Choose a pharmacy, add medicines and get them delivered.</p>
+
+      <!-- Branch selection -->
+      @if (!selectedBranch()) {
+        <div class="row g-3">
+          @for (b of branches(); track b.id) {
+            <div class="col-md-4">
+              <button class="branch-card card-pharma p-3 w-100 text-start" (click)="selectBranch(b.id)">
+                <div class="fw-semibold">{{ b.business_name }}</div>
+                <div class="text-secondary small">{{ b.name }} @if (b.city) { · {{ b.city }} }</div>
+              </button>
+            </div>
+          } @empty {
+            <div class="col-12 text-center text-secondary py-5">No pharmacies available right now.</div>
+          }
+        </div>
+      } @else {
+        <div class="row g-4">
+          <!-- Catalog -->
+          <div class="col-lg-8">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="text-secondary small">Shopping at <b>{{ branchName() }}</b></span>
+              <button class="btn btn-sm btn-link text-decoration-none" (click)="selectedBranch.set(null)">Change pharmacy</button>
+            </div>
+            <div class="input-group mb-3">
+              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+              <input class="form-control border-start-0" placeholder="Search medicines..."
+                [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
+            </div>
+            <div class="row g-3">
+              @for (p of products(); track p.binding_id) {
+                <div class="col-sm-6">
+                  <div class="product-card card-pharma p-3 h-100 d-flex flex-column">
+                    <div class="fw-semibold">{{ p.product_name }}</div>
+                    <div class="text-secondary small mb-2">
+                      <span class="badge text-bg-light">{{ p.schedule_category }}</span>
+                      in stock: {{ p.available_qty }}
+                    </div>
+                    <div class="mt-auto d-flex align-items-center justify-content-between">
+                      <span class="fw-bold">{{ p.mrp | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+                      <button class="btn btn-sm btn-pharma" (click)="addToCart(p)"><i class="bi bi-plus-lg"></i> Add</button>
+                    </div>
+                  </div>
+                </div>
+              } @empty {
+                <div class="col-12 text-center text-secondary py-5">No products found. Try another search.</div>
+              }
+            </div>
+          </div>
+
+          <!-- Cart + checkout -->
+          <div class="col-lg-4">
+            <div class="card-pharma p-3 cart-box">
+              <h6 class="fw-semibold mb-3"><i class="bi bi-cart me-1"></i> Cart ({{ cartCount() }})</h6>
+              @if (cart().length === 0) {
+                <p class="text-secondary small text-center py-3">Your cart is empty.</p>
+              } @else {
+                @for (item of cart(); track item.binding_id) {
+                  <div class="cart-item">
+                    <div class="flex-fill">
+                      <div class="small fw-semibold">{{ item.product_name }}</div>
+                      <div class="text-secondary small">{{ item.mrp | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
+                    </div>
+                    <div class="qty-control">
+                      <button class="btn btn-sm btn-light" (click)="updateQty($index, item.quantity - 1)">-</button>
+                      <span>{{ item.quantity }}</span>
+                      <button class="btn btn-sm btn-light" (click)="updateQty($index, item.quantity + 1)">+</button>
+                    </div>
+                  </div>
+                }
+                <hr />
+                <div class="d-flex justify-content-between fw-bold mb-3">
+                  <span>Total</span><span>{{ cartTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+                </div>
+
+                @if (error()) { <div class="alert alert-danger py-2 small">{{ error() }}</div> }
+
+                <input class="form-control form-control-sm mb-2" placeholder="Full name *"
+                  [ngModel]="checkout().customer_name" (ngModelChange)="updateCheckout('customer_name', $event)" />
+                <input class="form-control form-control-sm mb-2" placeholder="Phone *"
+                  [ngModel]="checkout().phone" (ngModelChange)="updateCheckout('phone', $event)" />
+                <textarea class="form-control form-control-sm mb-2" rows="2" placeholder="Delivery address *"
+                  [ngModel]="checkout().address" (ngModelChange)="updateCheckout('address', $event)"></textarea>
+                <input class="form-control form-control-sm mb-3" placeholder="Pincode"
+                  [ngModel]="checkout().pincode" (ngModelChange)="updateCheckout('pincode', $event)" />
+
+                <button class="btn btn-pharma w-100" [disabled]="placing()" (click)="placeOrder()">
+                  @if (placing()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                  Place Order (Cash on Delivery)
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>

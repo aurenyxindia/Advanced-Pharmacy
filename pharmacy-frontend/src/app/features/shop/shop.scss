@@ -1,0 +1,46 @@
+:host { display: block; min-height: 100vh; background: var(--pharma-bg); }
+
+.shop-header {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.85rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  .brand-icon { font-size: 1.5rem; color: var(--pharma-primary); }
+}
+
+.branch-card, .product-card {
+  border: none;
+  transition: transform .12s ease, box-shadow .12s ease;
+  &:hover { transform: translateY(-2px); box-shadow: var(--pharma-card-shadow-lg); }
+}
+.branch-card { cursor: pointer; }
+
+.cart-box { position: sticky; top: 80px; }
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.qty-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  span { min-width: 20px; text-align: center; }
+  .btn { width: 28px; padding: 0; line-height: 1.4; }
+}
+
+.conf-panel { max-width: 520px; margin: 2rem auto; }
+.success-icon {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(13,148,136,.15); color: var(--pharma-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem; margin: 0 auto;
+}
+.track-token { font-size: 0.85rem; word-break: break-all; }

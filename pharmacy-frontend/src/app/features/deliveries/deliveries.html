@@ -1,0 +1,102 @@
+<div class="deliveries">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Deliveries &amp; Online Orders</h4>
+      <p class="text-secondary mb-0 small">Manage ePharmacy orders and delivery status</p>
+    </div>
+  </div>
+
+  <!-- Status filter -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    @for (s of statuses; track s) {
+      <button class="btn btn-sm" [class.btn-pharma]="filter() === s" [class.btn-light]="filter() !== s"
+        [class.border]="filter() !== s" (click)="setFilter(s)">{{ label(s) }}</button>
+    }
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr><th>Order</th><th>Customer</th><th>Phone</th><th>Address</th><th class="text-end">Est.</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="7" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="7" class="text-center py-5 text-secondary"><i class="bi bi-truck fs-3 d-block mb-2"></i> No orders.</td></tr>
+          } @else {
+            @for (r of rows(); track r['id']) {
+              <tr>
+                <td class="fw-semibold">{{ r['order_no'] }}</td>
+                <td>{{ r['customer_name'] }}</td>
+                <td>{{ r['phone'] }}</td>
+                <td class="text-truncate" style="max-width: 200px;">{{ r['address'] }}</td>
+                <td class="text-end">{{ +(r['total_estimate'] || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td><span class="badge" [ngClass]="badge(r['status'])">{{ label(r['status']) }}</span></td>
+                <td class="text-end"><button class="btn btn-sm btn-outline-secondary" (click)="open(+r['id'])"><i class="bi bi-pencil-square"></i></button></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail / status drawer -->
+  @if (selected(); as order) {
+    <div class="modal-backdrop-custom" (click)="selected.set(null)"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold">Order {{ order['order_no'] }}</h5>
+          <button class="btn-close" (click)="selected.set(null)"></button>
+        </div>
+        <div class="modal-body-custom">
+          <div class="row g-2 mb-3">
+            <div class="col-6"><div class="text-secondary small">Customer</div><div class="fw-semibold">{{ order['customer_name'] }}</div></div>
+            <div class="col-6"><div class="text-secondary small">Phone</div><div class="fw-semibold">{{ order['phone'] }}</div></div>
+            <div class="col-12"><div class="text-secondary small">Address</div><div>{{ order['address'] }} {{ order['pincode'] }}</div></div>
+          </div>
+
+          <div class="card-pharma p-2 mb-3">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Rate</th></tr></thead>
+              <tbody>
+                @for (it of order['items']; track it['id']) {
+                  <tr><td>{{ it['product_name'] }}</td><td class="text-end">{{ it['quantity'] }}</td><td class="text-end">{{ +it['rate'] | currency: 'INR' : 'symbol' : '1.2-2' }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">Update Status</label>
+              <select class="form-select" [ngModel]="newStatus()" (ngModelChange)="newStatus.set($event)">
+                @for (s of statuses; track s) { <option [value]="s">{{ label(s) }}</option> }
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Assign To (rider)</label>
+              <input class="form-control" [ngModel]="assignedTo()" (ngModelChange)="assignedTo.set($event)" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small">Note</label>
+              <input class="form-control" [ngModel]="note()" (ngModelChange)="note.set($event)" />
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button class="btn btn-light border" (click)="selected.set(null)">Close</button>
+            <button class="btn btn-pharma" (click)="saveStatus()">Update Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast()) {
+    <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div>
+  }
+</div>
