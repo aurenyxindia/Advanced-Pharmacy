@@ -56,8 +56,13 @@ final class SalesService
             }
         }
 
+        // Wholesale (B2B) billing: the buyer is itself a licensed party, so the
+        // retail-counter compliance gates (mandatory prescription for X/G/Restricted,
+        // mandatory doctor+customer for H1) do not apply. The UI still shows a warning.
+        $isWholesale = ($data['bill_mode'] ?? 'retail') === 'wholesale';
+
         // Schedule H1: doctor + customer details are mandatory (register requirement).
-        if ($hasH1) {
+        if ($hasH1 && !$isWholesale) {
             $doctor = trim((string) ($data['doctor_name'] ?? ''));
             $customer = trim((string) ($data['patient_name'] ?? '')) ?: trim((string) ($data['customer_name'] ?? ''));
             if ($doctor === '') {
@@ -67,7 +72,7 @@ final class SalesService
                 throw HttpException::validation(['customer_name' => ['Schedule H1: Customer details are mandatory.']]);
             }
         }
-        if ($needsPrescription) {
+        if ($needsPrescription && !$isWholesale) {
             if (empty($data['prescription_id'])) {
                 throw HttpException::validation([
                     'prescription' => ['A prescription upload is mandatory for Schedule H1/X/G/Restricted drugs.'],

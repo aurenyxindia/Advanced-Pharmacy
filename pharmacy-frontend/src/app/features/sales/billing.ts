@@ -488,11 +488,17 @@ export class Billing {
   readonly cgst = computed(() => (this.bill().isInterstate ? 0 : this.gstTotal() / 2));
   readonly igst = computed(() => (this.bill().isInterstate ? this.gstTotal() : 0));
 
-  readonly prescriptionRequired = computed(() =>
+  // Wholesale is B2B: the buyer is a licensed party, so prescription / doctor
+  // gates are relaxed to warnings only (no hard enforcement).
+  readonly hasScheduleX = computed(() => this.bill().lines.some((l) => l.category === 'X'));
+  readonly hasH1 = computed(() => this.bill().lines.some((l) => l.category === 'H1'));
+  readonly hasScheduledItem = computed(() =>
     this.bill().lines.some((l) => PRESCRIPTION_SCHEDULES.includes(l.category)),
   );
-  readonly hasX = computed(() => this.bill().lines.some((l) => l.category === 'X'));
-  readonly hasH1 = computed(() => this.bill().lines.some((l) => l.category === 'H1'));
+  // Enforcement only applies to retail billing.
+  readonly prescriptionRequired = computed(() => !this.isWholesale() && this.hasScheduledItem());
+  readonly hasX = computed(() => !this.isWholesale() && this.hasScheduleX());
+  readonly enforceH1 = computed(() => !this.isWholesale() && this.hasH1());
 
   scheduleMeaning(code: string): string {
     return SCHEDULE_MEANING[code] ?? code;
@@ -552,8 +558,8 @@ export class Billing {
         : 'Prescription is mandatory for the scheduled drugs in this bill.');
       return;
     }
-    // Schedule H1: doctor & customer details are mandatory (register requirement).
-    if (this.hasH1()) {
+    // Schedule H1: doctor & customer details are mandatory for RETAIL only.
+    if (this.enforceH1()) {
       if (!b.doctor.trim()) { this.error.set('Schedule H1: Doctor details are mandatory.'); return; }
       if (!b.patientName.trim()) { this.error.set('Schedule H1: Customer / Patient details are mandatory.'); return; }
     }

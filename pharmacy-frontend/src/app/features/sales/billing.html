@@ -197,14 +197,16 @@
               <input class="form-control form-control-sm" placeholder="Contact No" [ngModel]="bill().contact" (ngModelChange)="set('contact', $event)" />
             </div>
           }
-          <div class="col-6 col-md-3">
-            <label>Doctor</label>
-            <input class="form-control form-control-sm" list="doctorList" placeholder="Search / add doctor"
-              [ngModel]="bill().doctor" (ngModelChange)="set('doctor', $event)" />
-            <datalist id="doctorList">
-              @for (d of doctors(); track d.id) { <option [value]="d.name"></option> }
-            </datalist>
-          </div>
+          @if (!isWholesale()) {
+            <div class="col-6 col-md-3">
+              <label>Doctor</label>
+              <input class="form-control form-control-sm" list="doctorList" placeholder="Search / add doctor"
+                [ngModel]="bill().doctor" (ngModelChange)="set('doctor', $event)" />
+              <datalist id="doctorList">
+                @for (d of doctors(); track d.id) { <option [value]="d.name"></option> }
+              </datalist>
+            </div>
+          }
           <div class="col-12 col-md-3">
             <label>Address</label>
             <input class="form-control form-control-sm" placeholder="Address" [ngModel]="bill().address" (ngModelChange)="set('address', $event)" />
@@ -232,13 +234,23 @@
             <input class="form-control form-control-sm" placeholder="..." [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
           </div>
         </div>
-        @if (hasX() && !bill().prescriptionId) {
-          <div class="sched-alert blink-red mt-2"><i class="bi bi-exclamation-octagon-fill me-1"></i> Schedule X (Narcotic): prescription upload is MANDATORY.</div>
-        } @else if (prescriptionRequired() && !bill().prescriptionId) {
-          <div class="text-danger small mt-2"><i class="bi bi-exclamation-triangle me-1"></i> Prescription required for the scheduled item(s) in this bill.</div>
-        }
-        @if (hasH1()) {
-          <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Schedule H1: Doctor &amp; Customer details are MANDATORY.</div>
+        @if (isWholesale()) {
+          <!-- Wholesale (B2B): warnings only, no enforcement. -->
+          @if (hasScheduleX()) {
+            <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Note: this bill contains Schedule X (Narcotic / Psychotropic) drug(s).</div>
+          }
+          @if (hasH1()) {
+            <div class="sched-alert-amber mt-2"><i class="bi bi-info-circle-fill me-1"></i> Note: this bill contains Schedule H1 drug(s).</div>
+          }
+        } @else {
+          @if (hasX() && !bill().prescriptionId) {
+            <div class="sched-alert blink-red mt-2"><i class="bi bi-exclamation-octagon-fill me-1"></i> Schedule X (Narcotic): prescription upload is MANDATORY.</div>
+          } @else if (prescriptionRequired() && !bill().prescriptionId) {
+            <div class="text-danger small mt-2"><i class="bi bi-exclamation-triangle me-1"></i> Prescription required for the scheduled item(s) in this bill.</div>
+          }
+          @if (hasH1()) {
+            <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Schedule H1: Doctor &amp; Customer details are MANDATORY.</div>
+          }
         }
       </div>
 
