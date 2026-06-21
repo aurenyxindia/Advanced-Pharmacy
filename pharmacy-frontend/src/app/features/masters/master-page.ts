@@ -38,6 +38,7 @@ export class MasterPage {
   readonly toast = signal<string | null>(null);
 
   readonly optionsMap = signal<Record<string, Option[]>>({});
+  readonly statCards = signal<{ label: string; value: number; sub?: string; icon?: string }[]>([]);
   form!: FormGroup;
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.perPage())));
@@ -47,7 +48,14 @@ export class MasterPage {
     this.config = MASTER_CONFIGS[key];
     this.buildForm();
     this.loadOptions();
+    this.loadStats();
     this.load();
+  }
+
+  private loadStats(): void {
+    if (!this.config.statsPath) return;
+    this.crud.fetch<{ cards: { label: string; value: number; sub?: string; icon?: string }[] }>(this.config.statsPath)
+      .subscribe((d) => this.statCards.set(d.cards ?? []));
   }
 
   private buildForm(): void {
@@ -182,6 +190,7 @@ export class MasterPage {
         this.modalOpen.set(false);
         this.showToast(this.editingId() ? 'Record updated.' : 'Record created.');
         this.load();
+        this.loadStats();
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
@@ -198,6 +207,7 @@ export class MasterPage {
       next: () => {
         this.showToast('Record deleted.');
         this.load();
+        this.loadStats();
       },
       error: (err: HttpErrorResponse) => this.showToast(err.error?.message ?? 'Delete failed.'),
     });
@@ -205,7 +215,7 @@ export class MasterPage {
 
   bind(row: Row): void {
     this.crud.post('products/bind', { master_product_id: row['id'], reorder_level: 0 }).subscribe({
-      next: () => this.showToast(`"${row['name']}" added to your branch catalog.`),
+      next: () => { this.showToast(`"${row['name']}" added to your branch catalog.`); this.loadStats(); },
       error: (err: HttpErrorResponse) => this.showToast(err.error?.message ?? 'Bind failed.'),
     });
   }

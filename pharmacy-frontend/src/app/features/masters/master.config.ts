@@ -43,6 +43,7 @@ export interface MasterConfig {
   canCreate?: boolean;
   canDelete?: boolean;
   bindable?: boolean; // products: allow binding to branch
+  statsPath?: string; // optional endpoint returning { cards: [{label,value,sub,icon}] }
 }
 
 export const PRODUCT_CATEGORIES = ['Allopathy', 'Ayurvedic', 'Generic', 'Surgical', 'Cosmetic'];
@@ -84,6 +85,7 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
     canCreate: true,
     canDelete: true,
     bindable: true,
+    statsPath: 'products/stats',
     columns: [
       { key: 'name', label: 'Product' },
       { key: 'manufacturer', label: 'Manufacturer' },

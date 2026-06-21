@@ -15,6 +15,24 @@
     }
   </div>
 
+  <!-- Stats (e.g. Product Master: HO catalog vs chemist subscription) -->
+  @if (statCards().length) {
+    <div class="row g-3 mb-3">
+      @for (c of statCards(); track c.label) {
+        <div class="col-6 col-md-4">
+          <div class="stat-card card-pharma">
+            <div class="stat-icon"><i class="bi" [ngClass]="c.icon || 'bi-box'"></i></div>
+            <div>
+              <div class="stat-value">{{ c.value | number }}</div>
+              <div class="stat-label">{{ c.label }}</div>
+              @if (c.sub) { <div class="stat-sub">{{ c.sub }}</div> }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
   <!-- Toolbar -->
   <div class="card-pharma p-3 mb-3">
     <div class="input-group">

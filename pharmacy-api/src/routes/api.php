@@ -80,6 +80,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     // ---- Master catalog: Products (global) ----
     // Static segments registered before the {id} routes so they match first.
     $router->get('/products/search', [ProductController::class, 'search']);
+    $router->get('/products/stats', [ProductController::class, 'stats']);
     $router->post('/products/bind', [ProductController::class, 'bind']);
     $router->get('/products', [ProductController::class, 'index']);
     $router->post('/products', [ProductController::class, 'store']);

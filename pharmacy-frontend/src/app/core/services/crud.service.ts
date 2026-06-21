@@ -53,4 +53,8 @@ export class CrudService {
   post<T>(path: string, payload: unknown): Observable<ApiResponse<T>> {
     return this.http.post<ApiResponse<T>>(`${environment.apiUrl}/${path}`, payload);
   }
+
+  fetch<T>(path: string): Observable<T> {
+    return this.http.get<ApiResponse<T>>(`${environment.apiUrl}/${path}`).pipe(map((r) => r.data));
+  }
 }
