@@ -21,14 +21,14 @@ import { PurchaseService } from '../../core/services/purchase.service';
           <thead>
             <tr>
               <th>Invoice</th><th>Date</th><th>Supplier</th>
-              <th class="text-end">GST</th><th class="text-end">Net</th>
+              <th class="text-end">GST</th><th class="text-end">Net</th><th class="text-end">Barcodes</th>
             </tr>
           </thead>
           <tbody>
             @if (loading()) {
-              <tr><td colspan="5" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+              <tr><td colspan="6" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
             } @else if (rows().length === 0) {
-              <tr><td colspan="5" class="text-center py-5 text-secondary">
+              <tr><td colspan="6" class="text-center py-5 text-secondary">
                 <i class="bi bi-inbox fs-3 d-block mb-2"></i> No purchases yet.
               </td></tr>
             } @else {
@@ -39,6 +39,11 @@ import { PurchaseService } from '../../core/services/purchase.service';
                   <td>{{ r['supplier_name'] || '-' }}</td>
                   <td class="text-end">{{ +(r['gst_amount'] || 0) | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
                   <td class="text-end fw-semibold">{{ +(r['net_amount'] || 0) | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-secondary" title="Print barcode labels" (click)="barcodes(+r['id'])">
+                      <i class="bi bi-upc-scan"></i>
+                    </button>
+                  </td>
                 </tr>
               }
             }
@@ -59,5 +64,9 @@ export class PurchaseList {
       next: (res) => { this.rows.set(res.data); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+  }
+
+  barcodes(id: number): void {
+    this.purchaseSvc.barcodeBlob(id).subscribe((blob) => window.open(URL.createObjectURL(blob), '_blank'));
   }
 }

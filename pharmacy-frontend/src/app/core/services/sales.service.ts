@@ -116,6 +116,13 @@ export class SalesService {
       .pipe(map((r) => r.data));
   }
 
+  scan(code: string): Observable<SaleProduct & { batch_id: number }> {
+    const params = new HttpParams().set('code', code);
+    return this.http
+      .get<ApiResponse<SaleProduct & { batch_id: number }>>(`${this.base}/sales/scan`, { params })
+      .pipe(map((r) => r.data));
+  }
+
   substitutes(bindingId: number): Observable<Substitute[]> {
     return this.http
       .get<ApiResponse<Substitute[]>>(`${this.base}/bound-products/${bindingId}/substitutes`)

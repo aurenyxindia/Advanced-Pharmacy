@@ -223,7 +223,15 @@ export class PurchaseEntry {
       supplier_name: this.supplierName(), bill_discount_pct: this.billDiscountPct(),
       items,
     }).subscribe({
-      next: () => { this.saving.set(false); this.router.navigate(['/app/purchase']); },
+      next: (res) => {
+        this.saving.set(false);
+        // Open the printable barcode labels for the received packs, then go to the list.
+        const id = res.data?.id;
+        if (id) {
+          this.purchaseSvc.barcodeBlob(id).subscribe((blob) => window.open(URL.createObjectURL(blob), '_blank'));
+        }
+        this.router.navigate(['/app/purchase']);
+      },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
         this.error.set(err.error?.message ?? 'Could not save purchase.');

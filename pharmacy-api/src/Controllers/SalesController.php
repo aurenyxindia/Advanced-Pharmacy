@@ -87,6 +87,39 @@ final class SalesController extends Controller
         return $this->success($rows->fetchAll(), 'Products.');
     }
 
+    /**
+     * Resolve a scanned barcode (= inventory batch id) to a billing product
+     * with the exact batch. Used by the sales form scanner.
+     */
+    public function scan(Request $request): Response
+    {
+        $code = preg_replace('/\D/', '', (string) $request->query('code', ''));
+        $batchId = (int) ltrim($code, '0');
+        if ($batchId <= 0) {
+            throw HttpException::validation(['code' => ['Invalid barcode.']]);
+        }
+
+        $stmt = Connection::ops()->prepare(
+            'SELECT pb.id AS binding_id, pb.product_name, pb.manufacturer, pb.manufacturer_short,
+                    pb.schedule_category, pb.gst_rate, pb.master_product_id,
+                    pb.units_per_pack, pb.allow_loose, pb.shelf_location, pb.pack_size, pb.generic_id,
+                    ib.id AS batch_id, ib.batch_no, ib.expiry_date, ib.mrp AS unit_mrp, ib.ptr, ib.pts,
+                    ib.purchase_rate, ib.quantity AS available_qty,
+                    g.name AS generic_name
+             FROM inventory_batches ib
+             JOIN product_bindings pb ON pb.id = ib.product_binding_id
+             LEFT JOIN pharma_master.generics g ON g.id = pb.generic_id
+             WHERE ib.id = :id AND ib.client_id = :c AND ib.branch_id = :b LIMIT 1'
+        );
+        $stmt->execute(['id' => $batchId, 'c' => $request->clientId(), 'b' => $request->branchId()]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            throw HttpException::notFound('Barcode not recognised in this branch.');
+        }
+        $row['mrp'] = $row['unit_mrp'];
+        return $this->success($row, 'Product resolved.');
+    }
+
     /** Available batches (B.No, expiry, MRP, shelf, stock) for a bound product. */
     public function batches(Request $request): Response
     {

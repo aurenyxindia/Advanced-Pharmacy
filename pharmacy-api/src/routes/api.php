@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\BarcodeController;
 use App\Controllers\BranchController;
 use App\Controllers\CreditNoteController;
 use App\Controllers\DebitNoteController;
@@ -129,6 +130,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->get('/purchases', [PurchaseController::class, 'index']);
     $router->post('/purchases', [PurchaseController::class, 'store']);
     $router->get('/purchases/{id}', [PurchaseController::class, 'show']);
+    $router->get('/purchases/{id}/barcodes', [BarcodeController::class, 'purchaseLabels']);
 
     // ---- Purchase import (CSV now; Gmail/PDF-OCR are extension points) ----
     $router->post('/import/purchase/csv', [ImportController::class, 'purchaseCsv']);
@@ -136,6 +138,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->post('/import/purchase/pdf', [ImportController::class, 'purchasePdf']);
 
     // ---- Sales / Billing ----
+    $router->get('/sales/scan', [SalesController::class, 'scan']);
     $router->get('/sales/search-products', [SalesController::class, 'searchProducts']);
     $router->get('/sales', [SalesController::class, 'index']);
     $router->post('/sales', [SalesController::class, 'store']);

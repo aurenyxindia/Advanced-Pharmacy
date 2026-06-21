@@ -144,6 +144,8 @@
 .product-panel { display: flex; flex-direction: column; max-height: 80vh; }
 .panel-head { padding: 0.6rem 0.75rem; border-bottom: 1px solid #e2e8f0; color: #475569; }
 .tiny { font-size: 0.66rem; }
+.scan-group .input-group-text { background: var(--pharma-primary); color: #fff; border-color: var(--pharma-primary); }
+.scan-group .form-control:focus { border-color: var(--pharma-primary); }
 .add-search { font-weight: 500; }
 .add-search:focus { border-color: var(--pharma-primary); box-shadow: 0 0 0 0.15rem rgba(13,148,136,0.15); }
 

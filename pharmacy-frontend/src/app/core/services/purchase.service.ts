@@ -74,6 +74,10 @@ export class PurchaseService {
       .pipe(map((r) => r.data));
   }
 
+  barcodeBlob(id: number): Observable<Blob> {
+    return this.http.get(`${this.base}/purchases/${id}/barcodes`, { responseType: 'blob' });
+  }
+
   computeRates(mrp: number, gst: number, category: string): Observable<{ ptr: number; pts: number; net_mrp: number }> {
     const params = new HttpParams().set('mrp', String(mrp)).set('gst', String(gst)).set('category', category);
     return this.http

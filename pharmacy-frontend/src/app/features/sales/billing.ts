@@ -294,15 +294,29 @@ export class Billing {
     }
   }
 
+  // ---- barcode scan ----
+  readonly scanCode = signal('');
+  readonly scanError = signal<string | null>(null);
+
+  onScan(): void {
+    const code = this.scanCode().trim();
+    if (!code) return;
+    this.scanError.set(null);
+    this.salesSvc.scan(code).subscribe({
+      next: (p) => { this.addProduct(p, p.batch_id); this.scanCode.set(''); },
+      error: () => { this.scanError.set('Barcode not found: ' + code); this.scanCode.set(''); setTimeout(() => this.scanError.set(null), 2500); },
+    });
+  }
+
   // ---- lines ----
-  addProduct(p: SaleProduct): void {
+  addProduct(p: SaleProduct, preferredBatchId?: number): void {
     const existing = this.bill().lines.findIndex((l) => l.binding_id === p.binding_id);
     if (existing >= 0) {
       this.updateLine(existing, { qty: this.bill().lines[existing].qty + 1 });
       return;
     }
     this.salesSvc.batches(p.binding_id).subscribe((batches) => {
-      const b = batches[0];
+      const b = (preferredBatchId ? batches.find((x) => x.batch_id === preferredBatchId) : null) ?? batches[0];
       const upp = b?.units_per_pack ?? p.units_per_pack ?? 1;
       const unitMrp = b?.unit_mrp ?? Number(p.mrp) ?? 0;
       const baseLine: BillLine = {
