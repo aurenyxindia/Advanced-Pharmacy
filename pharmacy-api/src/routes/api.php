@@ -5,7 +5,10 @@ declare(strict_types=1);
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
 use App\Controllers\BranchController;
+use App\Controllers\CreditNoteController;
+use App\Controllers\DebitNoteController;
 use App\Controllers\HoController;
+use App\Controllers\PaymentController;
 use App\Controllers\IpdController;
 use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
@@ -164,14 +167,43 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->post('/refills', [RefillController::class, 'store']);
     $router->put('/refills/{id}', [RefillController::class, 'update']);
 
+    // ---- Payments (vouchers) & Notes ----
+    $router->get('/payments', [PaymentController::class, 'index']);
+    $router->post('/payments', [PaymentController::class, 'store']);
+    $router->get('/payments/{id}', [PaymentController::class, 'show']);
+    $router->put('/payments/{id}', [PaymentController::class, 'update']);
+    $router->delete('/payments/{id}', [PaymentController::class, 'destroy']);
+
+    $router->get('/credit-notes', [CreditNoteController::class, 'index']);
+    $router->post('/credit-notes', [CreditNoteController::class, 'store']);
+    $router->get('/credit-notes/{id}', [CreditNoteController::class, 'show']);
+    $router->put('/credit-notes/{id}', [CreditNoteController::class, 'update']);
+    $router->delete('/credit-notes/{id}', [CreditNoteController::class, 'destroy']);
+
+    $router->get('/debit-notes', [DebitNoteController::class, 'index']);
+    $router->post('/debit-notes', [DebitNoteController::class, 'store']);
+    $router->get('/debit-notes/{id}', [DebitNoteController::class, 'show']);
+    $router->put('/debit-notes/{id}', [DebitNoteController::class, 'update']);
+    $router->delete('/debit-notes/{id}', [DebitNoteController::class, 'destroy']);
+
     // ---- Reports ----
+    $router->get('/reports/branches', [ReportController::class, 'branches']);
     $router->get('/reports/sales-register', [ReportController::class, 'salesRegister']);
     $router->get('/reports/purchase-register', [ReportController::class, 'purchaseRegister']);
     $router->get('/reports/gst-summary', [ReportController::class, 'gstSummary']);
+    $router->get('/reports/gst-hsn', [ReportController::class, 'gstHsn']);
     $router->get('/reports/stock', [ReportController::class, 'stock']);
     $router->get('/reports/expiry', [ReportController::class, 'expiry']);
+    $router->get('/reports/expiry-alert', [ReportController::class, 'expiryAlert']);
+    $router->get('/reports/non-moving', [ReportController::class, 'nonMoving']);
     $router->get('/reports/profit', [ReportController::class, 'profit']);
     $router->get('/reports/schedule-register', [ReportController::class, 'scheduleRegister']);
+    $router->get('/reports/h1-sales', [ReportController::class, 'h1Sales']);
+    $router->get('/reports/x-sales', [ReportController::class, 'xSales']);
+    $router->get('/reports/doctor-wise', [ReportController::class, 'doctorWise']);
+    $router->get('/reports/cash-book', [ReportController::class, 'cashBook']);
+    $router->get('/reports/online-sales', [ReportController::class, 'onlineSales']);
+    $router->get('/reports/chronic', [ReportController::class, 'chronic']);
 
     // ---- Employees / users (HO) - admin only ----
     $router->group(['middleware' => ['role:ho_admin,branch_admin']], function (Router $router): void {

@@ -33,6 +33,9 @@ export class MainLayout {
     { label: 'Refill Reminders', icon: 'bi-bell', route: '/app/refills', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
     { label: 'Deliveries', icon: 'bi-truck', route: '/app/deliveries', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
     { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts', roles: ['ho_admin', 'branch_admin'] },
+    { label: 'Payments', icon: 'bi-wallet2', route: '/app/payments', roles: ['ho_admin', 'branch_admin'] },
+    { label: 'Credit Notes', icon: 'bi-file-earmark-minus', route: '/app/credit-notes', roles: ['ho_admin', 'branch_admin'] },
+    { label: 'Debit Notes', icon: 'bi-file-earmark-plus', route: '/app/debit-notes', roles: ['ho_admin', 'branch_admin'] },
     { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Head Office', icon: 'bi-buildings', route: '/app/ho', roles: ['ho_admin'] },
   ];

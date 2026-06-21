@@ -3,7 +3,17 @@
 .report-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
+  max-height: 78vh;
+  overflow-y: auto;
+}
+.report-group {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  font-weight: 700;
+  padding: 0.5rem 0.6rem 0.2rem;
 }
 
 .report-nav-item {

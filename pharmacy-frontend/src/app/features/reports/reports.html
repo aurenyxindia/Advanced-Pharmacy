@@ -8,10 +8,13 @@
     <!-- Report selector -->
     <div class="col-lg-3">
       <div class="card-pharma p-2 report-nav">
-        @for (r of reports; track r.key) {
-          <button class="report-nav-item" [class.active]="active().key === r.key" (click)="select(r)">
-            <i class="bi" [ngClass]="r.icon"></i> {{ r.label }}
-          </button>
+        @for (grp of groups(); track grp[0]) {
+          <div class="report-group">{{ grp[0] }}</div>
+          @for (r of grp[1]; track r.key) {
+            <button class="report-nav-item" [class.active]="active().key === r.key" (click)="select(r)">
+              <i class="bi" [ngClass]="r.icon"></i> {{ r.label }}
+            </button>
+          }
         }
       </div>
     </div>
@@ -19,9 +22,18 @@
     <!-- Report content -->
     <div class="col-lg-9">
       <!-- Filters -->
-      @if (active().hasDate) {
-        <div class="card-pharma p-3 mb-3">
-          <div class="row g-2 align-items-end">
+      <div class="card-pharma p-3 mb-3">
+        <div class="row g-2 align-items-end">
+          @if (isHo()) {
+            <div class="col-auto">
+              <label class="form-label small"><i class="bi bi-shop-window me-1"></i>Branch</label>
+              <select class="form-select form-select-sm" [ngModel]="branchId()" (ngModelChange)="branchId.set($event ? +$event : null); run()">
+                <option [ngValue]="null">All Branches</option>
+                @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
+              </select>
+            </div>
+          }
+          @if (active().hasDate) {
             <div class="col-auto">
               <label class="form-label small">From</label>
               <input type="date" class="form-control form-control-sm" [ngModel]="from()" (ngModelChange)="from.set($event)" />
@@ -30,12 +42,15 @@
               <label class="form-label small">To</label>
               <input type="date" class="form-control form-control-sm" [ngModel]="to()" (ngModelChange)="to.set($event)" />
             </div>
-            <div class="col-auto">
-              <button class="btn btn-sm btn-pharma" (click)="run()"><i class="bi bi-funnel me-1"></i>Apply</button>
-            </div>
+          }
+          <div class="col-auto">
+            <button class="btn btn-sm btn-pharma" (click)="run()"><i class="bi bi-funnel me-1"></i>Apply</button>
+          </div>
+          <div class="col-auto ms-auto">
+            <span class="badge text-bg-light">{{ active().label }}</span>
           </div>
         </div>
-      }
+      </div>
 
       @if (loading()) {
         <div class="card-pharma p-5 text-center"><span class="spinner-border text-pharma"></span></div>
