@@ -95,16 +95,38 @@
 }
 .counter-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 .counter-tab {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border: 1px solid transparent;
   border-radius: 0.4rem;
   padding: 0.35rem 0.7rem;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #475569;
   display: inline-flex;
   align-items: center;
-  &.active { background: #16a34a; color: #fff; border-color: #16a34a; }
+  gap: 0.15rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
+
+  .counter-name {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  i { font-size: 0.9rem; }
+  .badge { background: rgba(255, 255, 255, 0.28); color: #fff; }
+
+  // Blue = free / not in use.
+  &.idle { background: #3b82f6; color: #fff; }
+  // Green = live (patient name entered or items added).
+  &.in-use { background: #16a34a; color: #fff; }
+
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); }
+
+  // The currently selected counter gets a ring + lift.
+  &.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(15, 23, 42, 0.45), 0 6px 14px rgba(0, 0, 0, 0.22);
+    transform: translateY(-1px);
+  }
 }
 .close-counter {
   margin-left: 0.4rem;

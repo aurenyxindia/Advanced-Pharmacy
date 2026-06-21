@@ -256,6 +256,16 @@ export class Billing {
   counterCount(c: string): number {
     return this.bills()[c].lines.length;
   }
+  /** Counter is "live" when it holds a patient name or any items. */
+  counterInUse(c: string): boolean {
+    const b = this.bills()[c];
+    return !!b && (b.patientName.trim().length > 0 || b.lines.length > 0);
+  }
+  /** Tab caption: the patient name once entered, else the counter name. */
+  counterLabel(c: string): string {
+    const name = this.bills()[c]?.patientName.trim();
+    return name ? name : c;
+  }
   private patchBill(patch: Partial<Bill>): void {
     this.bills.update((all) => ({ ...all, [this.activeCounter()]: { ...all[this.activeCounter()], ...patch } }));
   }

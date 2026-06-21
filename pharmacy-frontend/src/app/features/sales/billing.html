@@ -17,9 +17,15 @@
   <div class="counter-bar">
     <div class="counter-tabs">
       @for (c of counters(); track c) {
-        <button class="counter-tab" [class.active]="activeCounter() === c" (click)="switchCounter(c)">
-          <i class="bi bi-cart3 me-1"></i> {{ c }}
-          @if (counterCount(c) > 0) { <span class="badge text-bg-light ms-1">{{ counterCount(c) }}</span> }
+        <button class="counter-tab"
+          [class.active]="activeCounter() === c"
+          [class.in-use]="counterInUse(c)"
+          [class.idle]="!counterInUse(c)"
+          (click)="switchCounter(c)"
+          [title]="c">
+          <i class="bi" [class.bi-person-fill]="counterInUse(c)" [class.bi-cart3]="!counterInUse(c)"></i>
+          <span class="counter-name">{{ counterLabel(c) }}</span>
+          @if (counterCount(c) > 0) { <span class="badge ms-1">{{ counterCount(c) }}</span> }
           @if (counters().length > 1) { <i class="bi bi-x close-counter" (click)="removeCounter(c, $event)" title="Remove counter"></i> }
         </button>
       }
