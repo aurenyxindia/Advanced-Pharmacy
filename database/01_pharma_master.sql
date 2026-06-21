@@ -72,10 +72,10 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------- Seed schedule categories ----------
 INSERT INTO `schedule_categories` (`code`,`name`,`requires_prescription`,`locked_after_sale`,`description`) VALUES
-    ('OTC','Over the Counter',0,0,'No prescription required'),
-    ('H','Schedule H',1,1,'Prescription drugs - record retention required'),
-    ('H1','Schedule H1',1,1,'Habit-forming / antibiotics - mandatory prescription + register'),
-    ('X','Schedule X',1,1,'Narcotic/psychotropic - dual prescription copy + strict register'),
-    ('G','Schedule G',1,1,'Caution: to be taken under medical supervision'),
-    ('RESTRICTED','Restricted Drug',1,1,'Restricted category - prescription mandatory, immutable after sale')
+    ('OTC','OTC - Over the Counter',0,0,'No prescription required'),
+    ('H','Schedule H - Prescription drug',1,1,'Prescription drugs - record retention required'),
+    ('H1','Schedule H1 - Habit-forming / Antibiotic',1,1,'Habit-forming / antibiotics - mandatory prescription + register'),
+    ('X','Schedule X - Narcotic / Psychotropic',1,1,'Narcotic/psychotropic - dual prescription copy + strict register'),
+    ('G','Schedule G - Under medical supervision',1,1,'Caution: to be taken under medical supervision'),
+    ('RESTRICTED','Restricted - Prescription mandatory',1,1,'Restricted category - prescription mandatory, immutable after sale')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);

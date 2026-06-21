@@ -89,7 +89,7 @@
             [class.oos]="p.available_qty <= 0" (click)="addProduct(p)" (mouseenter)="highlight.set(idx)">
             <div class="pr-main">
               <span class="pr-name">{{ p.product_name }} @if (p.manufacturer_short) { <span class="mfg-chip">{{ p.manufacturer_short }}</span> }</span>
-              <span class="badge sched-{{ p.schedule_category }}">{{ p.schedule_category }}</span>
+              <span class="badge sched-{{ p.schedule_category }}" [title]="scheduleMeaning(p.schedule_category)">{{ p.schedule_category }}</span>
             </div>
             <div class="pr-sub">
               <span class="text-secondary">{{ p.generic_name || '-' }}</span>
@@ -252,7 +252,7 @@
                   <td class="small">{{ line.shelf || '-' }}</td>
                   <td><input type="number" class="g-input" style="width:72px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
                   <td class="small">{{ line.expiry ? (line.expiry | date: 'MM/yy') : '-' }}</td>
-                  <td><span class="badge sched-{{ line.category }}">{{ line.category }}</span></td>
+                  <td><span class="badge sched-{{ line.category }}" [title]="scheduleMeaning(line.category)">{{ line.category }}</span></td>
                   <td class="small">{{ line.pack || '-' }}</td>
                   <td class="text-end small">{{ line.unit_mrp | number: '1.2-2' }}</td>
                   <td class="text-end small">{{ lineTaxable(line) | number: '1.2-2' }}</td>

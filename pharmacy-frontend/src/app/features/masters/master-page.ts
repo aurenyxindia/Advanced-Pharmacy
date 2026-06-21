@@ -225,6 +225,19 @@ export class MasterPage {
     setTimeout(() => this.toast.set(null), 2800);
   }
 
+  private readonly scheduleMeaning: Record<string, string> = {
+    OTC: 'Over the Counter', H: 'Schedule H — Prescription drug',
+    H1: 'Schedule H1 — Habit-forming / Antibiotic', X: 'Schedule X — Narcotic / Psychotropic',
+    G: 'Schedule G — Under medical supervision', RESTRICTED: 'Restricted — Prescription mandatory',
+  };
+
+  badgeTitle(col: { key: string }, row: Row): string {
+    if (col.key === 'schedule_category') {
+      return this.scheduleMeaning[String(row[col.key])] ?? '';
+    }
+    return '';
+  }
+
   formatCell(row: Row, col: { key: string; type?: string }): string {
     const value = row[col.key];
     if (value == null || value === '') return '-';

@@ -19,6 +19,16 @@ type RateType = 'mrp' | 'ptr' | 'pts';
 const PRESCRIPTION_SCHEDULES = ['H1', 'X', 'G', 'RESTRICTED'];
 const COUNTERS = ['COUNTER 1', 'COUNTER 2', 'COUNTER 3', 'CASH COUNTER', 'IPD COUNTER'];
 
+/** Human meaning of each drug schedule (X = narcotic/psychotropic). */
+export const SCHEDULE_MEANING: Record<string, string> = {
+  OTC: 'Over the Counter',
+  H: 'Schedule H — Prescription drug',
+  H1: 'Schedule H1 — Habit-forming / Antibiotic',
+  X: 'Schedule X — Narcotic / Psychotropic',
+  G: 'Schedule G — Under medical supervision',
+  RESTRICTED: 'Restricted — Prescription mandatory',
+};
+
 interface BillLine {
   binding_id: number;
   product_name: string;
@@ -446,6 +456,10 @@ export class Billing {
   readonly prescriptionRequired = computed(() =>
     this.bill().lines.some((l) => PRESCRIPTION_SCHEDULES.includes(l.category)),
   );
+
+  scheduleMeaning(code: string): string {
+    return SCHEDULE_MEANING[code] ?? code;
+  }
 
   // ---- prescription / camera ----
   onPrescriptionFile(event: Event): void {

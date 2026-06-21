@@ -73,7 +73,8 @@
                 @for (col of config.columns; track col.key) {
                   <td [class.text-end]="col.type === 'currency' || col.type === 'number'">
                     @if (col.type === 'badge') {
-                      <span class="badge" [ngClass]="(col.badgeClass && col.badgeClass[row[col.key] + '']) || 'text-bg-light'">
+                      <span class="badge" [ngClass]="(col.badgeClass && col.badgeClass[row[col.key] + '']) || 'text-bg-light'"
+                        [title]="badgeTitle(col, row)">
                         {{ row[col.key] || '-' }}
                       </span>
                     } @else {
