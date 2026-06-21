@@ -26,14 +26,16 @@ final class DashboardController extends Controller
         $branchFilter = $scope === 'ho' ? null : $branchId;
 
         return $this->success([
-            'kpis'           => $this->kpis($clientId, $branchFilter),
-            'sales_trend'    => $this->salesTrend($clientId, $branchFilter),
-            'top_products'   => $this->topProducts($clientId, $branchFilter),
-            'category_split' => $this->categorySplit($clientId, $branchFilter),
-            'expiry_buckets' => $this->expiryBuckets($clientId, $branchFilter),
-            'recent_sales'   => $this->recentSales($clientId, $branchFilter),
-            'generated_at'   => now(),
-            'scope'          => $scope,
+            'kpis'                 => $this->kpis($clientId, $branchFilter),
+            'sales_trend'          => $this->salesTrend($clientId, $branchFilter),
+            'purchase_trend'       => $this->purchaseTrend($clientId, $branchFilter),
+            'distributor_purchase' => $this->distributorPurchase($clientId, $branchFilter),
+            'top_products'         => $this->topProducts($clientId, $branchFilter),
+            'category_split'       => $this->categorySplit($clientId, $branchFilter),
+            'expiry_buckets'       => $this->expiryBuckets($clientId, $branchFilter),
+            'recent_sales'         => $this->recentSales($clientId, $branchFilter),
+            'generated_at'         => now(),
+            'scope'                => $scope,
         ], 'Dashboard summary.');
     }
 
@@ -43,12 +45,16 @@ final class DashboardController extends Controller
             'today_sales'      => $this->scalar('ops', "SELECT COALESCE(SUM(net_amount),0) FROM sales WHERE client_id = ? AND DATE(invoice_date) = CURDATE()" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'today_purchase'   => $this->scalar('ops', "SELECT COALESCE(SUM(net_amount),0) FROM purchases WHERE client_id = ? AND DATE(invoice_date) = CURDATE()" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'month_sales'      => $this->scalar('ops', "SELECT COALESCE(SUM(net_amount),0) FROM sales WHERE client_id = ? AND YEAR(invoice_date)=YEAR(CURDATE()) AND MONTH(invoice_date)=MONTH(CURDATE())" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
+            'month_purchase'   => $this->scalar('ops', "SELECT COALESCE(SUM(net_amount),0) FROM purchases WHERE client_id = ? AND YEAR(invoice_date)=YEAR(CURDATE()) AND MONTH(invoice_date)=MONTH(CURDATE())" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'month_profit'     => $this->scalar('ops', "SELECT COALESCE(SUM(profit_amount),0) FROM sales WHERE client_id = ? AND YEAR(invoice_date)=YEAR(CURDATE()) AND MONTH(invoice_date)=MONTH(CURDATE())" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'product_count'    => $this->scalar('ops', "SELECT COUNT(*) FROM product_bindings WHERE client_id = ?" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'low_stock_count'  => $this->scalar('ops', "SELECT COUNT(*) FROM inventory_stock WHERE client_id = ? AND quantity <= reorder_level" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
-            'expiring_count'   => $this->scalar('ops', "SELECT COUNT(*) FROM inventory_batches WHERE client_id = ? AND expiry_date <= (CURDATE() + INTERVAL 90 DAY) AND quantity > 0" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
+            'expiring_count'   => $this->scalar('ops', "SELECT COUNT(*) FROM inventory_batches WHERE client_id = ? AND expiry_date BETWEEN CURDATE() AND (CURDATE() + INTERVAL 90 DAY) AND quantity > 0" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
+            'expired_count'    => $this->scalar('ops', "SELECT COUNT(*) FROM inventory_batches WHERE client_id = ? AND expiry_date < CURDATE() AND quantity > 0" . $this->branchClause($branchId), $this->bind($clientId, $branchId)),
             'customer_count'   => $this->scalar('ops', "SELECT COUNT(*) FROM customers WHERE client_id = ?", [$clientId]),
             'branch_count'     => $this->scalar('ho', "SELECT COUNT(*) FROM branches WHERE client_id = ?", [$clientId]),
+            'outstanding_total' => $this->outstanding($clientId, $branchId, false),
+            'outstanding_today' => $this->outstanding($clientId, $branchId, true),
         ];
     }
 
@@ -73,6 +79,60 @@ final class DashboardController extends Controller
             $series[] = ['date' => $day, 'total' => $map[$day] ?? 0];
         }
         return $series;
+    }
+
+    private function purchaseTrend(?int $clientId, ?int $branchId): array
+    {
+        $rows = $this->query('ops',
+            "SELECT DATE(invoice_date) AS d, COALESCE(SUM(net_amount),0) AS total
+             FROM purchases
+             WHERE client_id = ? AND invoice_date >= (CURDATE() - INTERVAL 13 DAY)" . $this->branchClause($branchId) . "
+             GROUP BY DATE(invoice_date) ORDER BY d ASC",
+            $this->bind($clientId, $branchId)
+        );
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$r['d']] = (float) $r['total'];
+        }
+        $series = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $day = date('Y-m-d', strtotime("-{$i} days"));
+            $series[] = ['date' => $day, 'total' => $map[$day] ?? 0];
+        }
+        return $series;
+    }
+
+    private function distributorPurchase(?int $clientId, ?int $branchId): array
+    {
+        return $this->query('ops',
+            "SELECT COALESCE(NULLIF(supplier_name,''),'(Unknown)') AS supplier, COALESCE(SUM(net_amount),0) AS total
+             FROM purchases
+             WHERE client_id = ?" . $this->branchClause($branchId) . "
+             GROUP BY supplier ORDER BY total DESC LIMIT 7",
+            $this->bind($clientId, $branchId)
+        );
+    }
+
+    /** Outstanding receivables: unpaid credit sales + open IPD balances. */
+    private function outstanding(?int $clientId, ?int $branchId, bool $todayOnly): float
+    {
+        $dateClause = $todayOnly ? ' AND DATE(invoice_date) = CURDATE()' : '';
+        $credit = $this->scalar('ops',
+            "SELECT COALESCE(SUM(net_amount),0) FROM sales WHERE client_id = ? AND payment_mode = 'credit'{$dateClause}" . $this->branchClause($branchId),
+            $this->bind($clientId, $branchId)
+        );
+        if ($todayOnly) {
+            return round((float) $credit, 2);
+        }
+        // IPD open balances (billed - paid) for admitted patients.
+        $ipd = $this->scalar('ops',
+            "SELECT COALESCE(
+                 (SELECT SUM(s.net_amount) FROM sales s JOIN ipd_admissions a ON a.id = s.ipd_admission_id WHERE a.client_id = ? AND a.status='admitted'),0)
+               - COALESCE(
+                 (SELECT SUM(p.amount) FROM ipd_payments p JOIN ipd_admissions a2 ON a2.id = p.admission_id WHERE a2.client_id = ? AND a2.status='admitted'),0)",
+            [$clientId, $clientId]
+        );
+        return round((float) $credit + (float) $ipd, 2);
     }
 
     private function topProducts(?int $clientId, ?int $branchId): array

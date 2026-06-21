@@ -1,103 +1,64 @@
-:host {
-  display: block;
-}
+:host { display: block; }
 
-.kpi-card {
+.card-head {
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #fff;
+  background: #334155;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
+}
+.card-head.bg-gradient-primary { background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-primary-dark)); }
+.card-head.bg-danger-soft { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+.card-head.bg-info-soft { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.view-more { color: #fff; font-size: 0.78rem; text-decoration: underline; opacity: 0.9; }
+
+// Financial tiles
+.fin-tile {
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  span { font-size: 0.72rem; opacity: 0.85; }
+  b { font-size: 1.25rem; font-weight: 800; margin-top: 0.1rem; }
 }
+.fin-tile.teal { background: rgba(13, 148, 136, 0.12); color: #0f766e; }
+.fin-tile.indigo { background: rgba(99, 102, 241, 0.12); color: #4338ca; }
+.fin-tile.blue { background: rgba(14, 165, 233, 0.12); color: #0369a1; }
+.fin-tile.green { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+.fin-tile.amber { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.fin-tile.red { background: rgba(220, 38, 38, 0.12); color: #b91c1c; }
 
-.kpi-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+.exp-tile {
+  background: #f8fafc;
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.4rem;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
-  flex-shrink: 0;
+  flex-direction: column;
+  b { font-size: 1.5rem; font-weight: 800; }
+  span { font-size: 0.72rem; color: #64748b; }
 }
 
-.bg-soft-teal { background: rgba(13, 148, 136, 0.12); color: #0d9488; }
-.bg-soft-indigo { background: rgba(99, 102, 241, 0.12); color: #6366f1; }
-.bg-soft-green { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
-.bg-soft-blue { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; }
-
-.kpi-label {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 0.15rem;
-}
-
-.kpi-value {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.1;
-}
-
-.stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  height: 100%;
-
-  i {
-    font-size: 1.5rem;
-  }
-
-  div {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-  }
-
-  .stat-num {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .stat-cap {
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-}
-
-.chart-box {
-  position: relative;
-  height: 300px;
-}
+.chart-box { position: relative; height: 280px; }
+.chart-box.sm { height: 240px; }
 
 .empty-state {
-  height: 260px;
+  height: 240px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #94a3b8;
   text-align: center;
-
-  i {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  p {
-    max-width: 240px;
-    font-size: 0.9rem;
-    margin: 0;
-  }
+  i { font-size: 2.5rem; margin-bottom: 0.6rem; }
+  p { max-width: 220px; font-size: 0.88rem; margin: 0; }
 }
 
 .table thead th {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #94a3b8;
-  border-bottom: 1px solid #e2e8f0;
 }

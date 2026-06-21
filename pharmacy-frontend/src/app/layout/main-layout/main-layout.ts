@@ -2,6 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { PosModalService } from '../../core/services/pos-modal.service';
+import { Billing } from '../../features/sales/billing';
 
 interface NavItem {
   label: string;
@@ -13,20 +15,25 @@ interface NavItem {
 
 @Component({
   selector: 'app-main-layout',
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, Billing],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.scss',
 })
 export class MainLayout {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  readonly pos = inject(PosModalService);
 
   readonly user = this.auth.user;
   readonly sidebarOpen = signal(true);
   readonly mobileNav = signal(false);
 
+  canSell(): boolean {
+    return PosModalService.canSell(this.user()?.role);
+  }
+
   readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+    { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard', roles: ['ho_admin', 'branch_admin', 'purchase', 'pharmacist', 'cashier'] },
     { label: 'Masters', icon: 'bi-box-seam', route: '/app/masters', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Opening Stock', icon: 'bi-clipboard-plus', route: '/app/opening-stock', roles: ['ho_admin', 'branch_admin', 'purchase'] },

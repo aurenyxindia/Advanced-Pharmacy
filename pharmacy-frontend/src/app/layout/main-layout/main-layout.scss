@@ -262,3 +262,80 @@ $topbar-height: 64px;
   .topbar { padding: 0 0.75rem; }
   .user-meta { display: none !important; }
 }
+
+/* ---- Global Sales POS popup ---- */
+.new-sale-btn {
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+}
+
+.pos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.25rem;
+  animation: pos-fade 0.18s ease;
+}
+
+@keyframes pos-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pos-dialog {
+  width: 100%;
+  max-width: 1320px;
+  max-height: calc(100vh - 2.5rem);
+  background: #f1f5f9;
+  border-radius: 1rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pos-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pos-pop {
+  from { transform: translateY(18px) scale(0.985); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.pos-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1.1rem;
+  background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-primary-dark));
+  color: #fff;
+}
+.pos-title { font-weight: 700; font-size: 0.98rem; }
+.pos-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+  &:hover { background: rgba(255, 255, 255, 0.32); }
+}
+
+.pos-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+@media (max-width: 575.98px) {
+  .pos-overlay { padding: 0; }
+  .pos-dialog { max-width: 100%; max-height: 100vh; border-radius: 0; }
+  .pos-dialog-body { padding: 0.5rem; }
+}

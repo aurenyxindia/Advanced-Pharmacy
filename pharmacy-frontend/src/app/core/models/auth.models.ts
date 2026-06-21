@@ -1,11 +1,11 @@
 export type UserRole = 'ho_admin' | 'branch_admin' | 'purchase' | 'pharmacist' | 'cashier';
 
-/** Landing route per role. Pharmacist/cashier go straight to billing. */
+/**
+ * Landing route per role. Sales roles land on the dashboard with the POS
+ * popup floating over it; purchase officers go straight to purchase entry.
+ */
 export function roleHome(role: string | undefined | null): string {
   switch (role) {
-    case 'pharmacist':
-    case 'cashier':
-      return '/app/sales/new';
     case 'purchase':
       return '/app/purchase/new';
     default:

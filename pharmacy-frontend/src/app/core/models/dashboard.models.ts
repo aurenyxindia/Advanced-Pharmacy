@@ -2,12 +2,21 @@ export interface DashboardKpis {
   today_sales: number;
   today_purchase: number;
   month_sales: number;
+  month_purchase: number;
   month_profit: number;
   product_count: number;
   low_stock_count: number;
   expiring_count: number;
+  expired_count: number;
   customer_count: number;
   branch_count: number;
+  outstanding_total: number;
+  outstanding_today: number;
+}
+
+export interface DistributorPurchase {
+  supplier: string;
+  total: number;
 }
 
 export interface SalesTrendPoint {
@@ -42,6 +51,8 @@ export interface RecentSale {
 export interface DashboardSummary {
   kpis: DashboardKpis;
   sales_trend: SalesTrendPoint[];
+  purchase_trend: SalesTrendPoint[];
+  distributor_purchase: DistributorPurchase[];
   top_products: TopProduct[];
   category_split: CategorySplit[];
   expiry_buckets: ExpiryBuckets;

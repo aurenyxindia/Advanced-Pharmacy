@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -8,7 +9,7 @@ import { ChartComponent } from '../../shared/chart/chart';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, ChartComponent],
+  imports: [CommonModule, RouterLink, ChartComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -43,28 +44,39 @@ export class Dashboard {
   }
 
   readonly salesTrendConfig = computed<ChartConfiguration>(() => {
-    const trend = this.data()?.sales_trend ?? [];
+    const sales = this.data()?.sales_trend ?? [];
+    const purchase = this.data()?.purchase_trend ?? [];
     return {
       type: 'line',
       data: {
-        labels: trend.map((p) => new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
+        labels: sales.map((p) => new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
         datasets: [
           {
             label: 'Sales',
-            data: trend.map((p) => p.total),
+            data: sales.map((p) => p.total),
             borderColor: '#0d9488',
             backgroundColor: 'rgba(13,148,136,0.12)',
             fill: true,
             tension: 0.35,
-            pointRadius: 3,
+            pointRadius: 2,
             pointBackgroundColor: '#0d9488',
+          },
+          {
+            label: 'Purchase',
+            data: purchase.map((p) => p.total),
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.10)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 2,
+            pointBackgroundColor: '#6366f1',
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } } },
         scales: {
           y: { beginAtZero: true, ticks: { callback: (v) => '₹' + v } },
           x: { grid: { display: false } },
@@ -72,6 +84,33 @@ export class Dashboard {
       },
     };
   });
+
+  readonly distributorConfig = computed<ChartConfiguration>(() => {
+    const d = this.data()?.distributor_purchase ?? [];
+    return {
+      type: 'bar',
+      data: {
+        labels: d.map((x) => x.supplier),
+        datasets: [
+          {
+            label: 'Purchase',
+            data: d.map((x) => Number(x.total)),
+            backgroundColor: ['#0d9488', '#6366f1', '#f59e0b', '#0ea5e9', '#ef4444', '#16a34a', '#a855f7'],
+            borderRadius: 6,
+            maxBarThickness: 30,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: (v) => '₹' + v } }, x: { grid: { display: false } } },
+      },
+    };
+  });
+
+  readonly hasDistributor = computed(() => (this.data()?.distributor_purchase ?? []).length > 0);
 
   readonly categoryConfig = computed<ChartConfiguration>(() => {
     const split = this.data()?.category_split ?? [];

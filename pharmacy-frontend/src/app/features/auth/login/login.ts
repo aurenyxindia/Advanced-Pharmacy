@@ -8,6 +8,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
+import { PosModalService } from '../../../core/services/pos-modal.service';
 import { roleHome } from '../../../core/models/auth.models';
 
 @Component({
@@ -20,6 +21,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly pos = inject(PosModalService);
 
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -43,7 +45,13 @@ export class Login {
     this.errorMessage.set(null);
 
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: (res) => this.router.navigateByUrl(roleHome(res.data.user.role)),
+      next: (res) => {
+        const role = res.data.user.role;
+        if (PosModalService.canSell(role)) {
+          this.pos.show();
+        }
+        this.router.navigateByUrl(roleHome(role));
+      },
       error: (err: HttpErrorResponse) => {
         this.loading.set(false);
         this.errorMessage.set(err.error?.message ?? 'Unable to sign in. Please try again.');

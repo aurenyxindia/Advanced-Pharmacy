@@ -52,6 +52,11 @@
       </div>
 
       <div class="topbar-actions">
+        @if (canSell()) {
+          <button class="btn btn-pharma btn-sm new-sale-btn" (click)="pos.show()" title="Open Sales POS">
+            <i class="bi bi-bag-plus me-1"></i> <span class="d-none d-sm-inline">New Sale</span>
+          </button>
+        }
         <button class="btn btn-light btn-icon position-relative" title="Notifications">
           <i class="bi bi-bell"></i>
           <span class="notif-dot"></span>
@@ -83,4 +88,21 @@
       <router-outlet />
     </main>
   </div>
+
+  <!-- Global Sales POS popup (floats above the dashboard until closed) -->
+  @if (pos.open()) {
+    <div class="pos-overlay">
+      <div class="pos-dialog">
+        <div class="pos-dialog-head">
+          <span class="pos-title"><i class="bi bi-bag-check me-2"></i>Sales · Point of Sale</span>
+          <button class="pos-close" (click)="pos.hide()" title="Close (back to dashboard)">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="pos-dialog-body">
+          <app-billing />
+        </div>
+      </div>
+    </div>
+  }
 </div>
