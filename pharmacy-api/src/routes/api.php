@@ -11,7 +11,9 @@ use App\Controllers\EmployeeController;
 use App\Controllers\GenericController;
 use App\Controllers\ImportController;
 use App\Controllers\MetaController;
+use App\Controllers\PrescriptionController;
 use App\Controllers\PurchaseController;
+use App\Controllers\SalesController;
 use App\Controllers\ProductBindingController;
 use App\Controllers\ProductController;
 use App\Controllers\RegistrationController;
@@ -103,6 +105,20 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->post('/import/purchase/csv', [ImportController::class, 'purchaseCsv']);
     $router->post('/import/purchase/gmail', [ImportController::class, 'purchaseGmail']);
     $router->post('/import/purchase/pdf', [ImportController::class, 'purchasePdf']);
+
+    // ---- Sales / Billing ----
+    $router->get('/sales/search-products', [SalesController::class, 'searchProducts']);
+    $router->get('/sales', [SalesController::class, 'index']);
+    $router->post('/sales', [SalesController::class, 'store']);
+    $router->get('/sales/{id}/substitutes', [SalesController::class, 'substitutes']);
+    $router->get('/sales/{id}/invoice', [SalesController::class, 'invoice']);
+    $router->get('/sales/{id}', [SalesController::class, 'show']);
+
+    // Substitutes lookup for a bound product (used live during billing)
+    $router->get('/bound-products/{id}/substitutes', [SalesController::class, 'substitutes']);
+
+    // ---- Prescriptions ----
+    $router->post('/prescriptions', [PrescriptionController::class, 'upload']);
 
     // ---- Employees / users (HO) - admin only ----
     $router->group(['middleware' => ['role:ho_admin,branch_admin']], function (Router $router): void {

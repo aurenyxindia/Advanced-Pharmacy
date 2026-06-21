@@ -73,6 +73,14 @@ export const routes: Routes = [
         path: 'purchase/new',
         loadComponent: () => import('./features/purchase/purchase-entry').then((m) => m.PurchaseEntry),
       },
+      {
+        path: 'sales',
+        loadComponent: () => import('./features/sales/sales-list').then((m) => m.SalesList),
+      },
+      {
+        path: 'sales/new',
+        loadComponent: () => import('./features/sales/billing').then((m) => m.Billing),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app/dashboard' },

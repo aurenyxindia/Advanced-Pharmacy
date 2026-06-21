@@ -10,11 +10,23 @@ namespace App\Core;
 final class Response
 {
     private array $headers = [];
+    private ?string $rawBody = null;
+    private string $contentType = 'application/json; charset=utf-8';
 
     public function __construct(
         private mixed $payload = null,
         private int $status = 200
     ) {
+    }
+
+    /** Build a raw (non-JSON) response, e.g. a PDF or CSV download. */
+    public static function raw(string $body, string $contentType, int $status = 200, array $headers = []): self
+    {
+        $response = new self(null, $status);
+        $response->rawBody = $body;
+        $response->contentType = $contentType;
+        $response->headers = $headers;
+        return $response;
     }
 
     public static function json(mixed $data, int $status = 200): self
@@ -58,10 +70,15 @@ final class Response
     {
         if (!headers_sent()) {
             http_response_code($this->status);
-            header('Content-Type: application/json; charset=utf-8');
+            header('Content-Type: ' . $this->contentType);
             foreach ($this->headers as $key => $value) {
                 header("{$key}: {$value}");
             }
+        }
+
+        if ($this->rawBody !== null) {
+            echo $this->rawBody;
+            return;
         }
 
         if ($this->payload !== null) {
