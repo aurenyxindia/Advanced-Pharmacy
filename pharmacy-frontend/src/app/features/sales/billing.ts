@@ -398,8 +398,10 @@ export class Billing {
   lineGstAmt(l: BillLine): number { return this.lineSell(l) - this.lineTaxable(l); }
   lineDiscountAmt(l: BillLine): number { return l.rate * l.qty * (l.disc / 100); }
   lineProfit(l: BillLine): number {
+    // l.cost is the Net Rate (cost per unit, excl GST). For a pack it scales by units/pack.
+    // Profit = (Sale rate - discount - tax) - Net Rate
     const effCost = l.unit_type === 'pack' ? l.cost * Math.max(1, l.units_per_pack) : l.cost;
-    return this.lineTaxable(l) - (effCost / (1 + l.gst_rate / 100)) * l.qty;
+    return this.lineTaxable(l) - effCost * l.qty;
   }
 
   readonly itemsSell = computed(() => this.bill().lines.reduce((s, l) => s + this.lineSell(l), 0));

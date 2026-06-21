@@ -116,11 +116,12 @@ final class SalesService
 
                 // Consume stock (preferred batch first, then FEFO). Quantities are
                 // tracked in base (loose) units, so loose sales work transparently.
-                [$batchNo, $batchId, $unitCostInclGst, $expiry, $shelf, $unitMrp] =
+                // The batch purchase_rate IS the Net Rate (cost per unit, excl GST).
+                [$batchNo, $batchId, $unitNetRate, $expiry, $shelf, $unitMrp] =
                     $this->consumeStock($db, $clientId, $branchId, $bindingId, $qty, $preferredBatchId);
-                $lineCostIncl = $unitCostInclGst * $qty;
-                $lineCostExcl = $lineCostIncl / (1 + $gstRate / 100);
-                $profit       = $taxable - $lineCostExcl;
+                // Profit = (Sale rate - discount - tax) - Purchase Net Rate
+                $lineCost = $unitNetRate * $qty;   // already excl GST
+                $profit   = $taxable - $lineCost;
 
                 $gross        += $lineGross;
                 $discountTotal += $lineGross * $discPct / 100;
@@ -145,7 +146,7 @@ final class SalesService
                     'gst_rate'     => $gstRate,
                     'taxable'      => round($taxable, 2),
                     'total_amt'    => round($lineGross, 2),
-                    'cost_price'   => round($lineCostIncl, 2),
+                    'cost_price'   => round($lineCost, 2),
                     'line_total'   => round($sell, 2),
                     'profit'       => round($profit, 2),
                     'sell_raw'     => $sell,

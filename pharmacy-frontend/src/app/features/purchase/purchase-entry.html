@@ -58,7 +58,7 @@
     </div>
     <div class="row g-2 mt-1">
       <div class="col-6 col-md-1"><label>Units/Pk</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().units_per_pack" (ngModelChange)="patch('units_per_pack', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>Free</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().free_quantity" (ngModelChange)="patch('free_quantity', +$event)" /></div>
+      <div class="col-6 col-md-1"><label title="Free quantity in saleable units">Free (units)</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().free_quantity" (ngModelChange)="patch('free_quantity', +$event)" /></div>
       <div class="col-6 col-md-1"><label>Pur.Rate</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>
       <div class="col-6 col-md-1"><label>MRP</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().mrp" (ngModelChange)="patch('mrp', +$event)" /></div>
       <div class="col-6 col-md-1"><label>PTR</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().ptr" (ngModelChange)="patch('ptr', +$event)" /></div>

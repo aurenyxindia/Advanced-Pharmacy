@@ -93,8 +93,16 @@ export class PurchaseEntry {
   }
 
   // ---- entry computed ----
-  netRate(e: Entry): number { return e.purchase_rate * (1 - e.discount_pct / 100); }
-  entryTaxable(e: Entry): number { return this.netRate(e) * e.quantity; }
+  // Total saleable units = packs x units/pack + free (free entered in units).
+  baseUnits(e: Entry): number { return e.quantity * (e.units_per_pack || 1) + (e.free_quantity || 0); }
+  // Net Rate per saleable unit (excl GST) = (rate x packs - product discount) / base units
+  netRate(e: Entry): number {
+    const gross = e.purchase_rate * e.quantity;
+    const disc = gross * (e.discount_pct / 100);
+    const units = this.baseUnits(e);
+    return units > 0 ? (gross - disc) / units : 0;
+  }
+  entryTaxable(e: Entry): number { return e.purchase_rate * e.quantity * (1 - e.discount_pct / 100); }
   entryTotal(e: Entry): number { return this.entryTaxable(e) * (1 + e.gst_rate / 100); }
 
   addLine(): void {

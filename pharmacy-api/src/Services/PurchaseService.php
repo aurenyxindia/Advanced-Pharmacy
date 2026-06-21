@@ -61,15 +61,19 @@ final class PurchaseService
                 }
 
                 $lineGross = $rate * $qty;
-                $taxable   = $lineGross * (1 - $discPct / 100);
+                $discAmt   = $lineGross * $discPct / 100;       // product discount (amount)
+                $taxable   = $lineGross - $discAmt;             // basic taxable value (excl GST)
                 $gstAmt    = $taxable * $gstRate / 100;
-                $lineTotal = $taxable + $gstAmt;
-                $netRate   = $rate * (1 - $discPct / 100);
+                $lineTotal = $taxable + $gstAmt;                // supplier-payable for the line
 
-                // Convert to base (loose) units for inventory.
-                $baseUnits      = ($qty + $free) * $upp;
-                $unitCostIncl   = $baseUnits > 0 ? $lineTotal / $baseUnits : $lineTotal; // per base unit
-                $unitMrp        = $upp > 0 ? $mrp / $upp : $mrp;                          // per base unit
+                // Saleable (base) units received: free qty is entered in saleable units.
+                //   units = (packs x units_per_pack) + free_qty
+                $baseUnits = $qty * $upp + $free;
+
+                // NET RATE per saleable unit (cost basis, excl GST):
+                //   (Unit Purchase price x packs - product discount) / (packs x units_per_pack + free qty)
+                $netRateExcl = $baseUnits > 0 ? ($lineGross - $discAmt) / $baseUnits : 0;
+                $unitMrp     = $upp > 0 ? $mrp / $upp : $mrp;   // MRP per base unit
 
                 $gross        += $lineGross;
                 $scheme       += $free * $rate;
@@ -96,9 +100,9 @@ final class PurchaseService
                     'scheme_pct'   => (float) ($item['scheme_pct'] ?? 0),
                     'discount_pct' => $discPct,
                     'gst_rate'     => $gstRate,
-                    'net_rate'     => round($netRate, 2),
+                    'net_rate'     => round($netRateExcl, 4),   // per saleable unit, excl GST
                     'line_total'   => round($lineTotal, 2),
-                    'unit_cost'    => round($unitCostIncl, 4),
+                    'unit_cost'    => round($netRateExcl, 4),   // cost basis per unit (excl GST)
                 ];
             }
 
