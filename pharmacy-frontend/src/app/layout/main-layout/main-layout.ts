@@ -27,7 +27,7 @@ export class MainLayout {
   readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard' },
     { label: 'Masters', icon: 'bi-box-seam', route: '/app/masters' },
-    { label: 'Purchase', icon: 'bi-cart-plus', comingSoon: true },
+    { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase' },
     { label: 'Sales / Billing', icon: 'bi-receipt', comingSoon: true },
     { label: 'Inventory', icon: 'bi-boxes', comingSoon: true },
     { label: 'Prescriptions', icon: 'bi-file-medical', comingSoon: true },

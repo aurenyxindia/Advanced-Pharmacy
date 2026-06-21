@@ -1,0 +1,147 @@
+<div class="purchase-entry">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">New Purchase</h4>
+      <p class="text-secondary mb-0 small">Record a supplier invoice — stock and product binding update automatically.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <label class="btn btn-light border mb-0">
+        <i class="bi bi-filetype-csv me-1"></i> Import CSV
+        <input type="file" accept=".csv,.tsv,.txt" hidden (change)="onCsvSelected($event)" />
+      </label>
+      <button class="btn btn-light border" (click)="router.navigate(['/app/purchase'])">
+        <i class="bi bi-list-ul me-1"></i> All Purchases
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  <!-- Header -->
+  <div class="card-pharma p-3 mb-3">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Invoice No <span class="text-danger">*</span></label>
+        <input class="form-control" [ngModel]="invoiceNo()" (ngModelChange)="invoiceNo.set($event)" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Invoice Date</label>
+        <input type="date" class="form-control" [ngModel]="invoiceDate()" (ngModelChange)="invoiceDate.set($event)" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Supplier</label>
+        <input class="form-control" placeholder="Supplier / distributor name"
+          [ngModel]="supplierName()" (ngModelChange)="supplierName.set($event)" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Bill Disc %</label>
+        <input type="number" class="form-control" [ngModel]="billDiscountPct()"
+          (ngModelChange)="billDiscountPct.set(+$event)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Lines -->
+  <div class="card-pharma mb-3">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0 lines-table">
+        <thead>
+          <tr>
+            <th style="min-width: 220px;">Product</th>
+            <th>Schedule</th>
+            <th>Batch</th>
+            <th>Expiry</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Free</th>
+            <th class="text-end">Rate</th>
+            <th class="text-end">MRP</th>
+            <th class="text-end">Disc%</th>
+            <th class="text-end">GST%</th>
+            <th class="text-end">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of lines(); track $index) {
+            <tr>
+              <td class="position-relative">
+                <input class="form-control form-control-sm" placeholder="Type to search..."
+                  [ngModel]="line.product_name"
+                  (ngModelChange)="onProductInput($index, $event)"
+                  (blur)="closeSearch()" />
+                @if (line.master_product_id) {
+                  <span class="badge text-bg-success bound-badge">in catalog</span>
+                } @else if (line.product_name) {
+                  <span class="badge text-bg-warning bound-badge">new</span>
+                }
+                @if (activeIndex() === $index && searchResults().length) {
+                  <div class="search-dropdown shadow-pharma-lg">
+                    @for (p of searchResults(); track p.id) {
+                      <button type="button" class="search-item" (mousedown)="selectProduct($index, p)">
+                        <span class="fw-semibold">{{ p.name }}</span>
+                        <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }} · GST {{ p.default_gst_rate }}%</span>
+                      </button>
+                    }
+                  </div>
+                }
+              </td>
+              <td>
+                <select class="form-select form-select-sm" [disabled]="!!line.master_product_id"
+                  [ngModel]="line.schedule_category" (ngModelChange)="updateLine($index, { schedule_category: $event })">
+                  @for (s of scheduleOptions; track s) { <option [value]="s">{{ s }}</option> }
+                </select>
+              </td>
+              <td><input class="form-control form-control-sm" style="width:90px"
+                [ngModel]="line.batch_no" (ngModelChange)="updateLine($index, { batch_no: $event })" /></td>
+              <td><input class="form-control form-control-sm" style="width:110px" placeholder="MM/YYYY"
+                [ngModel]="line.expiry_date" (ngModelChange)="updateLine($index, { expiry_date: $event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:70px"
+                [ngModel]="line.quantity" (ngModelChange)="updateLine($index, { quantity: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:60px"
+                [ngModel]="line.free_quantity" (ngModelChange)="updateLine($index, { free_quantity: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:80px"
+                [ngModel]="line.purchase_rate" (ngModelChange)="updateLine($index, { purchase_rate: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:80px"
+                [ngModel]="line.mrp" (ngModelChange)="updateLine($index, { mrp: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:60px"
+                [ngModel]="line.discount_pct" (ngModelChange)="updateLine($index, { discount_pct: +$event })" /></td>
+              <td><input type="number" class="form-control form-control-sm text-end" style="width:60px"
+                [ngModel]="line.gst_rate" (ngModelChange)="updateLine($index, { gst_rate: +$event })" /></td>
+              <td class="text-end fw-semibold text-nowrap">{{ lineTotal(line) | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+              <td><button class="btn btn-sm btn-outline-danger" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="p-2 border-top">
+      <button class="btn btn-sm btn-outline-secondary" (click)="addLine()">
+        <i class="bi bi-plus-lg me-1"></i> Add Line
+      </button>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="row g-3">
+    <div class="col-md-7"></div>
+    <div class="col-md-5">
+      <div class="card-pharma p-3 totals">
+        <div class="d-flex justify-content-between"><span>Gross</span><span>{{ grossTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+        <div class="d-flex justify-content-between text-danger"><span>Discount</span><span>- {{ discountTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+        <div class="d-flex justify-content-between"><span>GST</span><span>{{ gstTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+        <hr class="my-2" />
+        <div class="d-flex justify-content-between fw-bold fs-5"><span>Net Payable</span><span class="text-pharma">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+        <button class="btn btn-pharma w-100 mt-3" [disabled]="saving()" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          <i class="bi bi-save me-1"></i> Save Purchase
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (toast()) {
+    <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div>
+  }
+</div>

@@ -65,6 +65,14 @@ export const routes: Routes = [
         data: { configKey: 'employees', roles: ['ho_admin', 'branch_admin'] },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
+      {
+        path: 'purchase',
+        loadComponent: () => import('./features/purchase/purchase-list').then((m) => m.PurchaseList),
+      },
+      {
+        path: 'purchase/new',
+        loadComponent: () => import('./features/purchase/purchase-entry').then((m) => m.PurchaseEntry),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app/dashboard' },

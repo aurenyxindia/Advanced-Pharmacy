@@ -9,7 +9,9 @@ use App\Controllers\DashboardController;
 use App\Controllers\DoctorController;
 use App\Controllers\EmployeeController;
 use App\Controllers\GenericController;
+use App\Controllers\ImportController;
 use App\Controllers\MetaController;
+use App\Controllers\PurchaseController;
 use App\Controllers\ProductBindingController;
 use App\Controllers\ProductController;
 use App\Controllers\RegistrationController;
@@ -91,6 +93,16 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
     $router->get('/accounts/{id}', [AccountController::class, 'show']);
     $router->put('/accounts/{id}', [AccountController::class, 'update']);
     $router->delete('/accounts/{id}', [AccountController::class, 'destroy']);
+
+    // ---- Purchase ----
+    $router->get('/purchases', [PurchaseController::class, 'index']);
+    $router->post('/purchases', [PurchaseController::class, 'store']);
+    $router->get('/purchases/{id}', [PurchaseController::class, 'show']);
+
+    // ---- Purchase import (CSV now; Gmail/PDF-OCR are extension points) ----
+    $router->post('/import/purchase/csv', [ImportController::class, 'purchaseCsv']);
+    $router->post('/import/purchase/gmail', [ImportController::class, 'purchaseGmail']);
+    $router->post('/import/purchase/pdf', [ImportController::class, 'purchasePdf']);
 
     // ---- Employees / users (HO) - admin only ----
     $router->group(['middleware' => ['role:ho_admin,branch_admin']], function (Router $router): void {
