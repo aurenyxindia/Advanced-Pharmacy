@@ -29,6 +29,7 @@ export class MainLayout {
     { label: 'Masters', icon: 'bi-box-seam', route: '/app/masters', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Sales / Billing', icon: 'bi-receipt', route: '/app/sales', roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
+    { label: 'IPD / Admissions', icon: 'bi-hospital', route: '/app/ipd', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
     { label: 'Refill Reminders', icon: 'bi-bell', route: '/app/refills', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
     { label: 'Deliveries', icon: 'bi-truck', route: '/app/deliveries', roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
     { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts', roles: ['ho_admin', 'branch_admin'] },

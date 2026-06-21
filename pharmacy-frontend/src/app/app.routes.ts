@@ -138,6 +138,12 @@ export const routes: Routes = [
         data: { roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
         loadComponent: () => import('./features/deliveries/deliveries').then((m) => m.Deliveries),
       },
+      {
+        path: 'ipd',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
+        loadComponent: () => import('./features/ipd/ipd').then((m) => m.Ipd),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app/dashboard' },

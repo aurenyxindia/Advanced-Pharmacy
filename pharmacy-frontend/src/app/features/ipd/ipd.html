@@ -1,0 +1,151 @@
+<div class="ipd">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">In-Patient (IPD) Admissions</h4>
+      <p class="text-secondary mb-0 small">Bills accrue to an admission until discharge; partial payments are tracked.</p>
+    </div>
+    <button class="btn btn-pharma" (click)="openAdmit()"><i class="bi bi-person-plus me-1"></i> Admit Patient</button>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+
+  <div class="btn-group btn-group-sm mb-3">
+    <button class="btn" [class.btn-pharma]="filter()==='admitted'" [class.btn-light]="filter()!=='admitted'" [class.border]="filter()!=='admitted'" (click)="setFilter('admitted')">Admitted</button>
+    <button class="btn" [class.btn-pharma]="filter()==='discharged'" [class.btn-light]="filter()!=='discharged'" [class.border]="filter()!=='discharged'" (click)="setFilter('discharged')">Discharged</button>
+    <button class="btn" [class.btn-pharma]="filter()===''" [class.btn-light]="filter()!==''" [class.border]="filter()!==''" (click)="setFilter('')">All</button>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr><th>Admission</th><th>Patient</th><th>Ward/Bed</th><th>Doctor</th><th>Admitted</th>
+            <th class="text-end">Billed</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="10" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="10" class="text-center py-5 text-secondary"><i class="bi bi-hospital fs-3 d-block mb-2"></i> No admissions.</td></tr>
+          } @else {
+            @for (r of rows(); track r.id) {
+              <tr (click)="openDetail(r.id)" style="cursor:pointer">
+                <td class="fw-semibold">{{ r.admission_no }}</td>
+                <td>{{ r.patient_name }}</td>
+                <td class="small">{{ r.ward || '-' }} / {{ r.bed_no || '-' }}</td>
+                <td class="small">{{ r.doctor_name || '-' }}</td>
+                <td class="small">{{ r.admitted_at | date: 'dd MMM, HH:mm' }}</td>
+                <td class="text-end">{{ (r.billed || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="text-end text-success">{{ (r.paid || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="text-end fw-semibold" [class.text-danger]="(r.balance||0) > 0">{{ (r.balance || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td><span class="badge" [class.text-bg-success]="r.status==='admitted'" [class.text-bg-secondary]="r.status==='discharged'">{{ r.status }}</span></td>
+                <td><i class="bi bi-chevron-right text-secondary"></i></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  @if (selected(); as adm) {
+    <div class="modal-backdrop-custom" (click)="closeDetail()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:720px;">
+        <div class="modal-head">
+          <div>
+            <h5 class="mb-0 fw-semibold">{{ adm.patient_name }} <span class="badge" [class.text-bg-success]="adm.status==='admitted'" [class.text-bg-secondary]="adm.status==='discharged'">{{ adm.status }}</span></h5>
+            <span class="text-secondary small">{{ adm.admission_no }} · {{ adm.ward || '-' }}/{{ adm.bed_no || '-' }} · Dr. {{ adm.doctor_name || '-' }}</span>
+          </div>
+          <button class="btn-close" (click)="closeDetail()"></button>
+        </div>
+        <div class="modal-body-custom">
+          <!-- totals -->
+          <div class="row g-2 mb-3">
+            <div class="col-4"><div class="tot-box"><span>Billed</span><b>{{ adm.totals.billed | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
+            <div class="col-4"><div class="tot-box paid"><span>Paid</span><b>{{ adm.totals.paid | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
+            <div class="col-4"><div class="tot-box bal"><span>Balance</span><b>{{ adm.totals.balance | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
+          </div>
+
+          @if (adm.status === 'admitted') {
+            <div class="d-flex gap-2 mb-3">
+              <button class="btn btn-sm btn-pharma" (click)="addBill(adm)"><i class="bi bi-receipt me-1"></i> Add Bill</button>
+              <button class="btn btn-sm btn-outline-success" (click)="openPay()"><i class="bi bi-cash-coin me-1"></i> Record Payment</button>
+              <button class="btn btn-sm btn-outline-danger ms-auto" (click)="discharge(adm)"><i class="bi bi-box-arrow-right me-1"></i> Discharge</button>
+            </div>
+          }
+
+          <div class="row g-3">
+            <div class="col-md-7">
+              <h6 class="fw-semibold small text-secondary">BILLS ({{ adm.bills.length }})</h6>
+              <div class="mini-list">
+                @for (b of adm.bills; track b.id) {
+                  <div class="mini-row"><span>{{ b.invoice_no }}</span><span class="text-secondary small">{{ b.invoice_date | date: 'dd MMM' }}</span><span class="fw-semibold">{{ b.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+                } @empty { <div class="text-secondary small py-2">No bills yet.</div> }
+              </div>
+            </div>
+            <div class="col-md-5">
+              <h6 class="fw-semibold small text-secondary">PAYMENTS ({{ adm.payments.length }})</h6>
+              <div class="mini-list">
+                @for (p of adm.payments; track p.id) {
+                  <div class="mini-row"><span class="badge text-bg-light">{{ p.mode }}</span><span class="text-secondary small">{{ p.paid_at | date: 'dd MMM' }}</span><span class="fw-semibold text-success">{{ p.amount | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+                } @empty { <div class="text-secondary small py-2">No payments yet.</div> }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Admit modal -->
+  @if (admitOpen()) {
+    <div class="modal-backdrop-custom" (click)="admitOpen.set(false)"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:560px;">
+        <div class="modal-head"><h5 class="mb-0 fw-semibold">Admit Patient</h5><button class="btn-close" (click)="admitOpen.set(false)"></button></div>
+        <div class="modal-body-custom">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Patient Name <span class="text-danger">*</span></label><input class="form-control" [ngModel]="admitForm().patient_name" (ngModelChange)="setAdmit('patient_name', $event)" /></div>
+            <div class="col-md-6"><label class="form-label">Contact</label><input class="form-control" [ngModel]="admitForm().contact_no" (ngModelChange)="setAdmit('contact_no', $event)" /></div>
+            <div class="col-md-6"><label class="form-label">Doctor</label><input class="form-control" [ngModel]="admitForm().doctor_name" (ngModelChange)="setAdmit('doctor_name', $event)" /></div>
+            <div class="col-md-3"><label class="form-label">Ward</label><input class="form-control" [ngModel]="admitForm().ward" (ngModelChange)="setAdmit('ward', $event)" /></div>
+            <div class="col-md-3"><label class="form-label">Bed No</label><input class="form-control" [ngModel]="admitForm().bed_no" (ngModelChange)="setAdmit('bed_no', $event)" /></div>
+            <div class="col-12"><label class="form-label">Address</label><input class="form-control" [ngModel]="admitForm().address" (ngModelChange)="setAdmit('address', $event)" /></div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button class="btn btn-light border" (click)="admitOpen.set(false)">Cancel</button>
+            <button class="btn btn-pharma" [disabled]="saving()" (click)="admit()">@if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } Admit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Payment modal -->
+  @if (payOpen()) {
+    <div class="modal-backdrop-custom" (click)="payOpen.set(false)"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:440px;">
+        <div class="modal-head"><h5 class="mb-0 fw-semibold">Record Payment</h5><button class="btn-close" (click)="payOpen.set(false)"></button></div>
+        <div class="modal-body-custom">
+          <label class="form-label">Amount <span class="text-danger">*</span></label>
+          <input type="number" class="form-control mb-2" [ngModel]="payForm().amount" (ngModelChange)="setPay('amount', +$event)" />
+          <label class="form-label">Mode</label>
+          <select class="form-select mb-2" [ngModel]="payForm().mode" (ngModelChange)="setPay('mode', $event)">
+            <option value="cash">Cash</option><option value="card">Card</option><option value="upi">UPI</option><option value="bank">Bank</option>
+          </select>
+          <label class="form-label">Note</label>
+          <input class="form-control" [ngModel]="payForm().note" (ngModelChange)="setPay('note', $event)" />
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button class="btn btn-light border" (click)="payOpen.set(false)">Cancel</button>
+            <button class="btn btn-pharma" (click)="recordPayment()">Save Payment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast()) { <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div> }
+</div>

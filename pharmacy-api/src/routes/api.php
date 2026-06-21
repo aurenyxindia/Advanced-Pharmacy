@@ -6,6 +6,7 @@ use App\Controllers\AccountController;
 use App\Controllers\AuthController;
 use App\Controllers\BranchController;
 use App\Controllers\HoController;
+use App\Controllers\IpdController;
 use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
 use App\Controllers\DoctorController;
@@ -135,6 +136,13 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Prescriptions ----
     $router->post('/prescriptions', [PrescriptionController::class, 'upload']);
+
+    // ---- IPD (In-Patient) admissions ----
+    $router->get('/ipd/admissions', [IpdController::class, 'index']);
+    $router->post('/ipd/admissions', [IpdController::class, 'store']);
+    $router->get('/ipd/admissions/{id}', [IpdController::class, 'show']);
+    $router->post('/ipd/admissions/{id}/payment', [IpdController::class, 'payment']);
+    $router->post('/ipd/admissions/{id}/discharge', [IpdController::class, 'discharge']);
 
     // ---- Online orders / delivery (staff) ----
     $router->get('/orders', [OrderController::class, 'index']);

@@ -68,6 +68,20 @@ final class SalesService
             }
         }
 
+        // Validate IPD admission link, if present.
+        if (!empty($data['ipd_admission_id'])) {
+            $adm = (new \App\Models\IpdAdmission())->firstWhere([
+                'id'        => (int) $data['ipd_admission_id'],
+                'client_id' => $clientId,
+            ]);
+            if (!$adm) {
+                throw HttpException::validation(['ipd_admission_id' => ['Admission not found.']]);
+            }
+            if ($adm['status'] !== 'admitted') {
+                throw HttpException::validation(['ipd_admission_id' => ['This patient is already discharged.']]);
+            }
+        }
+
         return Connection::transaction('ops', function (PDO $db) use ($clientId, $branchId, $userId, $data, $items) {
             $gross = 0.0;
             $discountTotal = 0.0;
@@ -168,13 +182,13 @@ final class SalesService
 
             $stmt = $db->prepare(
                 'INSERT INTO sales
-                    (client_id, branch_id, counter, sale_type, bill_mode, rate_type, invoice_no, invoice_date,
+                    (client_id, branch_id, counter, ipd_admission_id, sale_type, bill_mode, rate_type, invoice_no, invoice_date,
                      customer_id, customer_name, patient_name, contact_no, email, address, narration, reminder_days, doctor_name,
                      gross_amount, taxable_amount, discount_amount, cd_disc_pct, cd_amount, gst_amount,
                      is_interstate, cgst, sgst, igst, net_amount, profit_amount, payment_mode,
                      has_prescription, is_locked, created_by, created_at)
                  VALUES
-                    (:client_id, :branch_id, :counter, :sale_type, :bill_mode, :rate_type, :invoice_no, :invoice_date,
+                    (:client_id, :branch_id, :counter, :ipd_admission_id, :sale_type, :bill_mode, :rate_type, :invoice_no, :invoice_date,
                      :customer_id, :customer_name, :patient_name, :contact_no, :email, :address, :narration, :reminder_days, :doctor_name,
                      :gross, :taxable, :discount, :cd_pct, :cd_amt, :gst,
                      :interstate, :cgst, :sgst, :igst, :net, :profit, :payment_mode,
@@ -184,6 +198,7 @@ final class SalesService
                 'client_id'     => $clientId,
                 'branch_id'     => $branchId,
                 'counter'       => $data['counter'] ?? null,
+                'ipd_admission_id' => !empty($data['ipd_admission_id']) ? (int) $data['ipd_admission_id'] : null,
                 'sale_type'     => $data['sale_type'] ?? 'Regular',
                 'bill_mode'     => $data['bill_mode'] ?? 'retail',
                 'rate_type'     => $data['rate_type'] ?? null,

@@ -76,6 +76,7 @@ export interface SalePayload {
   bill_discount_pct?: number;
   cd_disc_pct?: number;
   is_interstate?: number;
+  ipd_admission_id?: number | null;
   prescription_id?: number | null;
   items: SaleItemPayload[];
 }

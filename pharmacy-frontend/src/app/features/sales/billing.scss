@@ -93,7 +93,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.counter-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.counter-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 .counter-tab {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
@@ -102,9 +102,35 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: #475569;
+  display: inline-flex;
+  align-items: center;
   &.active { background: #16a34a; color: #fff; border-color: #16a34a; }
 }
+.close-counter {
+  margin-left: 0.4rem;
+  opacity: 0.6;
+  border-radius: 50%;
+  &:hover { opacity: 1; background: rgba(0,0,0,0.12); }
+}
+.counter-add {
+  border: 1px dashed #94a3b8;
+  background: #fff;
+  color: #475569;
+  border-radius: 0.4rem;
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  &:hover { border-color: var(--pharma-primary); color: var(--pharma-primary); }
+}
 .view-sales { font-weight: 600; }
+
+.ipd-banner {
+  background: linear-gradient(90deg, #4338ca, #6366f1);
+  color: #fff;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 0 0 0.4rem 0.4rem;
+  margin-bottom: 0.5rem;
+}
 
 .bill-body {
   display: grid;

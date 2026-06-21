@@ -1,7 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   BatchOption,
@@ -97,14 +97,19 @@ export class Billing {
   private readonly crud = inject(CrudService);
   private readonly meta = inject(MetaService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly video = viewChild<ElementRef<HTMLVideoElement>>('video');
 
   readonly businessType = this.meta.businessType;
-  readonly counters = COUNTERS;
+  readonly counters = signal<string[]>([...COUNTERS]);
   readonly activeCounter = signal('COUNTER 1');
   readonly bills = signal<Record<string, Bill>>(
     Object.fromEntries(COUNTERS.map((c) => [c, emptyBill('retail')])),
   );
+
+  // IPD link (set when billing was opened from an admission)
+  readonly ipdAdmissionId = signal<number | null>(null);
+  readonly ipdPatient = signal<string>('');
   readonly bill = computed(() => this.bills()[this.activeCounter()]);
   readonly isWholesale = computed(() => this.bill().mode === 'wholesale');
 
@@ -154,6 +159,48 @@ export class Billing {
     this.crud.list<{ id: number; name: string; phone?: string; address?: string }>('customers', { perPage: 500 })
       .subscribe((r) => this.customers.set(r.data));
     this.loadInitial();
+
+    // If opened from an IPD admission, tag this bill to it.
+    const admission = this.route.snapshot.queryParamMap.get('admission');
+    if (admission) {
+      this.ipdAdmissionId.set(Number(admission));
+      const patient = this.route.snapshot.queryParamMap.get('patient') ?? '';
+      this.ipdPatient.set(patient);
+      this.ensureCounter('IPD COUNTER');
+      this.activeCounter.set('IPD COUNTER');
+      this.patchBill({ patientName: patient });
+    }
+  }
+
+  // ---- dynamic counters ----
+  private defaultMode(): BillMode {
+    return this.businessType() === 'wholesale' ? 'wholesale' : 'retail';
+  }
+  private ensureCounter(name: string): void {
+    if (!this.counters().includes(name)) {
+      this.counters.update((cs) => [...cs, name]);
+      this.bills.update((all) => ({ ...all, [name]: emptyBill(this.defaultMode()) }));
+    }
+  }
+  addCounter(): void {
+    const input = (prompt('New counter name:', 'COUNTER ' + (this.counters().length + 1)) || '').trim();
+    if (!input) return;
+    if (this.counters().includes(input)) { this.activeCounter.set(input); return; }
+    this.counters.update((cs) => [...cs, input]);
+    this.bills.update((all) => ({ ...all, [input]: emptyBill(this.defaultMode()) }));
+    this.activeCounter.set(input);
+  }
+  removeCounter(name: string, event: Event): void {
+    event.stopPropagation();
+    if (this.counters().length <= 1) return;
+    if (this.bills()[name]?.lines.length && !confirm(`Counter "${name}" has items. Remove and discard?`)) return;
+    this.counters.update((cs) => cs.filter((c) => c !== name));
+    this.bills.update((all) => { const copy = { ...all }; delete copy[name]; return copy; });
+    if (this.activeCounter() === name) this.activeCounter.set(this.counters()[0]);
+  }
+  clearIpd(): void {
+    this.ipdAdmissionId.set(null);
+    this.ipdPatient.set('');
   }
 
   // ---- mode ----
@@ -436,6 +483,7 @@ export class Billing {
       payment_mode: b.paymentMode.toLowerCase(),
       cd_disc_pct: b.mode === 'wholesale' ? b.cdDiscPct : 0,
       is_interstate: b.isInterstate ? 1 : 0,
+      ipd_admission_id: this.ipdAdmissionId(),
       prescription_id: b.prescriptionId,
       items: b.lines.map((l) => {
         const upp = Math.max(1, l.units_per_pack);
@@ -459,6 +507,7 @@ export class Billing {
         this.completed.set(res.data);
         const mode = b.mode;
         this.bills.update((all) => ({ ...all, [this.activeCounter()]: emptyBill(mode) }));
+        this.clearIpd();
         if (printAfter) this.printInvoice(res.data.id);
       },
       error: (err: HttpErrorResponse) => {
