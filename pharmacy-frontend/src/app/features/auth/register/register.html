@@ -82,7 +82,7 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Password <span class="req">*</span></label>
-            <input type="password" class="form-control" formControlName="password"
+            <input type="password" class="form-control" formControlName="password" autocomplete="new-password"
               [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid" />
             <div class="text-danger small mt-1" *ngIf="form.controls.password.touched && form.controls.password.invalid">
               Minimum 8 characters.
@@ -90,7 +90,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label">Confirm password <span class="req">*</span></label>
-            <input type="password" class="form-control" formControlName="password_confirmation"
+            <input type="password" class="form-control" formControlName="password_confirmation" autocomplete="new-password"
               [class.is-invalid]="form.controls.password_confirmation.touched && (form.controls.password_confirmation.invalid || form.errors?.['mismatch'])" />
             <div class="text-danger small mt-1" *ngIf="form.errors?.['mismatch'] && form.controls.password_confirmation.touched">
               Passwords do not match.

@@ -1,4 +1,7 @@
-<div class="layout" [class.sidebar-collapsed]="!sidebarOpen()">
+<div class="layout" [class.sidebar-collapsed]="!sidebarOpen()" [class.mobile-open]="mobileNav()">
+  <!-- Mobile backdrop -->
+  <div class="mobile-backdrop" (click)="closeMobile()"></div>
+
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -14,6 +17,7 @@
             routerLinkActive="active"
             class="nav-item"
             [title]="item.label"
+            (click)="closeMobile()"
           >
             <i class="bi" [ngClass]="item.icon"></i>
             <span class="nav-label">{{ item.label }}</span>

@@ -23,6 +23,7 @@ export class MainLayout {
 
   readonly user = this.auth.user;
   readonly sidebarOpen = signal(true);
+  readonly mobileNav = signal(false);
 
   readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'bi-grid-1x2', route: '/app/dashboard', roles: ['ho_admin', 'branch_admin', 'purchase'] },
@@ -47,7 +48,13 @@ export class MainLayout {
   }
 
   toggleSidebar(): void {
+    // Desktop: collapse/expand. Mobile: open/close the drawer.
     this.sidebarOpen.update((v) => !v);
+    this.mobileNav.update((v) => !v);
+  }
+
+  closeMobile(): void {
+    this.mobileNav.set(false);
   }
 
   initials(): string {

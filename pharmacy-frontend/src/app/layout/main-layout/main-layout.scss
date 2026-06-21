@@ -223,16 +223,42 @@ $topbar-height: 64px;
   background: var(--pharma-bg);
 }
 
-@media (max-width: 767.98px) {
+// ---------- Mobile backdrop (hidden on desktop) ----------
+.mobile-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1029;
+}
+
+// ---------- Mobile: sidebar becomes an off-canvas drawer ----------
+@media (max-width: 991.98px) {
   .sidebar {
-    width: $sidebar-collapsed;
+    width: $sidebar-width;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
   }
+  // In drawer mode always show full labels (ignore desktop collapse).
   .nav-label,
   .brand-text,
   .badge-soon {
-    display: none;
+    display: inline;
   }
   .main-column {
-    margin-left: $sidebar-collapsed;
+    margin-left: 0;
   }
+  .sidebar-collapsed .sidebar { width: $sidebar-width; }
+
+  .mobile-open {
+    .sidebar { transform: translateX(0); }
+    .mobile-backdrop { display: block; }
+  }
+}
+
+@media (max-width: 575.98px) {
+  .content { padding: 1rem; }
+  .topbar { padding: 0 0.75rem; }
+  .user-meta { display: none !important; }
 }
