@@ -64,6 +64,7 @@ export class MainLayout {
     { label: 'Payments', icon: 'bi-wallet2', route: '/app/payments', roles: ['ho_admin', 'branch_admin'] },
     { label: 'Credit Notes', icon: 'bi-file-earmark-minus', route: '/app/credit-notes', roles: ['ho_admin', 'branch_admin'] },
     { label: 'Debit Notes', icon: 'bi-file-earmark-plus', route: '/app/debit-notes', roles: ['ho_admin', 'branch_admin'] },
+    { label: 'Daily Closing', icon: 'bi-calendar2-check', route: '/app/daily-closing', roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
     { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports', roles: ['ho_admin', 'branch_admin', 'purchase'] },
     { label: 'Head Office', icon: 'bi-buildings', route: '/app/ho', roles: ['ho_admin'] },
   ];

@@ -1,0 +1,105 @@
+:host { display: block; }
+
+.dc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.dc-date { width: auto; }
+
+.dc-card {
+  background: #fff;
+  border-radius: 0.85rem;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.dc-card-head {
+  background: #334155;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.7rem 1rem;
+  display: flex;
+  align-items: center;
+}
+.dc-card-body {
+  padding: 0.75rem 1rem;
+  flex: 1;
+}
+.dc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0;
+  border-bottom: 1px dashed #eef2f7;
+  font-size: 0.86rem;
+  color: #475569;
+  span { display: inline-flex; align-items: center; }
+  b { color: #0f172a; font-variant-numeric: tabular-nums; }
+  &:last-child { border-bottom: none; }
+}
+.dc-input-wrap {
+  padding: 0.5rem 0;
+  label { font-size: 0.72rem; color: #94a3b8; display: block; margin-bottom: 0.2rem; letter-spacing: 0.03em; }
+}
+.dc-card-foot {
+  background: #f8fafc;
+  border-top: 1px solid #eef2f7;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #0f172a;
+  span { color: #64748b; font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; }
+  > div { padding: 0.15rem 0; }
+}
+
+.btn-day-end {
+  background: linear-gradient(135deg, #334155, #1e293b);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 2rem;
+  border-radius: 0.6rem;
+  border: none;
+  box-shadow: 0 8px 20px rgba(30, 41, 59, 0.35);
+  transition: transform 0.15s ease;
+  &:hover:not(:disabled) { transform: translateY(-1px); color: #fff; }
+}
+
+.dc-report-head {
+  padding: 0.75rem 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+}
+.dc-table thead th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
+  white-space: nowrap;
+  background: #f8fafc;
+}
+.dc-table tbody td { font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+
+.dc-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: #fff;
+  border-radius: 0.6rem;
+  padding: 0.75rem 1.1rem;
+  z-index: 1090;
+  border: 1px solid #e2e8f0;
+}

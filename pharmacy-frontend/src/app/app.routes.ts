@@ -127,6 +127,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
       },
       {
+        path: 'daily-closing',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
+        loadComponent: () => import('./features/daily-closing/daily-closing').then((m) => m.DailyClosing),
+      },
+      {
         path: 'masters/branches',
         canActivate: [roleGuard],
         data: { configKey: 'branches', roles: ['ho_admin'] },

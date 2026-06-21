@@ -12,6 +12,7 @@ use App\Controllers\HoController;
 use App\Controllers\PaymentController;
 use App\Controllers\IpdController;
 use App\Controllers\CustomerController;
+use App\Controllers\DailyClosingController;
 use App\Controllers\DashboardController;
 use App\Controllers\DoctorController;
 use App\Controllers\EmployeeController;
@@ -63,6 +64,11 @@ $router->group(['prefix' => '/api/public'], function (Router $router): void {
 $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router $router): void {
     $router->get('/auth/me', [AuthController::class, 'me']);
     $router->get('/dashboard/summary', [DashboardController::class, 'summary']);
+
+    // Daily Closing (day-end reconciliation)
+    $router->get('/daily-closing/summary', [DailyClosingController::class, 'summary']);
+    $router->post('/daily-closing/day-end', [DailyClosingController::class, 'dayEnd']);
+    $router->get('/daily-closing/report', [DailyClosingController::class, 'report']);
 
     // ---- Lookups / metadata ----
     $router->get('/meta/schedule-categories', [MetaController::class, 'scheduleCategories']);
