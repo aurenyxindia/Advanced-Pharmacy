@@ -1,0 +1,35 @@
+# ===== Dependencies =====
+/pharmacy-frontend/node_modules/
+/pharmacy-api/vendor/
+node_modules/
+
+# ===== Environment & secrets =====
+.env
+*.env
+!*.env.example
+pharmacy-api/config/.env
+
+# ===== Build output =====
+/pharmacy-frontend/dist/
+/pharmacy-frontend/.angular/
+/pharmacy-frontend/.nx/
+*.tsbuildinfo
+
+# ===== Composer =====
+composer.phar
+
+# ===== Uploads & generated files =====
+/pharmacy-api/storage/uploads/*
+!/pharmacy-api/storage/uploads/.gitkeep
+/pharmacy-api/storage/logs/*
+!/pharmacy-api/storage/logs/.gitkeep
+/pharmacy-api/storage/invoices/*
+!/pharmacy-api/storage/invoices/.gitkeep
+
+# ===== IDE / OS =====
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.log

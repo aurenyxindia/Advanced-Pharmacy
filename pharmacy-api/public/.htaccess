@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Allow direct access to existing files (e.g. generated invoices) ...
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # ... otherwise route everything to the front controller.
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Never serve the .env or source if doc root is misconfigured.
+<FilesMatch "\.(env|ini|log)$">
+    Require all denied
+</FilesMatch>
