@@ -224,6 +224,38 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
     ],
   },
 
+  branches: {
+    key: 'branches',
+    title: 'Branch Master',
+    subtitle: 'Manage your pharmacy branches / units',
+    icon: 'bi-shop-window',
+    resourcePath: 'branches',
+    canCreate: true,
+    canDelete: true,
+    columns: [
+      { key: 'code', label: 'Code' },
+      { key: 'name', label: 'Branch' },
+      { key: 'city', label: 'City' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'status', label: 'Status', type: 'badge' },
+    ],
+    fields: [
+      { key: 'code', label: 'Branch Code', type: 'text', required: true, col: 'col-md-4' },
+      { key: 'name', label: 'Branch Name', type: 'text', required: true, col: 'col-md-8' },
+      { key: 'drug_license_no', label: 'Drug License No', type: 'text', col: 'col-md-6' },
+      { key: 'gstin', label: 'GSTIN', type: 'text', col: 'col-md-6' },
+      { key: 'phone', label: 'Phone', type: 'text', col: 'col-md-6' },
+      {
+        key: 'status', label: 'Status', type: 'select', col: 'col-md-6',
+        options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }],
+      },
+      { key: 'address', label: 'Address', type: 'textarea', col: 'col-12' },
+      { key: 'city', label: 'City', type: 'text', col: 'col-md-4' },
+      { key: 'state', label: 'State', type: 'text', col: 'col-md-4' },
+      { key: 'pincode', label: 'Pincode', type: 'text', col: 'col-md-4' },
+    ],
+  },
+
   employees: {
     key: 'employees',
     title: 'Employee / User Master',

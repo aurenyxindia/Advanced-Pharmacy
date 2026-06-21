@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\BranchController;
+use App\Controllers\HoController;
 use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
 use App\Controllers\DoctorController;
@@ -136,5 +138,19 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
         $router->post('/employees', [EmployeeController::class, 'store']);
         $router->put('/employees/{id}', [EmployeeController::class, 'update']);
         $router->delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+    });
+
+    // ---- Head Office: branches, portfolio, performance, transfers (ho_admin) ----
+    $router->group(['middleware' => ['role:ho_admin']], function (Router $router): void {
+        $router->get('/branches', [BranchController::class, 'index']);
+        $router->post('/branches', [BranchController::class, 'store']);
+        $router->get('/branches/{id}', [BranchController::class, 'show']);
+        $router->put('/branches/{id}', [BranchController::class, 'update']);
+        $router->delete('/branches/{id}', [BranchController::class, 'destroy']);
+
+        $router->get('/ho/branch-performance', [HoController::class, 'branchPerformance']);
+        $router->get('/ho/portfolio', [HoController::class, 'portfolio']);
+        $router->get('/ho/transfers', [HoController::class, 'transfers']);
+        $router->post('/ho/transfers', [HoController::class, 'transfer']);
     });
 });

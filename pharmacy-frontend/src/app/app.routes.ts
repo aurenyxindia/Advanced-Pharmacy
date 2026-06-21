@@ -85,6 +85,18 @@ export const routes: Routes = [
         path: 'reports',
         loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
       },
+      {
+        path: 'masters/branches',
+        canActivate: [roleGuard],
+        data: { configKey: 'branches', roles: ['ho_admin'] },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'ho',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin'] },
+        loadComponent: () => import('./features/ho/ho-center').then((m) => m.HoCenter),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app/dashboard' },

@@ -33,7 +33,7 @@ export class MainLayout {
     { label: 'Prescriptions', icon: 'bi-file-medical', comingSoon: true },
     { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts' },
     { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports' },
-    { label: 'Branches', icon: 'bi-shop-window', roles: ['ho_admin'], comingSoon: true },
+    { label: 'Head Office', icon: 'bi-buildings', route: '/app/ho', roles: ['ho_admin'] },
     { label: 'Settings', icon: 'bi-gear', comingSoon: true },
   ];
 

@@ -1,0 +1,155 @@
+<div class="ho-center">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Head Office</h4>
+      <p class="text-secondary mb-0 small">Consolidated multi-branch control</p>
+    </div>
+    <a routerLink="/app/masters/branches" class="btn btn-light border"><i class="bi bi-shop-window me-1"></i> Manage Branches</a>
+  </div>
+
+  <ul class="nav nav-pills mb-3">
+    <li class="nav-item"><button class="nav-link" [class.active]="tab() === 'performance'" (click)="switchTab('performance')">Performance</button></li>
+    <li class="nav-item"><button class="nav-link" [class.active]="tab() === 'portfolio'" (click)="switchTab('portfolio')">Portfolio</button></li>
+    <li class="nav-item"><button class="nav-link" [class.active]="tab() === 'transfer'" (click)="switchTab('transfer')">Stock Transfer</button></li>
+  </ul>
+
+  <!-- Performance -->
+  @if (tab() === 'performance') {
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><div class="card-pharma p-3"><div class="text-secondary small">Total Sales</div><div class="fs-5 fw-bold">{{ totals()['sales'] | currency: 'INR' : 'symbol' : '1.0-0' }}</div></div></div>
+      <div class="col-md-3"><div class="card-pharma p-3"><div class="text-secondary small">Total Purchase</div><div class="fs-5 fw-bold">{{ totals()['purchase'] | currency: 'INR' : 'symbol' : '1.0-0' }}</div></div></div>
+      <div class="col-md-3"><div class="card-pharma p-3"><div class="text-secondary small">Total Profit</div><div class="fs-5 fw-bold text-success">{{ totals()['profit'] | currency: 'INR' : 'symbol' : '1.0-0' }}</div></div></div>
+      <div class="col-md-3"><div class="card-pharma p-3"><div class="text-secondary small">Stock Value</div><div class="fs-5 fw-bold">{{ totals()['stock_value'] | currency: 'INR' : 'symbol' : '1.0-0' }}</div></div></div>
+    </div>
+    <div class="card-pharma">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Branch</th><th class="text-end">SKUs</th><th class="text-end">Sales</th><th class="text-end">Purchase</th><th class="text-end">Profit</th><th class="text-end">Stock Value</th></tr></thead>
+          <tbody>
+            @for (b of performance(); track b.branch_id) {
+              <tr>
+                <td><span class="fw-semibold">{{ b.name }}</span> @if (b.is_head_office) { <span class="badge text-bg-info ms-1">HO</span> }<div class="text-secondary small">{{ b.code }}</div></td>
+                <td class="text-end">{{ b.skus }}</td>
+                <td class="text-end">{{ b.sales | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="text-end">{{ b.purchase | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="text-end text-success">{{ b.profit | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="text-end">{{ b.stock_value | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Portfolio -->
+  @if (tab() === 'portfolio') {
+    <div class="card-pharma">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Product</th><th>Schedule</th><th class="text-end">Branches</th><th class="text-end">Total Stock</th></tr></thead>
+          <tbody>
+            @for (p of portfolio(); track p.master_product_id) {
+              <tr>
+                <td class="fw-semibold">{{ p.product_name }}</td>
+                <td><span class="badge text-bg-light">{{ p.schedule_category }}</span></td>
+                <td class="text-end">{{ p.branch_count }}</td>
+                <td class="text-end">{{ p.total_stock }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="text-center text-secondary py-5">No products in the portfolio yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Transfer -->
+  @if (tab() === 'transfer') {
+    @if (transferError()) { <div class="alert alert-danger py-2">{{ transferError() }}</div> }
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card-pharma p-3 mb-3">
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small">From Branch</label>
+              <select class="form-select" [ngModel]="fromBranch()" (ngModelChange)="fromBranch.set(+$event)">
+                <option [ngValue]="null">-- Select --</option>
+                @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">To Branch</label>
+              <select class="form-select" [ngModel]="toBranch()" (ngModelChange)="toBranch.set(+$event)">
+                <option [ngValue]="null">-- Select --</option>
+                @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
+              </select>
+            </div>
+          </div>
+
+          <label class="form-label small">Add Product</label>
+          <div class="position-relative mb-2">
+            <input class="form-control" placeholder="Search products..." [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
+            @if (searchResults().length) {
+              <div class="search-dropdown shadow-pharma-lg">
+                @for (p of searchResults(); track p.binding_id) {
+                  <button type="button" class="search-item" (click)="addLine(p)">
+                    {{ p.product_name }} <span class="text-secondary small">(stock {{ p.available_qty }})</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Product</th><th class="text-end" style="width:120px">Qty</th><th></th></tr></thead>
+            <tbody>
+              @for (l of transferLines(); track l.binding_id) {
+                <tr>
+                  <td>{{ l.product_name }} <span class="text-secondary small">(avail {{ l.available_qty }})</span></td>
+                  <td><input type="number" class="form-control form-control-sm text-end" [ngModel]="l.quantity" (ngModelChange)="updateQty($index, +$event)" /></td>
+                  <td><button class="btn btn-sm btn-outline-danger" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="3" class="text-center text-secondary py-3">No products added.</td></tr>
+              }
+            </tbody>
+          </table>
+
+          <button class="btn btn-pharma" [disabled]="saving()" (click)="submitTransfer()">
+            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            <i class="bi bi-arrow-left-right me-1"></i> Transfer Stock
+          </button>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card-pharma">
+          <div class="p-3 border-bottom fw-semibold">Recent Transfers</div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>No</th><th>Date</th><th class="text-end">Items</th><th class="text-end">Value</th></tr></thead>
+              <tbody>
+                @for (t of transfers(); track t['id']) {
+                  <tr>
+                    <td>{{ t['transfer_no'] }}</td>
+                    <td>{{ t['transfer_date'] }}</td>
+                    <td class="text-end">{{ t['item_count'] }}</td>
+                    <td class="text-end">{{ +(t['total_value'] || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="text-center text-secondary py-4">No transfers yet.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (transferToast()) {
+    <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ transferToast() }}</div>
+  }
+</div>
