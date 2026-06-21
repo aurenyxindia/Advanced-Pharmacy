@@ -97,6 +97,10 @@ export const routes: Routes = [
         data: { roles: ['ho_admin'] },
         loadComponent: () => import('./features/ho/ho-center').then((m) => m.HoCenter),
       },
+      {
+        path: 'refills',
+        loadComponent: () => import('./features/refills/refills').then((m) => m.Refills),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app/dashboard' },

@@ -15,6 +15,7 @@ use App\Controllers\ImportController;
 use App\Controllers\MetaController;
 use App\Controllers\PrescriptionController;
 use App\Controllers\PurchaseController;
+use App\Controllers\RefillController;
 use App\Controllers\ReportController;
 use App\Controllers\SalesController;
 use App\Controllers\ProductBindingController;
@@ -122,6 +123,12 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Prescriptions ----
     $router->post('/prescriptions', [PrescriptionController::class, 'upload']);
+
+    // ---- Refill reminders ----
+    $router->get('/refills/summary', [RefillController::class, 'summary']);
+    $router->get('/refills', [RefillController::class, 'index']);
+    $router->post('/refills', [RefillController::class, 'store']);
+    $router->put('/refills/{id}', [RefillController::class, 'update']);
 
     // ---- Reports ----
     $router->get('/reports/sales-register', [ReportController::class, 'salesRegister']);

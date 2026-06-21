@@ -1,0 +1,30 @@
+:host { display: block; }
+
+.filter-card {
+  cursor: pointer;
+  transition: box-shadow .12s ease, transform .12s ease;
+  &:hover { transform: translateY(-2px); box-shadow: var(--pharma-card-shadow-lg); }
+  &.active { outline: 2px solid var(--pharma-primary); }
+}
+
+.fc-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+
+.form-label { font-weight: 500; font-size: 0.85rem; margin-bottom: 0.25rem; }
+
+.table thead th {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8;
+}
+
+.modal-backdrop-custom { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1050; }
+.modal-custom { position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 3rem 1rem; pointer-events: none; overflow-y: auto; }
+.modal-card { width: 100%; max-width: 600px; pointer-events: auto; }
+.modal-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
+.modal-body-custom { padding: 1.5rem; }
+
+.toast-custom { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff;
+  border-radius: 0.7rem; padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; }

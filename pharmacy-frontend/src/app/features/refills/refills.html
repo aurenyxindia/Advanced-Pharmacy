@@ -1,0 +1,121 @@
+<div class="refills">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Refill Reminders</h4>
+      <p class="text-secondary mb-0 small">Follow up with patients for prescription refills</p>
+    </div>
+    <button class="btn btn-pharma" (click)="openModal()"><i class="bi bi-plus-lg me-1"></i> New Reminder</button>
+  </div>
+
+  <!-- Summary cards (also act as filters) -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card-pharma p-3 filter-card" [class.active]="filter() === 'overdue'" (click)="setFilter('overdue')">
+        <div class="d-flex align-items-center gap-3">
+          <div class="fc-icon bg-danger-subtle text-danger"><i class="bi bi-exclamation-octagon"></i></div>
+          <div><div class="fs-4 fw-bold">{{ summary().overdue }}</div><div class="text-secondary small">Overdue</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-pharma p-3 filter-card" [class.active]="filter() === 'today'" (click)="setFilter('today')">
+        <div class="d-flex align-items-center gap-3">
+          <div class="fc-icon bg-warning-subtle text-warning"><i class="bi bi-bell"></i></div>
+          <div><div class="fs-4 fw-bold">{{ summary().today }}</div><div class="text-secondary small">Due Today</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-pharma p-3 filter-card" [class.active]="filter() === 'upcoming'" (click)="setFilter('upcoming')">
+        <div class="d-flex align-items-center gap-3">
+          <div class="fc-icon bg-info-subtle text-info"><i class="bi bi-calendar-week"></i></div>
+          <div><div class="fs-4 fw-bold">{{ summary().upcoming }}</div><div class="text-secondary small">Next 7 days</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr><th>Customer</th><th>Phone</th><th>Product</th><th>Refill Date</th><th>Status</th><th class="text-end">Actions</th></tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="6" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="6" class="text-center py-5 text-secondary"><i class="bi bi-bell-slash fs-3 d-block mb-2"></i> No reminders.</td></tr>
+          } @else {
+            @for (row of rows(); track row.id) {
+              <tr>
+                <td class="fw-semibold">{{ row.customer_name }}</td>
+                <td>{{ row.phone || '-' }}</td>
+                <td>{{ row.product_name || '-' }}</td>
+                <td>
+                  {{ row.refill_date | date: 'dd MMM yyyy' }}
+                  @if (isOverdue(row)) { <span class="badge text-bg-danger ms-1">overdue</span> }
+                </td>
+                <td><span class="badge" [ngClass]="statusClass(row.status)">{{ row.status }}</span></td>
+                <td class="text-end text-nowrap">
+                  @if (row.status === 'pending' || row.status === 'notified') {
+                    <button class="btn btn-sm btn-outline-info me-1" title="Mark notified" (click)="mark(row, 'notified')"><i class="bi bi-send"></i></button>
+                    <button class="btn btn-sm btn-outline-success me-1" title="Mark completed" (click)="mark(row, 'completed')"><i class="bi bi-check-lg"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" title="Cancel" (click)="mark(row, 'cancelled')"><i class="bi bi-x-lg"></i></button>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  @if (modalOpen()) {
+    <div class="modal-backdrop-custom" (click)="modalOpen.set(false)"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold">New Refill Reminder</h5>
+          <button class="btn-close" (click)="modalOpen.set(false)"></button>
+        </div>
+        <div class="modal-body-custom">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Customer Name <span class="text-danger">*</span></label>
+              <input class="form-control" [ngModel]="form().customer_name" (ngModelChange)="update('customer_name', $event)" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input class="form-control" [ngModel]="form().phone" (ngModelChange)="update('phone', $event)" />
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Product / Medication</label>
+              <input class="form-control" [ngModel]="form().product_name" (ngModelChange)="update('product_name', $event)" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Days Supply</label>
+              <input type="number" class="form-control" [ngModel]="form().days_supply" (ngModelChange)="update('days_supply', +$event)" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" rows="2" [ngModel]="form().notes" (ngModelChange)="update('notes', $event)"></textarea>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button class="btn btn-light border" (click)="modalOpen.set(false)">Cancel</button>
+            <button class="btn btn-pharma" [disabled]="saving()" (click)="save()">
+              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } Schedule
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast()) {
+    <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div>
+  }
+</div>

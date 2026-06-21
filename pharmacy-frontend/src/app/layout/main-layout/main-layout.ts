@@ -30,7 +30,7 @@ export class MainLayout {
     { label: 'Purchase', icon: 'bi-cart-plus', route: '/app/purchase' },
     { label: 'Sales / Billing', icon: 'bi-receipt', route: '/app/sales' },
     { label: 'Inventory', icon: 'bi-boxes', comingSoon: true },
-    { label: 'Prescriptions', icon: 'bi-file-medical', comingSoon: true },
+    { label: 'Refill Reminders', icon: 'bi-bell', route: '/app/refills' },
     { label: 'Accounts', icon: 'bi-cash-coin', route: '/app/masters/accounts' },
     { label: 'Reports', icon: 'bi-bar-chart-line', route: '/app/reports' },
     { label: 'Head Office', icon: 'bi-buildings', route: '/app/ho', roles: ['ho_admin'] },
