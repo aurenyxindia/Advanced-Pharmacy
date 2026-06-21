@@ -39,10 +39,21 @@
     </div>
   </aside>
 
+  <!-- Edge arrow toggle (desktop) -->
+  <button
+    class="sidebar-toggle"
+    (click)="toggleCollapse()"
+    [class.collapsed]="!sidebarOpen()"
+    [title]="sidebarOpen() ? 'Collapse menu' : 'Expand menu'"
+    aria-label="Toggle sidebar"
+  >
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
   <!-- Main column -->
   <div class="main-column">
     <header class="topbar">
-      <button class="btn btn-light btn-sm toggle-btn" (click)="toggleSidebar()">
+      <button class="btn btn-light btn-sm toggle-btn d-lg-none" (click)="toggleSidebar()">
         <i class="bi bi-list"></i>
       </button>
 

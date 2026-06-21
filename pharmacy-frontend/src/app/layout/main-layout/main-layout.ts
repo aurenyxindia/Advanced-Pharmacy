@@ -74,9 +74,13 @@ export class MainLayout {
   }
 
   toggleSidebar(): void {
-    // Desktop: collapse/expand. Mobile: open/close the drawer.
-    this.sidebarOpen.update((v) => !v);
+    // Mobile hamburger: open/close the drawer.
     this.mobileNav.update((v) => !v);
+  }
+
+  /** Desktop edge arrow: collapse/expand the sidebar. */
+  toggleCollapse(): void {
+    this.sidebarOpen.update((v) => !v);
   }
 
   closeMobile(): void {
