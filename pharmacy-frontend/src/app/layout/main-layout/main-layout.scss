@@ -273,12 +273,12 @@ $topbar-height: 64px;
   position: fixed;
   inset: 0;
   z-index: 1080;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(3px);
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 1.25rem;
+  align-items: center;       /* exactly centered vertically */
+  justify-content: center;   /* exactly centered horizontally */
+  padding: 1rem;
   animation: pos-fade 0.18s ease;
 }
 
@@ -288,12 +288,14 @@ $topbar-height: 64px;
 }
 
 .pos-dialog {
-  width: 100%;
-  max-width: 1320px;
-  max-height: calc(100vh - 2.5rem);
+  width: 97vw;
+  max-width: 1560px;
+  height: 94vh;
+  max-height: 94vh;
+  margin: auto;
   background: #f1f5f9;
   border-radius: 1rem;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   overflow: hidden;
