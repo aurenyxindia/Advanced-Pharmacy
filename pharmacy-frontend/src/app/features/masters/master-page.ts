@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CrudService, Paginated } from '../../core/services/crud.service';
@@ -12,7 +12,7 @@ interface Option { value: string | number; label: string; }
 
 @Component({
   selector: 'app-master-page',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './master-page.html',
   styleUrl: './master-page.scss',
 })
@@ -127,6 +127,12 @@ export class MasterPage {
   goToPage(p: number): void {
     if (p < 1 || p > this.totalPages()) return;
     this.page.set(p);
+    this.load();
+  }
+
+  changePerPage(n: number): void {
+    this.perPage.set(n);
+    this.page.set(1);
     this.load();
   }
 

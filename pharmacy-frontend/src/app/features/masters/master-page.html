@@ -35,14 +35,28 @@
 
   <!-- Toolbar -->
   <div class="card-pharma p-3 mb-3">
-    <div class="input-group">
-      <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-      <input
-        class="form-control border-start-0"
-        placeholder="Search {{ config.title.toLowerCase() }}..."
-        #searchBox
-        (input)="onSearch(searchBox.value)"
-      />
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input
+            class="form-control border-start-0"
+            placeholder="Search {{ config.title.toLowerCase() }}..."
+            #searchBox
+            (input)="onSearch(searchBox.value)"
+          />
+        </div>
+      </div>
+      <div class="col-auto d-flex align-items-center gap-2">
+        <span class="text-secondary small d-none d-sm-inline">{{ total() | number }} total</span>
+        <select class="form-select form-select-sm" style="width:auto"
+          [ngModel]="perPage()" (ngModelChange)="changePerPage(+$event)">
+          <option [ngValue]="10">10 / page</option>
+          <option [ngValue]="25">25 / page</option>
+          <option [ngValue]="50">50 / page</option>
+          <option [ngValue]="100">100 / page</option>
+        </select>
+      </div>
     </div>
   </div>
 
