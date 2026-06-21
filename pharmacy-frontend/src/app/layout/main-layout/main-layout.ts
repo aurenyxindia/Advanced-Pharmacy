@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
+import { NavigationEnd, RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { PosModalService } from '../../core/services/pos-modal.service';
 import { Billing } from '../../features/sales/billing';
@@ -30,6 +31,24 @@ export class MainLayout {
 
   canSell(): boolean {
     return PosModalService.canSell(this.user()?.role);
+  }
+
+  constructor() {
+    // The POS popup should only float over the dashboard. As soon as the user
+    // navigates to any other section (Masters, Purchase, etc.) close it so it
+    // never covers those pages.
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e) => {
+        if (this.pos.open() && !e.urlAfterRedirects.startsWith('/app/dashboard')) {
+          this.pos.hide();
+        }
+      });
+
+    // Lock background scroll while the popup is open.
+    effect(() => {
+      document.body.style.overflow = this.pos.open() ? 'hidden' : '';
+    });
   }
 
   readonly navItems: NavItem[] = [
