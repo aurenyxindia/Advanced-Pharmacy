@@ -422,19 +422,35 @@
           <button class="btn-close" (click)="closeQuickAdd()"></button>
         </div>
         <div class="modal-body-custom">
-          <p class="text-secondary small">Material received but not entered in Purchase yet? Add the basics — it will be stocked and ready to bill.</p>
+          <p class="text-secondary small">Material received but not entered in Purchase yet? It will be stocked and ready to bill.</p>
           @if (quickError()) { <div class="alert alert-danger py-2">{{ quickError() }}</div> }
           <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Product Name <span class="req">*</span></label>
-              <input class="form-control" [ngModel]="quick().name" (ngModelChange)="setQuick('name', $event)" placeholder="Product / brand name" />
+            <div class="col-12 position-relative">
+              <label class="form-label">
+                Product Name <span class="req">*</span>
+                @if (quick().masterId) { <span class="badge text-bg-success ms-1">in master</span> }
+                @else if (quickIsNew()) { <span class="badge text-bg-warning ms-1">new — will be added to master</span> }
+              </label>
+              <input class="form-control" [ngModel]="quick().name" (ngModelChange)="onQuickName($event)" placeholder="Search master / type new name" autocomplete="off" />
+              @if (quickResults().length) {
+                <div class="quick-dropdown shadow-pharma-lg">
+                  @for (p of quickResults(); track p.id) {
+                    <button type="button" class="quick-item" (mousedown)="pickQuickMaster(p)">
+                      <span class="fw-semibold">{{ p.name }}</span>
+                      <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }}@if (p.pack_size) { · {{ p.pack_size }} }</span>
+                    </button>
+                  }
+                </div>
+              }
             </div>
+
+            <!-- Stock basics (always) -->
             <div class="col-6">
               <label class="form-label">Batch No</label>
               <input class="form-control" [ngModel]="quick().batch" (ngModelChange)="setQuick('batch', $event)" placeholder="Batch no" />
             </div>
             <div class="col-6">
-              <label class="form-label">Quantity (units) <span class="req">*</span></label>
+              <label class="form-label">Quantity ({{ quick().masterId || quickIsNew() ? 'packs' : 'units' }}) <span class="req">*</span></label>
               <input type="number" min="1" class="form-control" [ngModel]="quick().qty" (ngModelChange)="setQuick('qty', +$event)" />
             </div>
             <div class="col-6">
@@ -453,6 +469,43 @@
               <label class="form-label">GST %</label>
               <input type="number" min="0" max="28" class="form-control" [ngModel]="quick().gst" (ngModelChange)="setQuick('gst', +$event)" />
             </div>
+
+            <!-- Extended master fields (only when the product is NOT in the master) -->
+            @if (quickIsNew()) {
+              <div class="col-12"><hr class="my-1" /><span class="section-mini"><i class="bi bi-collection me-1"></i>New product — master catalog details</span></div>
+              <div class="col-6">
+                <label class="form-label">Manufacturer</label>
+                <input class="form-control" [ngModel]="quick().manufacturer" (ngModelChange)="setQuick('manufacturer', $event)" />
+              </div>
+              <div class="col-6">
+                <label class="form-label">Mfg Short (bill code)</label>
+                <input class="form-control" [ngModel]="quick().manufacturerShort" (ngModelChange)="setQuick('manufacturerShort', $event)" placeholder="e.g. CIP" />
+              </div>
+              <div class="col-6">
+                <label class="form-label">Schedule</label>
+                <select class="form-select" [ngModel]="quick().schedule" (ngModelChange)="setQuick('schedule', $event)">
+                  @for (s of scheduleCodes; track s) { <option [value]="s">{{ s }}</option> }
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Category</label>
+                <select class="form-select" [ngModel]="quick().category" (ngModelChange)="setQuick('category', $event)">
+                  @for (c of productCategories; track c) { <option [value]="c">{{ c }}</option> }
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label">HSN</label>
+                <input class="form-control" [ngModel]="quick().hsn" (ngModelChange)="setQuick('hsn', $event)" />
+              </div>
+              <div class="col-4">
+                <label class="form-label">Pack Size</label>
+                <input class="form-control" [ngModel]="quick().packSize" (ngModelChange)="setQuick('packSize', $event)" placeholder="e.g. 1x10" />
+              </div>
+              <div class="col-4">
+                <label class="form-label">Units / Pack</label>
+                <input type="number" min="1" class="form-control" [ngModel]="quick().unitsPerPack" (ngModelChange)="setQuick('unitsPerPack', +$event)" />
+              </div>
+            }
           </div>
           <div class="d-flex gap-2 justify-content-end mt-4">
             <button class="btn btn-light border" (click)="closeQuickAdd()">Cancel</button>

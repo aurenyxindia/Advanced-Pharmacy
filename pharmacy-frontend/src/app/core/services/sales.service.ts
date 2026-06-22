@@ -85,6 +85,22 @@ export interface SalePayload {
   items: SaleItemPayload[];
 }
 
+export interface MasterProduct {
+  id: number;
+  name: string;
+  manufacturer: string | null;
+  manufacturer_short: string | null;
+  schedule_category: string;
+  product_category: string | null;
+  default_gst_rate: number;
+  hsn_code: string | null;
+  pack_size: string | null;
+  units_per_pack: number | null;
+  mrp: number | null;
+  ptr: number | null;
+  pts: number | null;
+}
+
 export interface CustomerLookup {
   id: number;
   name: string;
@@ -143,10 +159,21 @@ export class SalesService {
     return this.http.post<ApiResponse<SaleResult>>(`${this.base}/sales`, payload);
   }
 
+  /** Search the global Product Master (used by the quick stock-in popup). */
+  searchMaster(q: string): Observable<MasterProduct[]> {
+    const params = new HttpParams().set('q', q).set('limit', '10');
+    return this.http
+      .get<ApiResponse<MasterProduct[]>>(`${this.base}/products/search`, { params })
+      .pipe(map((r) => r.data));
+  }
+
   /** Counter stock-in: create a quick one-line purchase and return the sellable product. */
   quickPurchase(payload: {
+    master_product_id?: number | null;
     product_name: string; batch_no?: string; quantity: number; mrp: number;
     purchase_rate?: number; gst_rate?: number; expiry_date?: string;
+    manufacturer?: string; manufacturer_short?: string; schedule_category?: string;
+    product_category?: string; hsn_code?: string; pack_size?: string; units_per_pack?: number;
   }): Observable<SaleProduct & { batch_id?: number }> {
     return this.http
       .post<ApiResponse<SaleProduct & { batch_id?: number }>>(`${this.base}/sales/quick-purchase`, payload)

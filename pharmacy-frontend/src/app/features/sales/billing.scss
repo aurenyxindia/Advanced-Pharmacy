@@ -305,6 +305,33 @@
   padding: 1.1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
 .modal-body-custom { padding: 1.5rem; }
 
+.quick-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+.quick-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.84rem;
+  span { display: block; }
+  &:hover { background: #ecfdf5; }
+}
+.section-mini { font-size: 0.74rem; font-weight: 700; color: var(--pharma-primary-dark); text-transform: uppercase; letter-spacing: 0.03em; }
+
 .chronic-check {
   border: 1px dashed #cbd5e1;
   border-radius: 0.5rem;

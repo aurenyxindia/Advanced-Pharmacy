@@ -91,11 +91,12 @@ final class SalesController extends Controller
             $masterId = $row ? (int) $row['id'] : null;
         }
 
+        $unitsPerPack = max(1, (int) $request->input('units_per_pack', 1));
         $item = [
             'batch_no'       => $batchNo !== '' ? $batchNo : 'CTR-' . date('ymd'),
             'expiry_date'    => $expiry,
-            'quantity'       => $qty,        // units (units_per_pack = 1)
-            'units_per_pack' => 1,
+            'quantity'       => $qty,
+            'units_per_pack' => $unitsPerPack,
             'free_quantity'  => 0,
             'purchase_rate'  => $rate,
             'mrp'            => $mrp,
@@ -104,9 +105,22 @@ final class SalesController extends Controller
         ];
         if ($masterId) {
             $item['master_product_id'] = (int) $masterId;
+            $item['units_per_pack'] = $unitsPerPack;
         } else {
+            // Brand-new product -> create a complete master catalog entry.
             $item['product_name'] = $name;
-            $item['new_product'] = ['name' => $name, 'default_gst_rate' => $gst];
+            $item['new_product'] = [
+                'name'               => $name,
+                'manufacturer'       => $request->input('manufacturer') ?: null,
+                'manufacturer_short' => $request->input('manufacturer_short') ?: null,
+                'schedule_category'  => $request->input('schedule_category') ?: 'OTC',
+                'product_category'   => $request->input('product_category') ?: 'Allopathy',
+                'hsn_code'           => $request->input('hsn_code') ?: null,
+                'default_gst_rate'   => $gst,
+                'mrp'                => $mrp,
+                'pack_size'          => $request->input('pack_size') ?: null,
+                'units_per_pack'     => $unitsPerPack,
+            ];
         }
 
         (new PurchaseService())->create($clientId, $branchId, $request->user()['id'] ?? null, [

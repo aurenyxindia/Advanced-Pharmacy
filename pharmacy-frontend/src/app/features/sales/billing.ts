@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   BatchOption,
+  MasterProduct,
   SaleProduct,
   SalesService,
   SaleResult,
@@ -104,6 +105,33 @@ function emptyBill(mode: BillMode): Bill {
   };
 }
 
+interface QuickStock {
+  masterId: number | null;
+  name: string;
+  batch: string;
+  qty: number;
+  mrp: number;
+  rate: number | null;
+  gst: number;
+  expiry: string;
+  // master fields (only used when the product is NOT already in the master)
+  manufacturer: string;
+  manufacturerShort: string;
+  schedule: string;
+  category: string;
+  hsn: string;
+  packSize: string;
+  unitsPerPack: number;
+}
+
+function emptyQuick(): QuickStock {
+  return {
+    masterId: null, name: '', batch: '', qty: 1, mrp: 0, rate: null, gst: 12, expiry: '',
+    manufacturer: '', manufacturerShort: '', schedule: 'OTC', category: 'Allopathy',
+    hsn: '', packSize: '', unitsPerPack: 1,
+  };
+}
+
 @Component({
   selector: 'app-billing',
   imports: [CommonModule, FormsModule],
@@ -162,6 +190,8 @@ export class Billing {
 
   readonly paymentModes = ['Cash', 'Card', 'UPI', 'Credit'];
   readonly saleTypes = ['Regular', 'Return'];
+  readonly scheduleCodes = ['OTC', 'H', 'H1', 'X', 'G', 'RESTRICTED'];
+  readonly productCategories = ['Allopathy', 'Ayurvedic', 'Generic', 'Surgical', 'Cosmetic'];
   readonly rateTypes: { value: RateType; label: string }[] = [
     { value: 'ptr', label: 'PTR' }, { value: 'pts', label: 'PTS' }, { value: 'mrp', label: 'MRP' },
   ];
@@ -353,19 +383,49 @@ export class Billing {
   readonly quickOpen = signal(false);
   readonly quickSaving = signal(false);
   readonly quickError = signal<string | null>(null);
-  readonly quick = signal<{ name: string; batch: string; qty: number; mrp: number; rate: number | null; gst: number; expiry: string }>(
-    { name: '', batch: '', qty: 1, mrp: 0, rate: null, gst: 12, expiry: '' },
-  );
+  readonly quickResults = signal<MasterProduct[]>([]);
+  private quickTimer?: ReturnType<typeof setTimeout>;
+  readonly quick = signal<QuickStock>(emptyQuick());
+
+  // Product is in master only when a master id is set; otherwise we collect
+  // the full master fields so a proper catalog entry is created.
+  readonly quickIsNew = computed(() => !this.quick().masterId && this.quick().name.trim().length > 0);
 
   openQuickAdd(): void {
     this.quickError.set(null);
-    this.quick.set({ name: this.searchTerm().trim(), batch: '', qty: 1, mrp: 0, rate: null, gst: 12, expiry: '' });
+    this.quickResults.set([]);
+    this.quick.set({ ...emptyQuick(), name: this.searchTerm().trim() });
+    if (this.quick().name.length >= 2) this.runQuickSearch();
     this.quickOpen.set(true);
   }
-  setQuick<K extends keyof ReturnType<typeof this.quick>>(field: K, value: ReturnType<typeof this.quick>[K]): void {
+  setQuick<K extends keyof QuickStock>(field: K, value: QuickStock[K]): void {
     this.quick.update((q) => ({ ...q, [field]: value }));
   }
-  closeQuickAdd(): void { this.quickOpen.set(false); }
+  closeQuickAdd(): void { this.quickOpen.set(false); this.quickResults.set([]); }
+
+  /** Typing the product name searches the master so an existing item can be reused. */
+  onQuickName(value: string): void {
+    // Editing the name invalidates a previously selected master product.
+    this.quick.update((q) => ({ ...q, name: value, masterId: null }));
+    clearTimeout(this.quickTimer);
+    if (value.trim().length < 2) { this.quickResults.set([]); return; }
+    this.quickTimer = setTimeout(() => this.runQuickSearch(), 220);
+  }
+  private runQuickSearch(): void {
+    this.salesSvc.searchMaster(this.quick().name.trim()).subscribe((r) => this.quickResults.set(r));
+  }
+  /** Pick an existing master product -> minimal fields only. */
+  pickQuickMaster(p: MasterProduct): void {
+    this.quick.update((q) => ({
+      ...q,
+      masterId: p.id,
+      name: p.name,
+      gst: Number(p.default_gst_rate) || q.gst,
+      mrp: q.mrp || Number(p.mrp) || 0,
+      unitsPerPack: p.units_per_pack || 1,
+    }));
+    this.quickResults.set([]);
+  }
 
   saveQuickAdd(): void {
     const q = this.quick();
@@ -375,6 +435,7 @@ export class Billing {
     this.quickSaving.set(true);
     this.quickError.set(null);
     this.salesSvc.quickPurchase({
+      master_product_id: q.masterId,
       product_name: q.name.trim(),
       batch_no: q.batch.trim() || undefined,
       quantity: q.qty,
@@ -382,6 +443,14 @@ export class Billing {
       purchase_rate: q.rate ?? undefined,
       gst_rate: q.gst,
       expiry_date: q.expiry || undefined,
+      // Master fields used only when creating a new catalog product.
+      manufacturer: q.manufacturer || undefined,
+      manufacturer_short: q.manufacturerShort || undefined,
+      schedule_category: q.schedule,
+      product_category: q.category,
+      hsn_code: q.hsn || undefined,
+      pack_size: q.packSize || undefined,
+      units_per_pack: q.unitsPerPack || 1,
     }).subscribe({
       next: (product) => {
         this.quickSaving.set(false);

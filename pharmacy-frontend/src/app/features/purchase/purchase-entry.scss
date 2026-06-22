@@ -4,7 +4,7 @@ label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.1rem; display: block
 .req { color: #dc2626; }
 .section-label { font-weight: 600; color: var(--pharma-primary-dark); font-size: 0.78rem; margin-bottom: 0.5rem; }
 
-.entry-card { border: 1px solid rgba(13, 148, 136, 0.25); }
+.entry-card { border: 1px solid rgba(13, 148, 136, 0.25); overflow: visible; }
 
 .entry-badge { position: absolute; top: -4px; right: 10px; font-size: 0.56rem; }
 .entry-dropdown {
