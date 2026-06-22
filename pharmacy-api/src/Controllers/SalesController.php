@@ -63,9 +63,9 @@ final class SalesController extends Controller
                     pb.units_per_pack, pb.allow_loose, pb.shelf_location, pb.pack_size, pb.generic_id,
                     g.name AS generic_name,
                     COALESCE(st.quantity, 0) AS available_qty,
-                    (SELECT ib.mrp FROM inventory_batches ib
+                    COALESCE((SELECT NULLIF(ib.mrp,0) FROM inventory_batches ib
                        WHERE ib.product_binding_id = pb.id AND ib.quantity > 0
-                       ORDER BY (ib.expiry_date IS NULL), ib.expiry_date ASC LIMIT 1) AS mrp
+                       ORDER BY (ib.expiry_date IS NULL), ib.expiry_date ASC LIMIT 1), pb.mrp) AS mrp
              FROM product_bindings pb
              LEFT JOIN inventory_stock st ON st.product_binding_id = pb.id
              LEFT JOIN pharma_master.generics g ON g.id = pb.generic_id

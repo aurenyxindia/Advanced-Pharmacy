@@ -17,7 +17,7 @@ final class ProductController extends ResourceController
     protected bool $tenantScoped = false;
     protected array $fillable = [
         'name', 'generic_id', 'manufacturer', 'manufacturer_short', 'schedule_category', 'product_category',
-        'hsn_code', 'default_gst_rate', 'pack_size', 'units_per_pack', 'allow_loose',
+        'hsn_code', 'default_gst_rate', 'mrp', 'ptr', 'pts', 'pack_size', 'units_per_pack', 'allow_loose',
         'shelf_location', 'uom', 'composition', 'is_active',
     ];
     protected array $searchColumns = ['name', 'manufacturer', 'composition'];
@@ -39,6 +39,9 @@ final class ProductController extends ResourceController
             'product_category'  => 'string|max:30',
             'hsn_code'          => 'string|max:20',
             'default_gst_rate'  => 'numeric|min:0|max:28',
+            'mrp'               => 'numeric|min:0',
+            'ptr'               => 'numeric|min:0',
+            'pts'               => 'numeric|min:0',
             'pack_size'         => 'string|max:40',
             'units_per_pack'    => 'integer|min:1|max:10000',
             'allow_loose'       => 'integer|in:0,1',

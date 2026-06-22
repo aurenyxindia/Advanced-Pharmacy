@@ -18,6 +18,7 @@ export interface ProductSearchResult {
   shelf_location?: string | null;
   product_category?: string;
   manufacturer_short?: string | null;
+  mrp?: number;
   ptr?: number;
   pts?: number;
 }

@@ -91,6 +91,7 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
       { key: 'manufacturer', label: 'Manufacturer' },
       { key: 'manufacturer_short', label: 'Mfg' },
       { key: 'schedule_category', label: 'Schedule', type: 'badge', badgeClass: scheduleBadge },
+      { key: 'mrp', label: 'MRP', type: 'currency' },
       { key: 'default_gst_rate', label: 'GST %', type: 'number' },
       { key: 'pack_size', label: 'Pack' },
     ],
@@ -116,6 +117,9 @@ export const MASTER_CONFIGS: Record<string, MasterConfig> = {
       },
       { key: 'hsn_code', label: 'HSN Code', type: 'text', col: 'col-md-4' },
       { key: 'default_gst_rate', label: 'GST %', type: 'number', col: 'col-md-4', min: 0, max: 28 },
+      { key: 'mrp', label: 'MRP (₹)', type: 'number', col: 'col-md-4', min: 0, placeholder: 'Retail MRP' },
+      { key: 'ptr', label: 'PTR (₹)', type: 'number', col: 'col-md-4', min: 0 },
+      { key: 'pts', label: 'PTS (₹)', type: 'number', col: 'col-md-4', min: 0 },
       { key: 'pack_size', label: 'Pack Size', type: 'text', col: 'col-md-4', placeholder: 'e.g. 10 tablets' },
       { key: 'units_per_pack', label: 'Units / Pack', type: 'number', col: 'col-md-4', min: 1 },
       {

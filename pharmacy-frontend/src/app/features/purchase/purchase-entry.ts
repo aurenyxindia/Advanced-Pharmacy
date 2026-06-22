@@ -124,6 +124,7 @@ export class PurchaseEntry {
       units_per_pack: p.units_per_pack || 1,
       pack_size: p.pack_size ?? '',
       shelf_location: p.shelf_location || '',
+      mrp: Number(p.mrp) || 0,
       ptr: Number(p.ptr) || 0,
       pts: Number(p.pts) || 0,
     }));

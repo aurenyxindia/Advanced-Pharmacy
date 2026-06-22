@@ -42,6 +42,9 @@ final class ProductBindingService
                 'allow_loose'       => $product['allow_loose'] ?? 1,
                 'shelf_location'    => $product['shelf_location'] ?? null,
                 'pack_size'         => $product['pack_size'] ?? null,
+                'mrp'               => $product['mrp'] ?? 0,
+                'ptr'               => $product['ptr'] ?? 0,
+                'pts'               => $product['pts'] ?? 0,
                 'updated_at'        => now(),
             ]);
             return ['id' => (int) $existing['id'], 'rebound' => true];
@@ -63,6 +66,9 @@ final class ProductBindingService
             'allow_loose'       => $product['allow_loose'] ?? 1,
             'shelf_location'    => $product['shelf_location'] ?? null,
             'pack_size'         => $product['pack_size'] ?? null,
+            'mrp'               => $product['mrp'] ?? 0,
+            'ptr'               => $product['ptr'] ?? 0,
+            'pts'               => $product['pts'] ?? 0,
             'reorder_level'     => $reorderLevel,
             'is_active'         => 1,
             'created_at'        => now(),
