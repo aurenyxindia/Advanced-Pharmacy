@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ProductSearchResult, PurchaseService } from '../../core/services/purchase.service';
 import { MetaService } from '../../core/services/meta.service';
+import { CrudService } from '../../core/services/crud.service';
 
 interface Entry {
   master_product_id?: number;
@@ -45,8 +46,10 @@ function emptyEntry(): Entry {
 export class PurchaseEntry {
   private readonly purchaseSvc = inject(PurchaseService);
   private readonly meta = inject(MetaService);
+  private readonly crud = inject(CrudService);
   readonly router = inject(Router);
   readonly packSizes = this.meta.packSizes;
+  readonly suppliers = signal<{ id: number; name: string }[]>([]);
 
   readonly invoiceNo = signal('');
   readonly invoiceDate = signal(new Date().toISOString().slice(0, 10));
@@ -71,6 +74,8 @@ export class PurchaseEntry {
 
   constructor() {
     this.meta.loadPackSizes().subscribe();
+    this.crud.list<{ id: number; name: string }>('suppliers', { perPage: 500 })
+      .subscribe((r) => this.suppliers.set(r.data));
   }
 
   /** Standard pack chosen -> set units-per-pack + pack label. */

@@ -18,7 +18,13 @@
       <div class="col-md-2"><label>Date</label>
         <input type="date" class="form-control form-control-sm" [ngModel]="invoiceDate()" (ngModelChange)="invoiceDate.set($event)" /></div>
       <div class="col-md-5"><label>Supplier</label>
-        <input class="form-control form-control-sm" placeholder="Supplier / distributor" [ngModel]="supplierName()" (ngModelChange)="supplierName.set($event)" /></div>
+        <input class="form-control form-control-sm" list="supplierList"
+          placeholder="Select supplier or type to add new"
+          [ngModel]="supplierName()" (ngModelChange)="supplierName.set($event)" />
+        <datalist id="supplierList">
+          @for (s of suppliers(); track s.id) { <option [value]="s.name"></option> }
+        </datalist>
+      </div>
       <div class="col-md-2"><label>Bill Disc %</label>
         <input type="number" class="form-control form-control-sm" [ngModel]="billDiscountPct()" (ngModelChange)="billDiscountPct.set(+$event)" /></div>
     </div>

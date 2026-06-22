@@ -113,6 +113,9 @@ final class PurchaseService
             }
             $netAmount = max(0, $itemsTotal - $billDiscount);
 
+            // Resolve / create the supplier in the master (by name within the client).
+            $supplierId = $this->resolveSupplier($db, $clientId, $data);
+
             // Insert purchase header.
             $stmt = $db->prepare(
                 'INSERT INTO purchases
@@ -125,7 +128,7 @@ final class PurchaseService
             $stmt->execute([
                 'client_id'     => $clientId,
                 'branch_id'     => $branchId,
-                'supplier_id'   => $data['supplier_id'] ?? null,
+                'supplier_id'   => $supplierId,
                 'supplier_name' => $data['supplier_name'] ?? null,
                 'invoice_no'    => $data['invoice_no'] ?? ('PUR-' . time()),
                 'invoice_date'  => $data['invoice_date'] ?? date('Y-m-d'),
@@ -206,6 +209,32 @@ final class PurchaseService
                 'items'      => count($computedItems),
             ];
         });
+    }
+
+    /**
+     * Resolve the supplier id: use the given id, else match by name within the
+     * client, else create a new supplier from the typed name. Returns null when
+     * no usable supplier name was provided.
+     */
+    private function resolveSupplier(PDO $db, int $clientId, array $data): ?int
+    {
+        if (!empty($data['supplier_id'])) {
+            return (int) $data['supplier_id'];
+        }
+        $name = trim((string) ($data['supplier_name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+        $find = $db->prepare('SELECT id FROM suppliers WHERE client_id = :c AND name = :n LIMIT 1');
+        $find->execute(['c' => $clientId, 'n' => $name]);
+        $row = $find->fetch();
+        if ($row) {
+            return (int) $row['id'];
+        }
+        $db->prepare(
+            'INSERT INTO suppliers (client_id, name, created_at, updated_at) VALUES (:c, :n, :ca, :ua)'
+        )->execute(['c' => $clientId, 'n' => $name, 'ca' => now(), 'ua' => now()]);
+        return (int) $db->lastInsertId();
     }
 
     /**
