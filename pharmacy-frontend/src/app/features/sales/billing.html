@@ -110,7 +110,14 @@
         } @empty {
           <div class="text-center text-secondary small py-4">
             @if (searching()) { <span class="spinner-border spinner-border-sm"></span> }
-            @else { No products found. }
+            @else {
+              <div class="mb-2"><i class="bi bi-inbox fs-4 d-block mb-1"></i> No products found.</div>
+              @if (searchTerm().trim().length >= 2) {
+                <button class="btn btn-sm btn-outline-success" (click)="openQuickAdd()">
+                  <i class="bi bi-plus-circle me-1"></i> Add purchase for "{{ searchTerm() }}"
+                </button>
+              }
+            }
           </div>
         }
       </div>
@@ -399,6 +406,60 @@
           <div class="d-flex gap-2 justify-content-center mt-3">
             <button class="btn btn-light border" (click)="closeCamera()">Cancel</button>
             <button class="btn btn-pharma" (click)="capture()"><i class="bi bi-camera me-1"></i> Capture</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Quick counter stock-in (product purchased but not yet entered) -->
+  @if (quickOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeQuickAdd()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:520px;">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2 text-pharma"></i>Add Purchase for this Product</h5>
+          <button class="btn-close" (click)="closeQuickAdd()"></button>
+        </div>
+        <div class="modal-body-custom">
+          <p class="text-secondary small">Material received but not entered in Purchase yet? Add the basics — it will be stocked and ready to bill.</p>
+          @if (quickError()) { <div class="alert alert-danger py-2">{{ quickError() }}</div> }
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Product Name <span class="req">*</span></label>
+              <input class="form-control" [ngModel]="quick().name" (ngModelChange)="setQuick('name', $event)" placeholder="Product / brand name" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Batch No</label>
+              <input class="form-control" [ngModel]="quick().batch" (ngModelChange)="setQuick('batch', $event)" placeholder="Batch no" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Quantity (units) <span class="req">*</span></label>
+              <input type="number" min="1" class="form-control" [ngModel]="quick().qty" (ngModelChange)="setQuick('qty', +$event)" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">MRP (₹) <span class="req">*</span></label>
+              <input type="number" min="0" class="form-control" [ngModel]="quick().mrp" (ngModelChange)="setQuick('mrp', +$event)" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Purchase Rate (₹)</label>
+              <input type="number" min="0" class="form-control" [ngModel]="quick().rate" (ngModelChange)="setQuick('rate', $event === null || $event === '' ? null : +$event)" placeholder="Defaults to MRP" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Expiry (MM/YYYY)</label>
+              <input class="form-control" [ngModel]="quick().expiry" (ngModelChange)="setQuick('expiry', $event)" placeholder="e.g. 12/2027" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">GST %</label>
+              <input type="number" min="0" max="28" class="form-control" [ngModel]="quick().gst" (ngModelChange)="setQuick('gst', +$event)" />
+            </div>
+          </div>
+          <div class="d-flex gap-2 justify-content-end mt-4">
+            <button class="btn btn-light border" (click)="closeQuickAdd()">Cancel</button>
+            <button class="btn btn-pharma" (click)="saveQuickAdd()" [disabled]="quickSaving()">
+              @if (quickSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              <i class="bi bi-check-lg me-1"></i> Add &amp; Save
+            </button>
           </div>
         </div>
       </div>

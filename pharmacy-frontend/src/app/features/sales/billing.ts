@@ -349,6 +349,58 @@ export class Billing {
     }
   }
 
+  // ---- quick counter stock-in (product not yet purchased) ----
+  readonly quickOpen = signal(false);
+  readonly quickSaving = signal(false);
+  readonly quickError = signal<string | null>(null);
+  readonly quick = signal<{ name: string; batch: string; qty: number; mrp: number; rate: number | null; gst: number; expiry: string }>(
+    { name: '', batch: '', qty: 1, mrp: 0, rate: null, gst: 12, expiry: '' },
+  );
+
+  openQuickAdd(): void {
+    this.quickError.set(null);
+    this.quick.set({ name: this.searchTerm().trim(), batch: '', qty: 1, mrp: 0, rate: null, gst: 12, expiry: '' });
+    this.quickOpen.set(true);
+  }
+  setQuick<K extends keyof ReturnType<typeof this.quick>>(field: K, value: ReturnType<typeof this.quick>[K]): void {
+    this.quick.update((q) => ({ ...q, [field]: value }));
+  }
+  closeQuickAdd(): void { this.quickOpen.set(false); }
+
+  saveQuickAdd(): void {
+    const q = this.quick();
+    if (!q.name.trim()) { this.quickError.set('Product name is required.'); return; }
+    if (q.qty <= 0) { this.quickError.set('Quantity must be greater than zero.'); return; }
+    if (q.mrp <= 0) { this.quickError.set('MRP must be greater than zero.'); return; }
+    this.quickSaving.set(true);
+    this.quickError.set(null);
+    this.salesSvc.quickPurchase({
+      product_name: q.name.trim(),
+      batch_no: q.batch.trim() || undefined,
+      quantity: q.qty,
+      mrp: q.mrp,
+      purchase_rate: q.rate ?? undefined,
+      gst_rate: q.gst,
+      expiry_date: q.expiry || undefined,
+    }).subscribe({
+      next: (product) => {
+        this.quickSaving.set(false);
+        this.quickOpen.set(false);
+        if (product?.binding_id) {
+          this.addProduct(product); // fetches the new batch and adds to the bill
+        }
+        this.searchTerm.set('');
+        this.searchResults.set([]);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.quickSaving.set(false);
+        const errors = err.error?.errors;
+        const first = errors ? (Object.values(errors)[0] as string[])?.[0] : null;
+        this.quickError.set(first ?? err.error?.message ?? 'Could not add stock.');
+      },
+    });
+  }
+
   // ---- barcode scan ----
   readonly scanCode = signal('');
   readonly scanError = signal<string | null>(null);

@@ -11,6 +11,7 @@ use App\Core\Response;
 use App\Database\Connection;
 use App\Models\Sale;
 use App\Services\InvoiceService;
+use App\Services\PurchaseService;
 use App\Services\SalesService;
 
 final class SalesController extends Controller
@@ -48,6 +49,94 @@ final class SalesController extends Controller
         );
 
         return $this->created($result, 'Sale completed.');
+    }
+
+    /**
+     * Quick stock-in from the sales counter: when a chemist has physically
+     * received material that wasn't entered in Purchase yet, create a minimal
+     * one-line purchase (binds the product + adds the batch to stock) and return
+     * the now-sellable product so it can be added straight to the bill.
+     */
+    public function quickPurchase(Request $request): Response
+    {
+        if ($request->branchId() === null) {
+            throw HttpException::forbidden('A branch context is required.');
+        }
+        $clientId = (int) $request->clientId();
+        $branchId = (int) $request->branchId();
+
+        $name    = trim((string) $request->input('product_name', ''));
+        $batchNo = trim((string) $request->input('batch_no', ''));
+        $qty     = (int) $request->input('quantity', 0);
+        $mrp     = (float) $request->input('mrp', 0);
+        $rate    = $request->input('purchase_rate');
+        $rate    = ($rate === null || $rate === '') ? $mrp : (float) $rate; // default cost = MRP
+        $gst     = (float) $request->input('gst_rate', 12);
+        $expiry  = trim((string) $request->input('expiry_date', ''));
+
+        $errors = [];
+        if ($name === '') { $errors['product_name'] = ['Product name is required.']; }
+        if ($qty <= 0)    { $errors['quantity'] = ['Quantity must be greater than zero.']; }
+        if ($mrp <= 0)    { $errors['mrp'] = ['MRP must be greater than zero.']; }
+        if ($errors) {
+            throw HttpException::validation($errors);
+        }
+
+        // Prefer an existing master product with the same name; else create new.
+        $masterId = $request->input('master_product_id');
+        if (empty($masterId)) {
+            $find = Connection::master()->prepare('SELECT id FROM products WHERE name = :n LIMIT 1');
+            $find->execute(['n' => $name]);
+            $row = $find->fetch();
+            $masterId = $row ? (int) $row['id'] : null;
+        }
+
+        $item = [
+            'batch_no'       => $batchNo !== '' ? $batchNo : 'CTR-' . date('ymd'),
+            'expiry_date'    => $expiry,
+            'quantity'       => $qty,        // units (units_per_pack = 1)
+            'units_per_pack' => 1,
+            'free_quantity'  => 0,
+            'purchase_rate'  => $rate,
+            'mrp'            => $mrp,
+            'gst_rate'       => $gst,
+            'discount_pct'   => 0,
+        ];
+        if ($masterId) {
+            $item['master_product_id'] = (int) $masterId;
+        } else {
+            $item['product_name'] = $name;
+            $item['new_product'] = ['name' => $name, 'default_gst_rate' => $gst];
+        }
+
+        (new PurchaseService())->create($clientId, $branchId, $request->user()['id'] ?? null, [
+            'invoice_no'    => 'CTR-' . time(),
+            'invoice_date'  => date('Y-m-d'),
+            'supplier_name' => 'Direct / Counter Stock',
+            'items'         => [$item],
+        ]);
+
+        // Return the freshly bound product (SaleProduct shape) for the bill.
+        $sql =
+            'SELECT pb.id AS binding_id, pb.product_name, pb.manufacturer, pb.manufacturer_short,
+                    pb.schedule_category, pb.gst_rate, pb.master_product_id,
+                    pb.units_per_pack, pb.allow_loose, pb.shelf_location, pb.pack_size, pb.generic_id,
+                    COALESCE(st.quantity, 0) AS available_qty, pb.mrp
+             FROM product_bindings pb
+             LEFT JOIN inventory_stock st ON st.product_binding_id = pb.id
+             WHERE pb.client_id = :c AND pb.branch_id = :b ';
+        $bind = ['c' => $clientId, 'b' => $branchId];
+        if ($masterId) {
+            $sql .= 'AND pb.master_product_id = :m '; $bind['m'] = (int) $masterId;
+        } else {
+            $sql .= 'AND pb.product_name = :n '; $bind['n'] = $name;
+        }
+        $sql .= 'ORDER BY pb.id DESC LIMIT 1';
+        $stmt = Connection::ops()->prepare($sql);
+        $stmt->execute($bind);
+        $product = $stmt->fetch();
+
+        return $this->created($product ?: [], 'Stock added. Product is ready to bill.');
     }
 
     /** Type-ahead over the branch's bound products with live stock + MRP.

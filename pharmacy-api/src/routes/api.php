@@ -149,6 +149,7 @@ $router->group(['prefix' => '/api', 'middleware' => ['auth']], function (Router 
 
     // ---- Sales / Billing ----
     $router->get('/sales/scan', [SalesController::class, 'scan']);
+    $router->post('/sales/quick-purchase', [SalesController::class, 'quickPurchase']);
     $router->get('/sales/search-products', [SalesController::class, 'searchProducts']);
     $router->get('/sales', [SalesController::class, 'index']);
     $router->post('/sales', [SalesController::class, 'store']);

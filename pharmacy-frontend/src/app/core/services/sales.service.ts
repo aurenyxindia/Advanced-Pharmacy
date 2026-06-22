@@ -143,6 +143,16 @@ export class SalesService {
     return this.http.post<ApiResponse<SaleResult>>(`${this.base}/sales`, payload);
   }
 
+  /** Counter stock-in: create a quick one-line purchase and return the sellable product. */
+  quickPurchase(payload: {
+    product_name: string; batch_no?: string; quantity: number; mrp: number;
+    purchase_rate?: number; gst_rate?: number; expiry_date?: string;
+  }): Observable<SaleProduct & { batch_id?: number }> {
+    return this.http
+      .post<ApiResponse<SaleProduct & { batch_id?: number }>>(`${this.base}/sales/quick-purchase`, payload)
+      .pipe(map((r) => r.data));
+  }
+
   /** Look up an existing patient by mobile number. Returns null when not found. */
   lookupCustomer(phone: string): Observable<CustomerLookup | null> {
     const params = new HttpParams().set('phone', phone);
