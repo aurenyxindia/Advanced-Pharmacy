@@ -38,7 +38,11 @@
           <div class="entry-dropdown shadow-pharma-lg">
             @for (p of searchResults(); track p.id) {
               <button type="button" class="entry-item" (mousedown)="selectProduct(p)">
-                {{ p.name }} <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }}</span>
+                <span class="fw-semibold">{{ p.name }}</span>
+                <span class="text-secondary small">
+                  {{ p.manufacturer }}@if (p.manufacturer_short) { ({{ p.manufacturer_short }}) } ·
+                  {{ p.schedule_category }}@if (p.pack_size) { · {{ p.pack_size }} }
+                </span>
               </button>
             }
           </div>
