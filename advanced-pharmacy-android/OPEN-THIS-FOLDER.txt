@@ -1,0 +1,5 @@
+Open this folder in Android Studio: advanced-pharmacy-android
+
+Staff ERP app (not the customer AuraGharTak app in auraghartak-android).
+
+See README.md for API URL and module roadmap.

@@ -1,5 +1,6 @@
 :host {
   display: block;
+  width: 100%;
 }
 
 $sidebar-width: 248px;
@@ -9,6 +10,8 @@ $topbar-height: 64px;
 .layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: clip;
 }
 
 // ---------- Sidebar ----------
@@ -30,19 +33,33 @@ $topbar-height: 64px;
   height: $topbar-height;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0 1.25rem;
+  justify-content: center;
+  padding: 0 0.5rem;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background: #fff;
+  flex-shrink: 0;
 
-  .brand-icon {
-    font-size: 1.6rem;
-    color: #5eead4;
+  .brand-logo {
+    display: block;
+    flex-shrink: 0;
   }
-  .brand-text {
-    font-weight: 700;
-    font-size: 1.05rem;
-    white-space: nowrap;
+
+  .brand-logo-full {
+    height: 36px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    object-position: center center;
+  }
+
+  .brand-logo-icon {
+    display: none;
+    height: 42px;
+    width: 42px;
+    object-fit: contain;
+    object-position: center center;
   }
 }
 
@@ -65,11 +82,21 @@ $topbar-height: 64px;
   position: relative;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+  min-width: 0;
 
   i {
     font-size: 1.15rem;
     min-width: 22px;
+    flex-shrink: 0;
     text-align: center;
+  }
+
+  .nav-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &:hover {
@@ -105,18 +132,40 @@ $topbar-height: 64px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-// ---------- Collapsed state ----------
-.sidebar-collapsed {
-  .sidebar {
-    width: $sidebar-collapsed;
-  }
-  .nav-label,
-  .brand-text,
-  .badge-soon {
-    display: none;
-  }
-  .main-column {
-    margin-left: $sidebar-collapsed;
+// ---------- Collapsed state (desktop only — see mobile media query) ----------
+@media (min-width: 992px) {
+  .sidebar-collapsed {
+    .sidebar {
+      width: $sidebar-collapsed;
+    }
+    .nav-label,
+    .badge-soon {
+      display: none;
+    }
+    .sidebar-brand {
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+      width: 100%;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+
+      .brand-logo-full {
+        display: none;
+      }
+
+      .brand-logo-icon {
+        display: block;
+        margin: 0 auto;
+      }
+    }
+    .nav-item {
+      justify-content: center;
+      padding: 0.7rem 0.35rem;
+    }
+    .main-column {
+      margin-left: $sidebar-collapsed;
+    }
   }
 }
 
@@ -188,11 +237,73 @@ $topbar-height: 64px;
   }
 }
 
+.topbar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .topbar-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
+
+  > *,
+  .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+// Laptop widths (100% zoom on ~1366px screens): icon-only support / profile so the bar stays on one line.
+@media (max-width: 1399.98px) {
+  .topbar-actions { gap: 0.5rem; }
+  .support-chip__text,
+  .profile-top-label { display: none !important; }
+  .profile-top-btn .bi { margin-right: 0 !important; }
+}
+
+.support-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  border-radius: 0.6rem;
+  background: rgba(13, 148, 136, 0.06);
+  color: var(--pharma-primary-dark, #0f766e);
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.1;
+
+  .bi {
+    font-size: 1.05rem;
+  }
+
+  &:hover {
+    background: rgba(13, 148, 136, 0.12);
+    color: var(--pharma-primary-dark, #0f766e);
+  }
+}
+
+.support-chip__text {
+  flex-direction: column;
+}
+
+.support-chip__label {
+  font-size: 0.65rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.support-chip__no {
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .btn-icon {
@@ -273,24 +384,62 @@ $topbar-height: 64px;
   z-index: 1029;
 }
 
-// ---------- Mobile: sidebar becomes an off-canvas drawer ----------
+// ---------- Mobile / tablet: sidebar becomes an off-canvas drawer ----------
 @media (max-width: 991.98px) {
+  .main-column {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .content {
+    overflow: visible;
+    flex: 1 1 auto;
+  }
+
   .sidebar {
-    width: $sidebar-width;
+    width: min(#{$sidebar-width}, 86vw);
+    max-width: 280px;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+    left: 0;
+    margin: 0;
+    padding: 0;
   }
-  // In drawer mode always show full labels (ignore desktop collapse).
+
+  // Drawer always shows labels — desktop collapse must not hide them here.
+  .sidebar-collapsed {
+    .sidebar {
+      width: min(#{$sidebar-width}, 86vw);
+    }
+    .nav-label,
+    .brand-text,
+    .badge-soon {
+      display: inline;
+    }
+    .main-column {
+      margin-left: 0 !important;
+    }
+  }
+
   .nav-label,
   .brand-text,
   .badge-soon {
     display: inline;
   }
-  .main-column {
-    margin-left: 0;
+
+  .sidebar-nav {
+    padding: 0.75rem 0.65rem;
   }
-  .sidebar-collapsed .sidebar { width: $sidebar-width; }
+
+  .nav-item {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+  }
 
   // The edge arrow is desktop-only; mobile uses the hamburger + drawer.
   .sidebar-toggle { display: none; }
@@ -313,17 +462,169 @@ $topbar-height: 64px;
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
 }
 
+@keyframes aura-ai-nav-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 2px 8px rgba(13, 148, 136, 0.28),
+      0 0 0 0 rgba(99, 102, 241, 0);
+  }
+  50% {
+    box-shadow:
+      0 4px 14px rgba(13, 148, 136, 0.38),
+      0 0 0 3px rgba(99, 102, 241, 0.08);
+  }
+}
+
+@keyframes aura-ai-icon-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.aura-ai-top-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(15, 118, 110, 0.55);
+  background: linear-gradient(
+    135deg,
+    #2dd4bf 0%,
+    var(--pharma-primary, #0d9488) 42%,
+    var(--pharma-primary-dark, #0f766e) 100%
+  );
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 10px rgba(13, 148, 136, 0.32);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    filter 0.22s ease,
+    border-color 0.22s ease;
+  animation: aura-ai-nav-glow 4.5s ease-in-out infinite;
+
+  .aura-ai-top-btn__shine {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.14) 48%,
+      transparent 62%
+    );
+    transform: translateX(-120%);
+    pointer-events: none;
+    transition: transform 0.65s ease;
+  }
+
+  .aura-ai-top-icon,
+  .aura-ai-top-label {
+    position: relative;
+    z-index: 1;
+  }
+
+  .aura-ai-top-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.15));
+    transition: transform 0.28s ease;
+    animation: aura-ai-icon-breathe 3.5s ease-in-out infinite;
+  }
+
+  .aura-ai-top-label {
+    text-shadow: 0 1px 1px rgba(15, 23, 42, 0.12);
+  }
+
+  &:hover {
+    color: #fff;
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+    border-color: rgba(45, 212, 191, 0.65);
+    box-shadow:
+      0 8px 22px rgba(13, 148, 136, 0.42),
+      0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+    animation: none;
+
+    .aura-ai-top-btn__shine {
+      transform: translateX(120%);
+    }
+
+    .aura-ai-top-icon {
+      animation: none;
+      transform: scale(1.08) rotate(-4deg);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    filter: brightness(0.98);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 3px rgba(13, 148, 136, 0.35),
+      0 4px 14px rgba(13, 148, 136, 0.35);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+
+    .aura-ai-top-icon {
+      animation: none;
+    }
+
+    .aura-ai-top-btn__shine {
+      display: none;
+    }
+
+    &:hover {
+      transform: none;
+
+      .aura-ai-top-icon {
+        transform: none;
+      }
+    }
+  }
+}
+
+.profile-top-btn {
+  font-weight: 600;
+  border-color: rgba(13, 148, 136, 0.35);
+  color: #0f766e;
+
+  &:hover,
+  &.active {
+    background: rgba(13, 148, 136, 0.08);
+    border-color: var(--pharma-primary, #0d9488);
+    color: var(--pharma-primary, #0d9488);
+  }
+}
+
 .pos-overlay {
   position: fixed;
   inset: 0;
   z-index: 1080;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(2px);
   display: flex;
-  align-items: center;       /* exactly centered vertically */
-  justify-content: center;   /* exactly centered horizontally */
-  padding: 1rem;
-  animation: pos-fade 0.18s ease;
+  flex-direction: column;
+  animation: pos-fade 0.15s ease;
+}
+
+.pos-overlay--fullscreen {
+  background: #eef2f6;
+  padding: 0;
 }
 
 @keyframes pos-fade {
@@ -332,56 +633,206 @@ $topbar-height: 64px;
 }
 
 .pos-dialog {
-  width: 97vw;
-  max-width: 1560px;
-  height: 94vh;
-  max-height: 94vh;
-  margin: auto;
-  background: #f1f5f9;
-  border-radius: 1rem;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: #eef2f6;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: pos-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes pos-pop {
-  from { transform: translateY(18px) scale(0.985); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .pos-dialog-head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.7rem 1.1rem;
-  background: linear-gradient(135deg, var(--pharma-primary), var(--pharma-primary-dark));
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 55%, #14b8a6 100%);
   color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 12px rgba(15, 118, 110, 0.25);
 }
-.pos-title { font-weight: 700; font-size: 0.98rem; }
-.pos-close {
-  border: none;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-  width: 34px;
+
+.pos-head-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.pos-brand-logo {
+  display: block;
   height: 34px;
-  border-radius: 0.5rem;
+  width: auto;
+  max-width: 152px;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.45rem;
+  background: #fff;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+}
+
+.pos-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.pos-subtitle {
+  font-size: 0.68rem;
+  opacity: 0.88;
+  font-weight: 500;
+}
+
+.pos-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pos-close-btn {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: 0.45rem;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: background 0.15s ease;
-  &:hover { background: rgba(255, 255, 255, 0.32); }
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+  }
 }
 
 .pos-dialog-body {
   flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.65rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+
+  app-billing,
+  .billing {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .bill-body {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .product-panel {
+    max-height: none;
+    height: 100%;
+  }
+
+  .product-list {
+    min-height: 120px;
+  }
+
+  .bill-main {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .grid-card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .grid-card .table-responsive {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .pos-dialog-body {
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.45rem 0.5rem 0.85rem;
+    -webkit-overflow-scrolling: touch;
+
+    app-billing,
+    .billing {
+      display: block;
+      flex: none;
+      min-height: auto;
+    }
+
+    .bill-body {
+      flex: none;
+      min-height: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-panel {
+      height: auto;
+      max-height: min(34vh, 280px);
+      flex-shrink: 0;
+    }
+
+    .bill-main {
+      overflow: visible;
+      flex: none;
+      min-height: auto;
+    }
+
+    .grid-card {
+      flex: none;
+      min-height: auto;
+      overflow: visible;
+    }
+
+    .grid-card .table-responsive {
+      flex: none;
+      min-height: auto;
+      max-height: none;
+    }
+  }
 }
 
 @media (max-width: 575.98px) {
-  .pos-overlay { padding: 0; }
-  .pos-dialog { max-width: 100%; max-height: 100vh; border-radius: 0; }
-  .pos-dialog-body { padding: 0.5rem; }
+  .pos-dialog-head {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .pos-brand-logo {
+    height: 30px;
+    max-width: 118px;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .pos-title {
+    font-size: 0.85rem;
+  }
+
+  .pos-subtitle { display: none; }
 }

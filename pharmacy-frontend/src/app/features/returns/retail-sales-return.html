@@ -1,0 +1,430 @@
+<div class="retail-sales-return-page">
+  <app-return-tabs />
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="fw-bold mb-0">
+        @if (mode() === 'list') { Retail Sales Return }
+        @else if (mode() === 'create') { Create Sales Return }
+        @else if (mode() === 'manual') { External Return (No System Bill) }
+        @else if (mode() === 'history') { Return History }
+        @else { Return Detail }
+      </h4>
+      <p class="text-secondary small mb-0">
+        @if (mode() === 'manual') {
+          Return for customers billed outside this software — stock comes back in (return qty)
+        } @else {
+          Return products from a retail bill, or create an external return (stock in)
+        }
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (mode() === 'list') {
+        @if (canEdit()) {
+          <button type="button" class="btn btn-sm btn-pharma" (click)="openManual()">
+            <i class="bi bi-box-arrow-in-down me-1"></i>External Return
+          </button>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openHistory()">
+          <i class="bi bi-clock-history me-1"></i>History / Print
+        </button>
+      } @else {
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">
+          <i class="bi bi-arrow-left me-1"></i>Back
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+  @if (toast()) { <div class="alert alert-success py-2">{{ toast() }}</div> }
+
+  @if (mode() === 'list') {
+    <div class="card-pharma p-3">
+      <div class="mb-3" style="max-width:320px">
+        <input class="form-control form-control-sm" placeholder="Search bill / customer / doctor…"
+          [ngModel]="search" (ngModelChange)="onSearch($event)" />
+      </div>
+      @if (loading()) {
+        <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Bill No</th><th>Date</th><th>Customer</th><th>Doctor</th>
+                <th class="text-end">Amount</th><th class="text-end">Paid</th>
+                <th class="text-end">Balance</th><th class="text-end">Return Amt</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of sales(); track s.id) {
+                <tr>
+                  <td class="fw-semibold">{{ s.invoice_no }}</td>
+                  <td>{{ s.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                  <td>{{ s.customer_name }}</td>
+                  <td>{{ s.doctor_name || '—' }}</td>
+                  <td class="text-end">{{ s.net_amount | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ s.paid | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ s.balance | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ s.return_total | number: '1.2-2' }}</td>
+                  <td><button type="button" class="btn btn-sm btn-outline-primary" (click)="openReturn(s)">View</button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="9" class="text-center text-secondary py-4">No retail bills found.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="small text-secondary mt-2">Showing latest 30. Use search for older bills.</div>
+      }
+    </div>
+  }
+
+  @if (mode() === 'create' && selectedBill) {
+    <div class="card-pharma p-3">
+      <div class="row g-2 mb-3 small">
+        <div class="col-md-3"><span class="text-secondary">Bill</span><div class="fw-semibold">{{ selectedBill.invoice_no }}</div></div>
+        <div class="col-md-3"><span class="text-secondary">Customer</span><div>{{ selectedBill.customer_name }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Doctor</span><div>{{ selectedBill.doctor_name || '—' }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Bill Amt</span><div>{{ selectedBill.net_amount | number: '1.2-2' }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Return Total</span><div class="fw-semibold text-pharma">{{ returnTotal() | number: '1.2-2' }}</div></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th>Expiry</th><th class="text-end">Sold</th>
+              <th class="text-end">Returned</th><th class="text-end">Strip MRP</th><th class="text-end">Rate</th>
+              <th class="text-end">Return Qty</th><th class="text-end">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of selectedBill.products; track p.id) {
+              <tr>
+                <td>
+                  {{ p.p_name }}
+                  @if (p.pack_size) { <div class="small text-secondary">{{ p.pack_size }}</div> }
+                </td>
+                <td>{{ p.batch_no }}</td>
+                <td>{{ p.exp_date | date: 'MM/yy' }}</td>
+                <td class="text-end text-nowrap">{{ p.qty }} <span class="small text-secondary">{{ qtyUnit(p) }}</span></td>
+                <td class="text-end text-nowrap">{{ p.returned_qty }} <span class="small text-secondary">{{ qtyUnit(p) }}</span></td>
+                <td class="text-end">{{ p.mrp | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.unit_rate | number: '1.2-2' }}</td>
+                <td style="min-width:7rem;max-width:8rem">
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control form-control-sm text-end"
+                      [(ngModel)]="p.this_return_qty" (ngModelChange)="onQtyChange(p)"
+                      [max]="p.max_return_qty" min="0" [disabled]="p.max_return_qty <= 0" />
+                    <span class="input-group-text px-1 small">{{ qtyUnit(p) }}</span>
+                  </div>
+                </td>
+                <td class="text-end">{{ lineAmt(p) | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+          @if (linesTotal() > 0) {
+            <tfoot class="small">
+              @if (roundOff() !== 0) {
+                <tr>
+                  <td colspan="8" class="text-end text-secondary">Round off</td>
+                  <td class="text-end text-secondary">{{ roundOff() > 0 ? '+' : '' }}{{ roundOff() | number: '1.2-2' }}</td>
+                </tr>
+              }
+              <tr class="fw-semibold">
+                <td colspan="8" class="text-end">Return Total</td>
+                <td class="text-end text-pharma">{{ returnTotal() | number: '1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">Close</button>
+        <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving() || returnTotal() <= 0" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          Submit
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (mode() === 'manual') {
+    <div class="card-pharma p-3 mb-3 rsr-manual-card" [class.menu-open]="showStockDropdown()">
+      <div class="alert alert-light border py-2 small mb-3">
+        <i class="bi bi-info-circle me-1 text-pharma"></i>
+        Use this when the customer’s original sale was <b>not</b> billed in this software.
+        Pick stock batches, enter sale rate / MRP, return qty and discount. Stock is added back (return qty).
+      </div>
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-1">Sale billing date <span class="text-danger">*</span></label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="manualBillDate" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small mb-1">Customer name <span class="text-danger">*</span></label>
+          <input class="form-control form-control-sm" maxlength="150" placeholder="Customer / patient name"
+            [(ngModel)]="manualCustomer" />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small mb-1">Contact</label>
+          <input class="form-control form-control-sm" maxlength="20" placeholder="Optional"
+            [(ngModel)]="manualContact" />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small mb-1">Doctor</label>
+          <input class="form-control form-control-sm" maxlength="150" placeholder="Optional"
+            [(ngModel)]="manualDoctor" />
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <span class="small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">Add product from stock</span>
+        <div class="combo rsr-stock-combo" [class.open]="showStockDropdown()">
+          <div class="combo-input-wrap" (mousedown)="$event.stopPropagation()">
+            <i class="bi bi-search combo-input-icon"></i>
+            <input
+              id="rsr-stock-search"
+              type="search"
+              class="form-control form-control-sm combo-input"
+              placeholder="Search product / batch…"
+              autocomplete="off"
+              [disabled]="!canEdit()"
+              [ngModel]="stockTerm()"
+              (ngModelChange)="onStockSearch($event)"
+              (focus)="openStockDropdown()"
+              (keydown)="onStockKeydown($event)"
+              (click)="openStockDropdown()"
+            />
+            <button type="button" class="combo-caret" tabindex="-1" [disabled]="!canEdit()"
+              (click)="toggleStockDropdown($event)">
+              <i class="bi" [class.bi-chevron-up]="showStockDropdown()" [class.bi-chevron-down]="!showStockDropdown()"></i>
+            </button>
+          </div>
+          @if (showStockDropdown()) {
+            <div class="combo-panel shadow-pharma-lg" (click)="$event.stopPropagation()">
+              <div class="combo-list">
+                @if (stockHits().length || stockLoading()) {
+                  <div class="combo-list-meta text-secondary small px-2 py-1">
+                    @if (stockLoading()) { Searching… }
+                    @else if (stockTerm().trim()) { {{ stockHits().length }} product(s) · search results }
+                    @else { {{ stockHits().length }} product(s) · stock list }
+                  </div>
+                }
+                @if (stockLoading() && !stockHits().length) {
+                  <div class="combo-empty"><span class="spinner-border spinner-border-sm me-1"></span>Loading…</div>
+                } @else {
+                  @for (p of stockHits(); track p.binding_id; let i = $index) {
+                    <button type="button" class="combo-item" [class.active-item]="i === stockHighlight()"
+                      (mouseenter)="stockHighlight.set(i); expandProductBatches(p)"
+                      (mousedown)="$event.preventDefault(); expandProductBatches(p)">
+                      <span class="fw-semibold">{{ p.product_name }}</span>
+                      @if (stockSecondary(p); as sec) {
+                        <span class="fw-normal text-secondary">{{ sec }}</span>
+                      }
+                    </button>
+                    @for (b of batchesFor(p.binding_id); track b.batch_id) {
+                      <button type="button" class="combo-item combo-item-batch"
+                        (mousedown)="addManualBatch(p, b, $event)">
+                        <span class="batch-line">
+                          <i class="bi bi-upc me-1"></i>{{ b.batch_no }}
+                          <span class="text-secondary">
+                            · Exp {{ b.expiry_date ? (b.expiry_date | date: 'MM/yy') : '—' }}
+                            · Avl {{ b.quantity }}
+                            · Strip MRP {{ stripMrpOf(b) | number: '1.2-2' }}
+                          </span>
+                        </span>
+                      </button>
+                    }
+                    @if (isBatchesLoading(p.binding_id) && !batchesReady(p.binding_id)) {
+                      <div class="combo-batch-loading text-secondary small px-3 py-1">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Loading batches…
+                      </div>
+                    }
+                  } @empty {
+                    <div class="combo-empty">
+                      @if (stockTerm().trim()) { No stock matches “{{ stockTerm().trim() }}” }
+                      @else { No stock available }
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th>Expiry</th>
+              <th class="text-end">Sale Rate</th><th class="text-end">Strip MRP</th>
+              <th class="text-end">Ret. Qty</th>
+              <th class="text-end">Disc %</th><th class="text-end">Disc Amt</th>
+              <th class="text-end">Amt</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of manualLines(); track l.batch_id; let i = $index) {
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ l.product_name }}</div>
+                  @if (l.pack_size) { <div class="small text-secondary">{{ l.pack_size }}</div> }
+                </td>
+                <td>{{ l.batch_no }}</td>
+                <td>{{ l.expiry_date ? (l.expiry_date | date: 'MM/yy') : '—' }}</td>
+                <td style="min-width:5.5rem">
+                  <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                    [ngModel]="l.unit_rate" (ngModelChange)="patchManualLine(i, { unit_rate: +$event }, 'rate')" />
+                </td>
+                <td class="text-end text-nowrap">{{ l.mrp | number: '1.2-2' }}</td>
+                <td style="min-width:5rem">
+                  <input type="number" min="1" class="form-control form-control-sm text-end"
+                    [ngModel]="l.return_qty" (ngModelChange)="patchManualLine(i, { return_qty: +$event }, 'qty')" />
+                </td>
+                <td style="min-width:4.5rem">
+                  <input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end"
+                    [ngModel]="l.disc_per" (ngModelChange)="patchManualLine(i, { disc_per: +$event }, 'pct')" />
+                </td>
+                <td style="min-width:5.5rem">
+                  <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                    [ngModel]="l.discount_amt" (ngModelChange)="patchManualLine(i, { discount_amt: +$event }, 'amt')" />
+                </td>
+                <td class="text-end fw-semibold text-nowrap">{{ manualLineAmt(l) | number: '1.2-2' }}</td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeManualLine(i)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10" class="text-center text-secondary py-4">
+                  Search shop stock above and pick a batch to add.
+                </td>
+              </tr>
+            }
+          </tbody>
+          @if (manualLines().length) {
+            <tfoot>
+              <tr class="fw-semibold">
+                <td colspan="8" class="text-end">Return Total</td>
+                <td class="text-end text-pharma">{{ manualTotal() | number: '1.2-2' }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">Cancel</button>
+        <button type="button" class="btn btn-sm btn-pharma"
+          [disabled]="saving() || !manualLines().length || !canEdit()" (click)="saveManual()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          Submit External Return
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (mode() === 'history') {
+    <div class="card-pharma p-3">
+      <div class="mb-3" style="max-width:320px">
+        <input class="form-control form-control-sm" placeholder="Search return no / customer…"
+          [(ngModel)]="historySearch" (ngModelChange)="loadHistory()" />
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Return No</th><th>Type</th><th>Date</th><th>Customer</th><th>Contact</th>
+              <th>Original Bill</th><th>Bill Date</th><th class="text-end">Amt</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of history(); track h.id) {
+              <tr>
+                <td class="fw-semibold">{{ h.return_no }}</td>
+                <td>
+                  @if (isManualReturn(h)) {
+                    <span class="badge text-bg-info">External</span>
+                  } @else {
+                    <span class="badge text-bg-light border">Bill</span>
+                  }
+                </td>
+                <td>{{ h.created_at | date: 'dd-MM-yyyy' }}</td>
+                <td>{{ h.customer_name }}</td>
+                <td>{{ h.contact_no || '—' }}</td>
+                <td>{{ isManualReturn(h) ? 'EXTERNAL' : h.sale_invoice_no }}</td>
+                <td>{{ h.sale_invoice_date | date: 'dd-MM-yyyy' }}</td>
+                <td class="text-end">{{ h.return_total | number: '1.2-2' }}</td>
+                <td class="text-nowrap">
+                  <button type="button" class="btn btn-sm btn-outline-primary me-1" (click)="viewHistory(h)">View</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printHistory(h.id)">
+                    <i class="bi bi-printer me-1"></i>Print
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9" class="text-center text-secondary py-4">No returns yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (mode() === 'history-view' && selectedHistory) {
+    <div class="card-pharma p-3">
+      <div class="row g-2 mb-3 small">
+        <div class="col-md-3"><span class="text-secondary">Return No</span><div class="fw-semibold">{{ selectedHistory.return_no }}</div></div>
+        <div class="col-md-3"><span class="text-secondary">Customer</span><div>{{ selectedHistory.customer_name }}</div></div>
+        <div class="col-md-3">
+          <span class="text-secondary">{{ isManualReturn(selectedHistory) ? 'Bill Ref.' : 'Original Bill' }}</span>
+          <div>
+            @if (isManualReturn(selectedHistory)) {
+              <span class="badge text-bg-info me-1">External</span> EXTERNAL
+            } @else {
+              {{ selectedHistory.sale_invoice_no }}
+            }
+          </div>
+        </div>
+        <div class="col-md-3"><span class="text-secondary">Total</span><div class="fw-semibold">{{ selectedHistory.return_total | number: '1.2-2' }}</div></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr><th>Product</th><th>Batch</th><th class="text-end">Sale Qty</th><th class="text-end">Return Qty</th><th class="text-end">Amt</th></tr>
+          </thead>
+          <tbody>
+            @for (p of selectedHistory.products || []; track $index) {
+              <tr>
+                <td>{{ p.p_name }}</td>
+                <td>{{ p.batch_no }}</td>
+                <td class="text-end">{{ p.sale_qty }}</td>
+                <td class="text-end">{{ p.return_qty }}</td>
+                <td class="text-end">{{ p.return_amt | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+          @if (historyRoundOff() !== 0) {
+            <tfoot class="small">
+              <tr>
+                <td colspan="4" class="text-end text-secondary">Round off</td>
+                <td class="text-end text-secondary">{{ historyRoundOff() > 0 ? '+' : '' }}{{ historyRoundOff() | number: '1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printHistory(selectedHistory.id)">
+          <i class="bi bi-printer me-1"></i>Print
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openHistory()">Close</button>
+      </div>
+    </div>
+  }
+</div>

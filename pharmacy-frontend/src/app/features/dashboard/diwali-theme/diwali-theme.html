@@ -1,0 +1,59 @@
+@if (day; as d) {
+  <div
+    class="diwali-sky"
+    [class.is-crackers]="showCrackers() && motion()"
+    [class.is-still]="!motion()"
+    aria-hidden="true"
+  >
+    @for (r of rockets; track r.x + r.d) {
+      <span class="rocket" [style.--x]="r.x" [style.--d]="r.d" [style.--c]="r.c">
+        <span class="rocket-head"></span>
+        <span class="rocket-trail"></span>
+      </span>
+      <span class="cracker rocket-burst" [style.--x]="r.x" [style.--y]="r.y" [style.--d]="r.d" [style.--c]="r.c">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+    }
+    @for (c of crackers; track c.x + c.y) {
+      <span class="cracker" [style.--x]="c.x" [style.--y]="c.y" [style.--d]="c.d" [style.--c]="c.c">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+    }
+  </div>
+
+  <section
+    class="diwali-banner"
+    [class.is-entering]="entered() && motion()"
+    [class.is-still]="!motion()"
+    [attr.data-day]="d.key"
+    aria-label="{{ d.title }}"
+  >
+    <div class="light-wire" aria-hidden="true">
+      @for (n of lamps; track n) {
+        <span class="bulb" [style.--i]="n"></span>
+      }
+    </div>
+
+    <div class="diwali-row">
+      <div class="diya-row" aria-hidden="true">
+        @for (n of diyas; track n) {
+          <span class="diya" [style.--i]="n">
+            <span class="flame"></span>
+            <span class="bowl"></span>
+          </span>
+        }
+      </div>
+
+      <div class="diwali-copy">
+        <div class="kicker">Deepavali · {{ d.title }}</div>
+        <p>{{ d.line }}</p>
+        <p class="marathi">{{ d.marathi }}</p>
+      </div>
+
+      <button type="button" class="btn btn-sm motion-btn" (click)="toggleMotion()">
+        <i class="bi" [class.bi-pause-fill]="motion()" [class.bi-play-fill]="!motion()"></i>
+        {{ motion() ? 'Stop animation' : 'Play animation' }}
+      </button>
+    </div>
+  </section>
+}

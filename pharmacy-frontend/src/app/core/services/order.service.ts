@@ -10,10 +10,11 @@ export class OrderService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  list(filter: { status?: string; search?: string } = {}): Observable<Paginated<Record<string, unknown>>> {
+  list(filter: { status?: string; search?: string; perPage?: number } = {}): Observable<Paginated<Record<string, unknown>>> {
     let params = new HttpParams();
     if (filter.status) params = params.set('status', filter.status);
     if (filter.search) params = params.set('search', filter.search);
+    if (filter.perPage) params = params.set('per_page', String(filter.perPage));
     return this.http
       .get<ApiResponse<Paginated<Record<string, unknown>>>>(`${this.base}/orders`, { params })
       .pipe(map((r) => r.data));

@@ -9,6 +9,7 @@ export interface Admission {
   admission_no: string;
   patient_name: string;
   contact_no: string | null;
+  address?: string | null;
   doctor_name: string | null;
   ward: string | null;
   bed_no: string | null;

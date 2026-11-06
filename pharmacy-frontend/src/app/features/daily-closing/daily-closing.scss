@@ -102,4 +102,9 @@
   padding: 0.75rem 1.1rem;
   z-index: 1090;
   border: 1px solid #e2e8f0;
+  max-width: min(420px, 92vw);
+}
+.dc-toast-error {
+  border-color: #fecaca;
+  background: #fff7f7;
 }

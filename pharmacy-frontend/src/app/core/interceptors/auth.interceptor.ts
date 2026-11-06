@@ -13,51 +13,80 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const isAuthCall = req.url.includes('/auth/login') ||
+  const isAuthCall =
+    req.url.includes('/auth/login') ||
     req.url.includes('/auth/register') ||
     req.url.includes('/auth/refresh');
 
-  const accessToken = tokens.accessToken;
-  const authReq = accessToken && !isAuthCall
-    ? req.clone({ setHeaders: { Authorization: `Bearer ${accessToken}` } })
-    : req;
+  const attach = (token: string | null) =>
+    token && !isAuthCall
+      ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+      : req;
 
-  return next(authReq).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status !== 401 || isAuthCall || !tokens.refreshToken) {
-        return throwError(() => error);
-      }
+  const handle401 = (error: HttpErrorResponse) => {
+    if (error.status !== 401 || isAuthCall || !tokens.refreshToken) {
+      return throwError(() => error);
+    }
 
-      // Attempt a single token refresh and replay queued requests.
-      if (!isRefreshing) {
-        isRefreshing = true;
-        refreshed$.next(null);
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshed$.next(null);
 
-        return auth.refresh().pipe(
-          switchMap((res) => {
-            isRefreshing = false;
-            refreshed$.next(res.data.access_token);
-            return next(
-              req.clone({ setHeaders: { Authorization: `Bearer ${res.data.access_token}` } }),
-            );
-          }),
-          catchError((refreshErr) => {
-            isRefreshing = false;
-            auth.logout();
-            router.navigate(['/login']);
-            return throwError(() => refreshErr);
-          }),
-        );
-      }
-
-      // A refresh is already in flight - wait for the new token.
-      return refreshed$.pipe(
-        filter((token): token is string => token !== null),
-        take(1),
-        switchMap((token) =>
-          next(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })),
-        ),
+      return auth.refresh().pipe(
+        switchMap((res) => {
+          isRefreshing = false;
+          refreshed$.next(res.data.access_token);
+          return next(attach(res.data.access_token));
+        }),
+        catchError((refreshErr) => {
+          isRefreshing = false;
+          auth.logout();
+          router.navigate(['/login']);
+          return throwError(() => refreshErr);
+        }),
       );
-    }),
-  );
+    }
+
+    return refreshed$.pipe(
+      filter((token): token is string => token !== null),
+      take(1),
+      switchMap((token) => next(attach(token))),
+    );
+  };
+
+  // Proactively refresh an expired access token before calling the API.
+  const accessToken = tokens.accessToken;
+  if (
+    !isAuthCall &&
+    accessToken &&
+    tokens.isExpired(accessToken) &&
+    tokens.refreshToken
+  ) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshed$.next(null);
+
+      return auth.refresh().pipe(
+        switchMap((res) => {
+          isRefreshing = false;
+          refreshed$.next(res.data.access_token);
+          return next(attach(res.data.access_token)).pipe(catchError(handle401));
+        }),
+        catchError((refreshErr) => {
+          isRefreshing = false;
+          auth.logout();
+          router.navigate(['/login']);
+          return throwError(() => refreshErr);
+        }),
+      );
+    }
+
+    return refreshed$.pipe(
+      filter((token): token is string => token !== null),
+      take(1),
+      switchMap((token) => next(attach(token)).pipe(catchError(handle401))),
+    );
+  }
+
+  return next(attach(accessToken)).pipe(catchError(handle401));
 };

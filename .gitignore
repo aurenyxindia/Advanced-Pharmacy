@@ -33,3 +33,42 @@ composer.phar
 .DS_Store
 Thumbs.db
 *.log
+
+# Local agent rules contain server credentials
+.cursor/
+
+# Live database dumps, generated storage, and archives
+/advanced db's/
+/pharmacy-api/storage/migrate_remote/
+/pharmacy-api/storage/gmail/
+/pharmacy-api/storage/ratelimit/
+/pharmacy-api/storage/*.sql
+/pharmacy-api/storage/*.csv
+/pharmacy-api/storage/*.tar.gz
+/pharmacy-api/storage/*.pdf
+/pharmacy-api/storage/tmp_*.php
+*.zip
+
+# Android / Gradle build output
+**/.gradle/
+**/build/
+*.apk
+*.aab
+
+# Deploy helpers and docs with embedded server passwords
+/docs/DEPLOY-PHP.md
+/tools/data/
+/tools/*gmp*
+/tools/*ssh*
+/tools/deploy-*.ps1
+/tools/reclone-gmpserver-db.ps1
+/tools/setup-gmpserver-db.ps1
+/tools/patch-gmpserver-env.ps1
+/tools/tail-gmp-log.ps1
+/tools/verify-gmpserver.ps1
+/tools/run-jeevan-*.ps1
+/tools/_*.ps1
+/tools/_*.php
+/tools/_*.json
+/tools/_*.tsv
+/tools/*.py

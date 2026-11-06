@@ -1,0 +1,133 @@
+@if (notification) {
+  <div class="agt-popup-backdrop" (click)="dismiss()" role="presentation">
+    <div class="agt-popup-card" (click)="$event.stopPropagation()" role="dialog" aria-live="polite">
+      <div class="popup-accent"></div>
+      <button type="button" class="popup-close" (click)="dismiss()" aria-label="Close">
+        <i class="bi bi-x-lg"></i>
+      </button>
+
+      <div class="popup-header">
+        <div class="popup-icon-wrap"><i class="bi bi-bag-check"></i></div>
+        <div class="popup-title-block">
+          <span class="popup-badge">New home delivery order</span>
+          <h4 class="popup-title">A patient placed an order on AuraGharTak</h4>
+        </div>
+      </div>
+
+      @if (isLoading()) {
+        <div class="popup-body loading-state">
+          <span class="spinner-border spinner-border-sm"></span>
+          <span>Loading order details…</span>
+        </div>
+      } @else if (order(); as o) {
+        <div class="popup-body">
+          <div class="patient-row">
+            <div class="patient-avatar">{{ patientInitial() }}</div>
+            <div class="patient-info">
+              <div class="patient-name">{{ o.patient_name || 'Patient' }}</div>
+              @if (o.patient_contact) {
+                <div class="patient-contact"><i class="bi bi-telephone"></i> {{ o.patient_contact }}</div>
+              }
+            </div>
+            <div class="order-no-chip">{{ o.order_no }}</div>
+          </div>
+
+          <div class="meta-grid">
+            @if (o.patient_address) {
+              <div class="meta-item">
+                <span class="meta-label">Delivery address</span>
+                <span class="meta-value">{{ o.patient_address }}</span>
+              </div>
+            }
+            @if (o.patient_note) {
+              <div class="meta-item">
+                <span class="meta-label">Patient note</span>
+                <span class="meta-value note-val">{{ o.patient_note }}</span>
+              </div>
+            }
+            <div class="meta-item">
+              <span class="meta-label">Items</span>
+              <span class="meta-value">{{ itemCount() }} product(s)</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Estimated total</span>
+              <span class="meta-value total-val">₹{{ o.estimated_total | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          @if (o.prescription_url || paymentQrUrl()) {
+            <div class="rx-qr-row">
+              @if (o.prescription_url) {
+                <div class="rx-block">
+                  <span class="meta-label">Prescription</span>
+                  <a class="rx-link" [href]="o.prescription_url" target="_blank" rel="noopener">
+                    @if (!isPrescriptionPdf()) {
+                      <img [src]="o.prescription_url" alt="Prescription" class="rx-thumb" />
+                    } @else {
+                      <span class="rx-pdf"><i class="bi bi-file-earmark-pdf"></i> View PDF</span>
+                    }
+                  </a>
+                </div>
+              }
+              @if (paymentQrUrl(); as qr) {
+                <div class="qr-block">
+                  <span class="meta-label">Payment QR</span>
+                  <img [src]="qr" alt="Payment QR" class="qr-img" />
+                </div>
+              }
+            </div>
+          }
+
+          @if (o.items?.length) {
+            <div class="items-block">
+              <span class="meta-label">Order items</span>
+              <div class="items-table-wrap">
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Qty</th>
+                      <th class="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (it of o.items; track it.id ?? $index) {
+                      <tr>
+                        <td>
+                          <span class="item-name">{{ itemName(it) }}</span>
+                          @if (it.batch_no) {
+                            <span class="item-batch">{{ it.batch_no }}</span>
+                          }
+                        </td>
+                        <td>{{ it.qty }} strip(s)</td>
+                        <td class="text-end">₹{{ it.line_total | number:'1.2-2' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          @if (canDoSale()) {
+            <p class="flow-hint">
+              Click <strong>Do Sale</strong> to open Sales with this patient and order ready to add.
+            </p>
+          }
+        </div>
+      }
+
+      <div class="popup-actions">
+        <button type="button" class="btn-popup btn-secondary" (click)="dismiss()">Dismiss</button>
+        <button type="button" class="btn-popup btn-outline" (click)="goToAuraGharTak()" [disabled]="isLoading()">
+          <i class="bi bi-box-arrow-up-right"></i> Open AuraGharTak
+        </button>
+        @if (canDoSale()) {
+          <button type="button" class="btn-popup btn-sale" (click)="doSale()">
+            <i class="bi bi-cart3"></i> Do Sale
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

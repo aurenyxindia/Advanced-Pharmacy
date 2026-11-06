@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Core\Controller;
 use App\Core\Model;
 use App\Core\Request;
 use App\Core\Response;
@@ -13,11 +12,9 @@ use App\Models\RateMargin;
 /**
  * Rate Margin Master - category-wise wholesale pricing policy.
  *
- * PTR/PTS are derived from MRP:
- *   net_mrp = MRP / (1 + GST/100)          (reverse GST -> taxable value)
- *   PTR     = net_mrp / (1 + ptr_margin/100)   (price to retailer, excl GST)
- *   PTS     = net_mrp / (1 + pts_margin/100)   (price to stockist, excl GST)
- * GST is added forward on the wholesale invoice.
+ * PTR/PTS are derived from MRP (GST is added on top on the wholesale bill):
+ *   PTR = MRP × (1 − ptr_margin/100)
+ *   PTS = MRP × (1 − pts_margin/100)
  */
 final class RateMarginController extends ResourceController
 {
@@ -30,7 +27,10 @@ final class RateMarginController extends ResourceController
     ];
 
     protected bool $tenantScoped = true;
-    protected array $fillable = ['category', 'ptr_margin', 'pts_margin', 'is_active'];
+    protected array $fillable = [
+        'category', 'ptr_margin', 'pts_margin', 'max_discount', 'std_discount',
+        'rate_by', 'credit_days', 'cash_discount', 'is_active',
+    ];
     protected array $searchColumns = ['category'];
     protected string $defaultOrder = 'category ASC';
 
@@ -42,14 +42,18 @@ final class RateMarginController extends ResourceController
     protected function storeRules(): array
     {
         return [
-            'category'   => 'required|string|max:30',
-            'ptr_margin' => 'required|numeric|min:0|max:100',
-            'pts_margin' => 'required|numeric|min:0|max:100',
-            'is_active'  => 'integer|in:0,1',
+            'category'      => 'required|string|max:30',
+            'ptr_margin'    => 'required|numeric|min:0|max:100',
+            'pts_margin'    => 'required|numeric|min:0|max:100',
+            'max_discount'  => 'numeric|min:0|max:100',
+            'std_discount'  => 'numeric|min:0|max:100',
+            'rate_by'       => 'string|in:Rate By Purchase,Rate By Margin',
+            'credit_days'   => 'integer|min:0|max:365',
+            'cash_discount' => 'numeric|min:0|max:100',
+            'is_active'     => 'integer|in:0,1',
         ];
     }
 
-    /** Seed sensible defaults on first access so the master is never empty. */
     public function index(Request $request): Response
     {
         $model = new RateMargin();
@@ -57,17 +61,21 @@ final class RateMarginController extends ResourceController
         if ($existing === []) {
             foreach (self::DEFAULTS as $d) {
                 $model->insert(array_merge($d, [
-                    'client_id'  => $request->clientId(),
-                    'is_active'  => 1,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'client_id'     => $request->clientId(),
+                    'max_discount'  => 0,
+                    'std_discount'  => 0,
+                    'rate_by'       => 'Rate By Margin',
+                    'credit_days'   => 0,
+                    'cash_discount' => 0,
+                    'is_active'     => 1,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
                 ]));
             }
         }
         return parent::index($request);
     }
 
-    /** Compute PTR/PTS for a given MRP + GST + category using the saved margins. */
     public function compute(Request $request): Response
     {
         $mrp = (float) $request->query('mrp', 0);
@@ -78,9 +86,9 @@ final class RateMarginController extends ResourceController
         $ptrMargin = (float) ($margin['ptr_margin'] ?? 20);
         $ptsMargin = (float) ($margin['pts_margin'] ?? 30);
 
+        $ptr = $mrp * (1 - $ptrMargin / 100);
+        $pts = $mrp * (1 - $ptsMargin / 100);
         $netMrp = $mrp / (1 + $gst / 100);
-        $ptr = $netMrp / (1 + $ptrMargin / 100);
-        $pts = $netMrp / (1 + $ptsMargin / 100);
 
         return $this->success([
             'category'   => $category,

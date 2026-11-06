@@ -63,6 +63,16 @@ npm install
 npm start              # ng serve -> http://localhost:4200
 ```
 
+## Live PHP deploy
+
+Upload backend files to the demo server (preserves live `.env` and `storage/`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\deploy-php.ps1
+```
+
+Full server paths, SSH/FTP logins, and verify steps: **[docs/DEPLOY-PHP.md](docs/DEPLOY-PHP.md)**
+
 ## Versioning
 
 Automatic local commits via `tools/auto-commit.ps1`. See that script for usage.

@@ -1,0 +1,57 @@
+.sale-bill-edit {
+  .search-hits {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.375rem;
+    cursor: pointer;
+  }
+
+  .batch-pick {
+    background: #f8fafc;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+
+    .list-group-item.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  .tiny {
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+
+  .product-grid-scroll {
+    max-height: min(70vh, 640px);
+    overflow: auto;
+  }
+
+  .bill-meta-table th,
+  .edit-lines-table th {
+    white-space: nowrap;
+    font-size: 0.75rem;
+  }
+
+  .product-name-cell {
+    min-width: 140px;
+    max-width: 220px;
+  }
+
+  .col-qty,
+  .col-disc {
+    width: 4.5rem;
+  }
+
+  .edit-lines-table td input.form-control-sm.text-end {
+    min-width: 4.5rem;
+  }
+
+  .pay-mode-cell {
+    min-width: 120px;
+  }
+
+  .edit-lines-table input.form-control-sm {
+    min-width: 3.5rem;
+  }
+}

@@ -1,0 +1,150 @@
+<div class="ss-backdrop" (click)="close()"></div>
+<div class="ss-wrap" (click)="close()">
+  <div class="ss-card card-pharma" (click)="$event.stopPropagation()">
+    <div class="ss-head">
+      <div>
+        <h5 class="mb-0 fw-bold"><i class="bi bi-bell me-2 text-warning"></i>Short Stock</h5>
+        <div class="small text-secondary">
+          Stock below minimum · default minimum {{ defaultMin() }} units · sorted by last {{ salesMonths() }} months sales
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="close()"></button>
+    </div>
+
+    <div class="ss-toolbar">
+      <div class="ss-search">
+        <i class="bi bi-search"></i>
+        <input
+          type="search"
+          class="form-control form-control-sm"
+          placeholder="Search product"
+          [ngModel]="search()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </div>
+      @if (!loading()) {
+        <div class="ss-stats small">
+          <span><b>{{ rows().length }}</b> short</span>
+          <span class="text-danger"><b>{{ outOfStock() }}</b> out of stock</span>
+        </div>
+      }
+    </div>
+
+    @if (toast()) {
+      <div class="alert alert-success py-2 mx-3 mt-2 mb-0 small">{{ toast() }}</div>
+    }
+    @if (error()) {
+      <div class="alert alert-danger py-2 mx-3 mt-2 mb-0 small">{{ error() }}</div>
+    }
+
+    <div class="ss-body">
+      @if (loading()) {
+        <div class="text-center py-5 text-secondary">
+          <span class="spinner-border spinner-border-sm me-2"></span> Loading short stock…
+        </div>
+      } @else if (!filtered().length) {
+        <div class="text-center py-5 text-secondary">
+          <i class="bi bi-check2-circle fs-2 d-block mb-2 text-success"></i>
+          @if (search().trim()) { No products match “{{ search().trim() }}”. } @else { All products are above their minimum inventory levels. }
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0 ss-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Pack</th>
+                <th class="text-end">Sold ({{ salesMonths() }}M)</th>
+                <th class="text-end">Available</th>
+                <th class="text-end col-min">Minimum Qty</th>
+                @if (canEdit()) { <th class="text-end col-act"></th> }
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of visible(); track r.id; let i = $index) {
+                <tr [class.row-ok]="!r.is_low">
+                  <td class="text-secondary">{{ i + 1 }}</td>
+                  <td>
+                    <div class="fw-semibold">{{ r.product_name }}</div>
+                    @if (!r.is_low) { <span class="ss-badge ok">Above minimum</span> }
+                  </td>
+                  <td class="text-nowrap">{{ r.pack_size || '—' }}</td>
+                  <td class="text-end">{{ r.sold_qty }}</td>
+                  <td class="text-end">
+                    <span class="stock-pill" [class.out]="r.available_qty <= 0" [class.ok]="!r.is_low">{{ r.available_qty }}</span>
+                  </td>
+                  <td class="text-end">
+                    @if (canEdit()) {
+                      <div class="d-inline-flex align-items-center gap-1">
+                        @if (!r.is_custom) { <span class="ss-badge" title="Universal default">Default</span> }
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          class="form-control form-control-sm text-end min-input"
+                          [ngModel]="r.draft"
+                          (ngModelChange)="setDraft(r.id, $event)"
+                          (keydown.enter)="saveMin(r)"
+                        />
+                      </div>
+                    } @else {
+                      {{ r.min_qty }}
+                      @if (!r.is_custom) { <span class="ss-badge ms-1">Default</span> }
+                    }
+                  </td>
+                  @if (canEdit()) {
+                    <td class="text-end text-nowrap">
+                      @if (r.saving) {
+                        <span class="spinner-border spinner-border-sm text-secondary"></span>
+                      } @else {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-pharma"
+                          title="Save minimum"
+                          [disabled]="!isDirty(r)"
+                          (click)="saveMin(r)"
+                        >
+                          <i class="bi bi-check-lg"></i>
+                        </button>
+                        @if (r.is_custom) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-light border ms-1"
+                            [title]="'Reset to default (' + defaultMin() + ')'"
+                            (click)="resetMin(r)"
+                          >
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                          </button>
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (visible().length < filtered().length) {
+          <div class="text-center py-2">
+            <button type="button" class="btn btn-sm btn-light border" (click)="showMore()">
+              Show more ({{ filtered().length - visible().length }} left)
+            </button>
+          </div>
+        }
+      }
+    </div>
+
+    <div class="ss-foot">
+      <span class="small text-secondary d-none d-sm-inline">Quantities are in units (tablets / pieces), same as stock.</span>
+      <div class="d-flex gap-2 ms-auto">
+        <button type="button" class="btn btn-light border btn-sm" (click)="close()">Close</button>
+        @if (canGenerateOrder()) {
+          <a routerLink="/app/purchase-order" [queryParams]="{ auto: 1 }" class="btn btn-pharma btn-sm" (click)="close()">
+            <i class="bi bi-lightning-charge me-1"></i> Generate Order
+          </a>
+        }
+      </div>
+    </div>
+  </div>
+</div>

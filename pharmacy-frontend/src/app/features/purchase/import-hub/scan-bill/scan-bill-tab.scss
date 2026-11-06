@@ -1,0 +1,265 @@
+:host {
+  display: block;
+
+  // Global .card-pharma { overflow:hidden } clips the distributor panel over the table.
+  .card-pharma,
+  .row,
+  [class^='col-'] {
+    overflow: visible !important;
+  }
+
+  .card-pharma:has(.distributor-combo.open) {
+    position: relative;
+    z-index: 80;
+  }
+
+  .row:has(.distributor-combo.open) {
+    position: relative;
+    z-index: 90;
+  }
+}
+
+.scan-bill {
+  .upload-table-wrap {
+    max-height: min(62vh, 640px);
+    overflow: auto;
+  }
+
+  .card-pharma:has(.upload-table-wrap) {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.req { color: #dc2626; }
+
+.distributor-combo {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+
+  &.open { z-index: 120; }
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 34px;
+    padding: 0.25rem 0.65rem;
+    border: 1.5px solid #94a3b8;
+    border-radius: 0.45rem;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+    &:focus {
+      border-color: var(--pharma-primary, #0d9488);
+      box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.15);
+      outline: none;
+    }
+  }
+
+  &__value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+
+    &.placeholder {
+      color: #64748b;
+      font-weight: 500;
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #0d9488;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+
+    .bi-x-circle {
+      color: #94a3b8;
+      &:hover { color: #dc2626; }
+    }
+  }
+
+  &__panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    max-height: min(320px, 50vh);
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem;
+    border-bottom: 1px solid #f1f5f9;
+
+    i { color: #94a3b8; flex-shrink: 0; }
+
+    input {
+      border: 0 !important;
+      box-shadow: none !important;
+      outline: none !important;
+      padding-left: 0;
+    }
+  }
+
+  &__list {
+    overflow: auto;
+    max-height: 230px;
+  }
+
+  &__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.82rem;
+    color: #0f172a;
+
+    &:hover,
+    &.active {
+      background: #f0fdfa;
+      color: #0f766e;
+    }
+  }
+
+  &__empty {
+    padding: 0.7rem;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    text-align: center;
+  }
+
+  &__item--new {
+    border-top: 1px solid #e2e8f0;
+    color: var(--pharma-primary, #0d9488);
+    font-weight: 600;
+    background: #f0fdfa;
+
+    &:hover {
+      background: #ccfbf1;
+      color: #0f766e;
+    }
+  }
+}
+
+.upload-purchase-table {
+  font-size: 0.78rem;
+  th {
+    white-space: nowrap;
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  input.form-control-sm,
+  select.form-select-sm {
+    min-width: 4.5rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .upload-purchase-table {
+    font-size: 0.72rem;
+  }
+}
+
+.pack-select {
+  min-width: 6.5rem;
+  max-width: 9rem;
+}
+
+.pack-select-wrap {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+
+  &.open { z-index: 80; }
+
+  .pack-size-drop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    max-height: 200px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+    z-index: 200;
+
+    li {
+      padding: 0.45rem 0.65rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0f172a;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      &:last-child { border-bottom: none; }
+      &:hover { background: #ecfdf5; color: #0f766e; }
+    }
+  }
+
+  .pack-size-drop--empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    z-index: 200;
+  }
+}
+
+.add-product-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  background: rgba(15, 23, 42, 0.45);
+  pointer-events: auto;
+}
+
+.add-product-dialog {
+  .modal-content,
+  .modal-body {
+    overflow: visible;
+  }
+}

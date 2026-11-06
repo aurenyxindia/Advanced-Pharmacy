@@ -1,0 +1,187 @@
+<div class="stock-adjustment">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h5 class="fw-bold mb-1"><i class="bi bi-sliders me-2"></i>Stock Adjustment</h5>
+      <p class="text-secondary small mb-0">
+        Enter physical count — stock is added or deducted from the difference (Retail parity). Syncs sales, purchase &amp; reports via live batch qty.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (canViewAudit()) {
+        <a class="btn btn-sm btn-outline-secondary" routerLink="/app/reports"
+          [queryParams]="{ report: 'stockAdjAudit' }" title="Who adjusted what, when, from which IP and why">
+          <i class="bi bi-shield-check me-1"></i> Audit Log
+        </a>
+      }
+      <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving() || changedCount() === 0" (click)="save()">
+        @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        <i class="bi bi-check2-circle me-1"></i> Save Adjustment
+        @if (changedCount() > 0) { <span class="badge text-bg-light ms-1">{{ changedCount() }}</span> }
+      </button>
+    </div>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+  @if (toast()) { <div class="alert alert-success py-2">{{ toast() }}</div> }
+
+  <div class="card-pharma p-3 mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="sa-label">Adjustment type</label>
+        <select class="form-select form-select-sm" [ngModel]="adjustmentType()" (ngModelChange)="adjustmentType.set($event)">
+          @for (t of adjustmentTypes; track t.value) {
+            <option [value]="t.value">{{ t.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-7">
+        <label class="sa-label">Search product / batch</label>
+        <div class="input-group input-group-sm">
+          <input class="form-control" placeholder="Product or batch"
+            [ngModel]="searchText()" (ngModelChange)="searchText.set($event)"
+            (keydown.enter)="onSearch()" />
+          <button type="button" class="btn btn-outline-secondary" (click)="onSearch()" title="Search">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-12 col-md-2">
+        <button type="button" class="btn btn-sm btn-outline-primary w-100" (click)="load()" [disabled]="loading()">
+          <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+        </button>
+      </div>
+
+      <div class="col-12">
+        <div class="sa-reason" [class.is-missing]="reasonTouched() && missingReasonCount() > 0">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+            <label class="sa-label mb-0" for="saReason">
+              Reason <span class="text-danger">*</span>
+              <span class="sa-hint">applies to every adjusted product unless a row has its own reason</span>
+            </label>
+            <span class="sa-count">{{ remarks().length }}/{{ reasonMax }}</span>
+          </div>
+          <textarea #reasonBox id="saReason" rows="2" class="form-control"
+            [class.is-invalid]="reasonTouched() && missingReasonCount() > 0"
+            [attr.maxlength]="reasonMax"
+            placeholder="Why is stock being adjusted? e.g. Physical count — 2 strips found damaged in rack B3"
+            [ngModel]="remarks()" (ngModelChange)="remarks.set($event)"
+            (blur)="reasonTouched.set(true)"></textarea>
+          @if (reasonTouched() && missingReasonCount() > 0) {
+            <div class="invalid-feedback d-block">
+              Reason is required — {{ missingReasonCount() }} adjusted product{{ missingReasonCount() === 1 ? '' : 's' }} without a reason.
+            </div>
+          }
+          <div class="sa-chips">
+            <span class="sa-chips-label">Quick pick:</span>
+            @for (q of quickReasons; track q) {
+              <button type="button" class="sa-chip" [class.active]="remarks() === q" (click)="pickReason(q)">{{ q }}</button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive sa-table-wrap" (scroll)="onPackTableScroll()">
+      <table class="table table-sm align-middle mb-0 sa-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Batch</th>
+            <th>Pack</th>
+            <th>Expiry</th>
+            <th>Shelf</th>
+            <th class="text-end">System (units)</th>
+            <th class="text-end">System (packs)</th>
+            <th class="text-end">Physical (units)</th>
+            <th class="text-end">Physical (packs)</th>
+            <th class="text-end">Diff (units)</th>
+            <th class="text-end">Diff (packs)</th>
+            <th>Reason <span class="text-danger">*</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="12" class="text-center py-4 text-secondary">
+              <span class="spinner-border spinner-border-sm me-2"></span>Loading stock…
+            </td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="12" class="text-center py-4 text-secondary">
+              No stock found. Add opening stock or purchase first.
+            </td></tr>
+          } @else {
+            @for (row of rows(); track row.batch_id) {
+              <tr [class.table-warning]="unitDiff(row) !== 0 || packDiff(row) !== 0">
+                <td>
+                  <div class="fw-semibold sa-name">{{ row.p_name }}</div>
+                  @if (row.m_name) { <div class="tiny text-secondary">{{ row.m_name }}</div> }
+                </td>
+                <td>{{ row.batch_no }}</td>
+                <td class="sa-pack-cell">
+                  <div class="pack-select-wrap pack-select-wrap--line"
+                    [class.open]="openPackBatchId() === row.batch_id">
+                    <input class="form-control form-control-sm sa-pack-input text-uppercase"
+                      [attr.data-pack-batch]="row.batch_id"
+                      [ngModel]="linePackDisplay(row)"
+                      (ngModelChange)="onPackSearchInput(row, $event)"
+                      (focus)="openPackDropdown(row, $event)"
+                      (click)="openPackBatchId() !== row.batch_id && openPackDropdown(row, $event)"
+                      (blur)="onPackSearchBlur(row)"
+                      placeholder="Pack"
+                      autocomplete="off"
+                      title="Pack size (same as purchase form)" />
+                  </div>
+                  <div class="tiny text-secondary mt-1">U/Pk {{ unitsPerPack(row) }}</div>
+                </td>
+                <td class="text-nowrap">{{ row.expiry ? (row.expiry | date: 'MM/yyyy') : '—' }}</td>
+                <td>{{ row.shelf || '—' }}</td>
+                <td class="text-end">{{ row.system_unit_qty }}</td>
+                <td class="text-end">{{ row.system_qty }}</td>
+                <td class="text-end">
+                  <input type="number" min="0" step="1" class="form-control form-control-sm sa-qty"
+                    [ngModel]="row.physical_unit_qty"
+                    (ngModelChange)="onPhysicalUnitsChange(row, $event)" />
+                </td>
+                <td class="text-end">
+                  <input type="number" min="0" step="1" class="form-control form-control-sm sa-qty"
+                    [ngModel]="row.physical_qty"
+                    (ngModelChange)="onPhysicalPacksChange(row, $event)" />
+                </td>
+                <td class="text-end fw-semibold"
+                  [class.text-success]="unitDiff(row) > 0"
+                  [class.text-danger]="unitDiff(row) < 0">
+                  {{ unitDiff(row) > 0 ? '+' : '' }}{{ unitDiff(row) }}
+                </td>
+                <td class="text-end fw-semibold"
+                  [class.text-success]="packDiff(row) > 0"
+                  [class.text-danger]="packDiff(row) < 0">
+                  {{ packDiff(row) > 0 ? '+' : '' }}{{ packDiff(row) }}
+                </td>
+                <td>
+                  <input class="form-control form-control-sm sa-row-reason" [attr.maxlength]="reasonMax"
+                    [placeholder]="remarks().trim() ? 'Same as main reason' : (isChanged(row) ? 'Reason required' : 'Own reason (optional)')"
+                    [class.is-invalid]="reasonTouched() && isChanged(row) && needsReason(row)"
+                    [ngModel]="row.reason" (ngModelChange)="onReasonChange(row, $event)" />
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fixed pack list — escapes table overflow clipping -->
+  @if (openPackRow(); as packRow) {
+    @if (filteredPackSizes().length > 0) {
+      <ul class="sa-pack-float" [ngStyle]="packDropStyle()">
+        @for (p of filteredPackSizes(); track p.pack) {
+          <li (mousedown)="selectPackSize(packRow, p); $event.preventDefault()">{{ packLabel(p) }}</li>
+        }
+      </ul>
+    } @else {
+      <div class="sa-pack-float sa-pack-float--empty" [ngStyle]="packDropStyle()">No pack size found</div>
+    }
+  }
+</div>

@@ -1,0 +1,17 @@
+:host {
+  display: block;
+  .card-pharma, .wr-entry-card, .row, [class^='col-'] { overflow: visible !important; }
+}
+.wr-entry-card.menu-open { position: relative; z-index: 40; }
+.wr-combo { position: relative; &.open { z-index: 50; } }
+.wr-combo-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 60;
+  max-height: 220px; overflow: auto; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 0.45rem; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14); min-width: 14rem;
+}
+.wr-combo-item {
+  display: block; width: 100%; border: 0; background: transparent; text-align: left;
+  padding: 0.4rem 0.55rem; font-size: 0.8rem;
+  &:hover { background: #f0fdfa; color: #0f766e; }
+}
+.wr-combo-empty { padding: 0.65rem; font-size: 0.78rem; color: #94a3b8; text-align: center; }

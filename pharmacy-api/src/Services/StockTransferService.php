@@ -68,38 +68,41 @@ final class StockTransferService
                     throw HttpException::notFound("Source product (binding {$sourceBindingId}) not found in the from-branch.");
                 }
 
-                [$batchNo, $cost] = $this->consumeSource($db, $clientId, $fromBranch, $sourceBindingId, $qty);
-
-                // Bind to destination branch and credit stock.
+                // Consume FEFO at source and credit the same batches (MRP / expiry / PTR / PTS) at destination.
+                $moves = $this->consumeSource($db, $clientId, $fromBranch, $sourceBindingId, $qty);
                 $destBind = $this->binder->bind($clientId, $toBranch, (int) $binding['master_product_id']);
-                $this->inventory->addStock(
-                    $clientId,
-                    $toBranch,
-                    (int) $destBind['id'],
-                    (string) ($batchNo ?: 'TRF'),
-                    null,
-                    0.0,
-                    $cost,
-                    $qty,
-                    null,
-                    0,
-                    0,
-                    'transfer_in',
-                    $data['transfer_date'] ?? date('Y-m-d'),
-                    'transfer',
-                    null
-                );
+                $txnDate = $data['transfer_date'] ?? date('Y-m-d');
 
-                $lineValue = $cost * $qty;
-                $totalValue += $lineValue;
-                $computed[] = [
-                    'master_product_id' => (int) $binding['master_product_id'],
-                    'product_name'      => $binding['product_name'],
-                    'batch_no'          => $batchNo,
-                    'quantity'          => $qty,
-                    'cost_per_unit'     => round($cost, 4),
-                    'line_value'        => round($lineValue, 2),
-                ];
+                foreach ($moves as $move) {
+                    $this->inventory->addStock(
+                        $clientId,
+                        $toBranch,
+                        (int) $destBind['id'],
+                        (string) ($move['batch_no'] !== '' ? $move['batch_no'] : 'TRF'),
+                        $move['expiry_date'],
+                        (float) $move['mrp'],
+                        (float) $move['purchase_rate'],
+                        (int) $move['quantity'],
+                        $move['shelf_location'],
+                        (float) $move['ptr'],
+                        (float) $move['pts'],
+                        'transfer_in',
+                        $txnDate,
+                        'transfer',
+                        null
+                    );
+
+                    $lineValue = (float) $move['purchase_rate'] * (int) $move['quantity'];
+                    $totalValue += $lineValue;
+                    $computed[] = [
+                        'master_product_id' => (int) $binding['master_product_id'],
+                        'product_name'      => $binding['product_name'],
+                        'batch_no'          => $move['batch_no'],
+                        'quantity'          => (int) $move['quantity'],
+                        'cost_per_unit'     => round((float) $move['purchase_rate'], 4),
+                        'line_value'        => round($lineValue, 2),
+                    ];
+                }
             }
 
             $transferNo = $data['transfer_no'] ?? ('TRF-' . time());
@@ -136,11 +139,15 @@ final class StockTransferService
         });
     }
 
-    /** Consume qty from a branch's batches FEFO. Returns [primaryBatchNo, weightedCost]. */
+    /**
+     * Consume qty from a branch's batches FEFO.
+     * @return list<array{batch_no:string,quantity:int,purchase_rate:float,mrp:float,ptr:float,pts:float,expiry_date:?string,shelf_location:?string}>
+     */
     private function consumeSource(PDO $db, int $clientId, int $branchId, int $bindingId, int $qty): array
     {
         $stmt = $db->prepare(
-            'SELECT id, batch_no, quantity, purchase_rate FROM inventory_batches
+            'SELECT id, batch_no, quantity, purchase_rate, mrp, ptr, pts, expiry_date, shelf_location
+             FROM inventory_batches
              WHERE client_id = :c AND branch_id = :b AND product_binding_id = :p AND quantity > 0
              ORDER BY (expiry_date IS NULL), expiry_date ASC, id ASC'
         );
@@ -153,18 +160,30 @@ final class StockTransferService
         }
 
         $remaining = $qty;
-        $costAccum = 0.0;
-        $primaryBatch = null;
+        $moves = [];
         foreach ($batches as $batch) {
-            if ($remaining <= 0) break;
+            if ($remaining <= 0) {
+                break;
+            }
             $take = min($remaining, (int) $batch['quantity']);
-            $costAccum += $take * (float) $batch['purchase_rate'];
-            $primaryBatch ??= $batch['batch_no'];
             $this->inventory->reduceBatch((int) $batch['id'], $take, 'transfer_out', date('Y-m-d'), 'transfer', null);
+            $exp = $batch['expiry_date'] ?? null;
+            $moves[] = [
+                'batch_no' => (string) ($batch['batch_no'] ?? ''),
+                'quantity' => $take,
+                'purchase_rate' => (float) ($batch['purchase_rate'] ?? 0),
+                'mrp' => (float) ($batch['mrp'] ?? 0),
+                'ptr' => (float) ($batch['ptr'] ?? 0),
+                'pts' => (float) ($batch['pts'] ?? 0),
+                'expiry_date' => $exp !== null && $exp !== '' ? substr((string) $exp, 0, 10) : null,
+                'shelf_location' => isset($batch['shelf_location']) && $batch['shelf_location'] !== ''
+                    ? (string) $batch['shelf_location']
+                    : null,
+            ];
             $remaining -= $take;
         }
         $this->inventory->bumpAggregate($clientId, $branchId, $bindingId, -$qty);
 
-        return [$primaryBatch, $qty > 0 ? $costAccum / $qty : 0.0];
+        return $moves;
     }
 }

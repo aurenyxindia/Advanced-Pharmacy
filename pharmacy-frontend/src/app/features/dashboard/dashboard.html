@@ -1,4 +1,5 @@
 <div class="dashboard">
+  <app-diwali-theme />
   <!-- Header -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
@@ -47,13 +48,13 @@
       </div>
       <div class="col-lg-5">
         <div class="card-pharma h-100">
-          <div class="card-head bg-danger-soft d-flex justify-content-between">
+          <div class="card-head bg-expiry-mgmt d-flex justify-content-between">
             <span><i class="bi bi-hourglass-split me-2"></i>Expiry Management</span>
             <a routerLink="/app/reports" class="view-more">View More</a>
           </div>
           <div class="p-3">
             <div class="row g-2 text-center">
-              <div class="col-4"><div class="exp-tile"><b class="text-danger">{{ k.expired_count }}</b><span>Expired</span></div></div>
+              <div class="col-4"><div class="exp-tile"><b class="exp-expired">{{ k.expired_count }}</b><span>Expired</span></div></div>
               <div class="col-4"><div class="exp-tile"><b class="text-warning">{{ data()?.expiry_buckets?.within_30 || 0 }}</b><span>&le; 30 days</span></div></div>
               <div class="col-4"><div class="exp-tile"><b class="text-info">{{ k.expiring_count }}</b><span>&le; 90 days</span></div></div>
             </div>
@@ -66,6 +67,282 @@
         </div>
       </div>
     </div>
+
+    <!-- Minimum Inventory Alert (Retail mi_trigger) -->
+    <div class="row g-3 mb-3">
+      <div class="col-12">
+        <div class="card-pharma">
+          <div class="card-head bg-min-inventory d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>
+              <i class="bi bi-bell me-2"></i>Minimum Inventory Alert
+              @if (!miLoading() && miTotal()) {
+                <span class="badge bg-light text-danger ms-1">{{ miTotal() }}</span>
+              }
+            </span>
+            <span class="d-flex flex-wrap align-items-center gap-3">
+              @if (!miLoading() && miTotal()) {
+                <button type="button" class="btn btn-sm btn-light mi-view-all" (click)="miShowAll.set(true)">
+                  <i class="bi bi-list-ul me-1"></i>View All ({{ miTotal() }})
+                </button>
+                @if (canViewReports()) {
+                  <a
+                    routerLink="/app/reports"
+                    [queryParams]="{ report: 'shortStock', export: 'view' }"
+                    class="btn btn-sm btn-light mi-view-all"
+                    title="View Short Stock Report (PDF / Excel)"
+                  >
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Report
+                  </a>
+                }
+              }
+              <a routerLink="/app/opening-stock" class="view-more">Set Minimum</a>
+              @if (canGenerateOrder()) {
+                <a routerLink="/app/purchase-order" [queryParams]="{ auto: 1 }" class="view-more">
+                  <i class="bi bi-arrow-right me-1"></i>Generate Order
+                </a>
+              }
+            </span>
+          </div>
+          <div class="p-2">
+            @if (miLoading()) {
+              <div class="text-center py-3 text-secondary small">
+                <span class="spinner-border spinner-border-sm me-2"></span> Loading alerts…
+              </div>
+            } @else if (!miAlerts().length) {
+              <div class="text-center py-3 text-secondary small">
+                <i class="bi bi-check2-circle text-success me-1"></i>
+                All products are above their minimum inventory levels.
+              </div>
+            } @else {
+              <div class="table-responsive mi-alert-table">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Product</th>
+                      <th class="text-end">Sold ({{ miSalesMonths() }}M)</th>
+                      <th class="text-end">Available Qty</th>
+                      <th class="text-end">Minimum Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of miAlerts(); track row.id; let i = $index) {
+                      <tr>
+                        <td class="text-secondary small">{{ i + 1 }}</td>
+                        <td class="fw-semibold small">{{ row.product_name }}</td>
+                        <td class="text-end small">{{ row.sold_qty }}</td>
+                        <td class="text-end small fw-bold text-danger">{{ row.available_qty }}</td>
+                        <td class="text-end small">{{ row.min_qty }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (miTotal() > miAlerts().length) {
+                <div class="small text-secondary px-2 pt-2">
+                  Showing top {{ miAlerts().length }} most-sold of {{ miTotal() }} short products.
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expiry Loss — simple -->
+    <div class="row g-3 mb-3">
+      <div class="col-12">
+        <div class="card-pharma expiry-loss-card">
+          <div class="card-head bg-expiry-loss d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-hourglass-bottom me-2"></i>Expired Stock Loss</span>
+            <span class="expiry-loss-hint">Money lost because medicines expired</span>
+          </div>
+          <div class="p-3">
+            <div class="row g-2">
+              @for (period of expiryPeriods(); track period.key) {
+                <div class="col-md-4">
+                  <div class="simple-card">
+                    <div class="simple-card-title">{{ period.label }}</div>
+                    <div class="simple-line">
+                      <span>Stock quantity expired</span>
+                      <b>{{ period.data.qty }}</b>
+                    </div>
+                    <div class="simple-line">
+                      <span>What you paid for them</span>
+                      <b class="amt-bad">{{ period.data.purchase_value | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                    <div class="simple-line">
+                      <span>What customers would pay (MRP)</span>
+                      <b class="amt-bad">{{ period.data.sale_value | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                    <div class="simple-line total-loss">
+                      <span>Total loss on expiry</span>
+                      <b class="amt-bad">{{ period.data.expiry_loss | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            @if (expiryLoss(); as total) {
+              <div class="simple-total-bar mt-3">
+                <div>
+                  <span>All expired stock now</span>
+                  <b>{{ total.all_expired.qty }} units</b>
+                </div>
+                <div>
+                  <span>Total money lost (cost)</span>
+                  <b class="amt-bad">{{ total.all_expired.expiry_loss | currency:'INR':'symbol':'1.0-0' }}</b>
+                </div>
+                <div>
+                  <span>Total sales missed (MRP)</span>
+                  <b class="amt-bad">{{ total.all_expired.revenue_loss | currency:'INR':'symbol':'1.0-0' }}</b>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profit & Discount — simple -->
+    @if (profitAnalytics(); as pa) {
+      <div class="row g-3 mb-3">
+        <div class="col-12">
+          <div class="card-pharma">
+            <div class="card-head bg-profit-analytics d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-cash-coin me-2"></i>Profit &amp; Discount (easy view)</span>
+              <span class="expiry-loss-hint">Discount given = profit you did not keep</span>
+            </div>
+            <div class="p-3">
+              <div class="row g-3">
+                <div class="col-lg-5">
+                  <div class="simple-card highlight-box">
+                    <div class="simple-card-title">This month at a glance</div>
+                    <div class="big-stat">
+                      <span>Profit you earned</span>
+                      <b [class]="moneyClass(pa.month.profit)">{{ pa.month.profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                    <div class="big-stat soft">
+                      <span>Profit if no discount was given</span>
+                      <b [class]="moneyClass(pa.month.expected_profit)">{{ pa.month.expected_profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                    <div class="big-stat loss-box">
+                      <span>Lost because of discount</span>
+                      <b class="amt-bad">{{ pa.month.missed_profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                    </div>
+                    <div class="simple-two mt-3">
+                      <div>
+                        <span>This month profit</span>
+                        <b [class]="moneyClass(pa.month.profit)">{{ pa.month.profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                      <div>
+                        <span>Last 3 months profit</span>
+                        <b [class]="moneyClass(pa.three_months.profit)">{{ pa.three_months.profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-lg-3">
+                  <div class="simple-card h-100">
+                    <div class="simple-card-title">OTC vs Prescription</div>
+                    <p class="simple-note">Which type of medicine made more profit this month</p>
+                    @for (c of pa.by_channel; track c.channel) {
+                      <div class="simple-channel">
+                        <strong>{{ c.channel === 'OTC' ? 'OTC (no Rx)' : 'Prescription' }}</strong>
+                        <div class="simple-line">
+                          <span>Profit</span>
+                          <b [class]="moneyClass(c.profit)">{{ c.profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                        </div>
+                        <div class="simple-line">
+                          <span>Lost on discount</span>
+                          <b class="amt-bad">{{ c.discount_loss | currency:'INR':'symbol':'1.0-0' }}</b>
+                        </div>
+                      </div>
+                    } @empty {
+                      <p class="text-secondary small mb-0">No sales this month.</p>
+                    }
+                  </div>
+                </div>
+
+                <div class="col-lg-4">
+                  <div class="simple-card h-100">
+                    <div class="simple-card-title">By product category</div>
+                    <div class="table-responsive cat-profit-table">
+                      <table class="table table-sm mb-0">
+                        <thead>
+                          <tr>
+                            <th>Category</th>
+                            <th class="text-end">Profit</th>
+                            <th class="text-end">Discount loss</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (c of pa.by_product_category; track c.category) {
+                            <tr>
+                              <td>{{ c.category }}</td>
+                              <td class="text-end fw-semibold" [ngClass]="moneyClass(c.profit)">{{ c.profit | currency:'INR':'symbol':'1.0-0' }}</td>
+                              <td class="text-end amt-bad">{{ c.discount_loss | currency:'INR':'symbol':'1.0-0' }}</td>
+                            </tr>
+                          } @empty {
+                            <tr><td colspan="3" class="text-center text-secondary py-3">No sales yet.</td></tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="chart-box xs mt-2"><app-chart [config]="profitMonthlyConfig()" /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- HO: store-wise — simple -->
+    @if (isHo() && storeAnalytics().length) {
+      <div class="row g-3 mb-3">
+        <div class="col-12">
+          <div class="card-pharma">
+            <div class="card-head bg-store-analytics">
+              <i class="bi bi-shop-window me-2"></i>Each store — profit &amp; expiry loss
+            </div>
+            <div class="p-3">
+              <div class="row g-2">
+                @for (s of storeAnalytics(); track s.branch_id) {
+                  <div class="col-md-6 col-xl-4">
+                    <div class="store-card">
+                      <div class="store-card-head">
+                        <strong>{{ s.name }}</strong>
+                        <span class="badge text-bg-light">{{ s.code }}</span>
+                      </div>
+                      <div class="simple-line">
+                        <span>This month profit</span>
+                        <b [class]="moneyClass(s.month_profit)">{{ s.month_profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                      <div class="simple-line">
+                        <span>Lost on discount</span>
+                        <b class="amt-bad">{{ s.missed_profit | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                      <div class="simple-line">
+                        <span>Expired stock loss</span>
+                        <b class="amt-bad">{{ s.expiry_loss | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                      <div class="simple-line">
+                        <span>Month sales</span>
+                        <b>{{ s.month_sales | currency:'INR':'symbol':'1.0-0' }}</b>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Row 2: trend + distributor -->
     <div class="row g-3 mb-3">
@@ -132,3 +409,7 @@
     </div>
   }
 </div>
+
+@if (miShowAll()) {
+  <app-short-stock-modal (closed)="miShowAll.set(false)" (changed)="loadMinInventoryAlerts()" />
+}

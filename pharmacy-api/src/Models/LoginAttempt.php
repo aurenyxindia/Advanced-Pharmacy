@@ -22,6 +22,22 @@ final class LoginAttempt extends Model
         return (int) ($row['c'] ?? 0);
     }
 
+    /** Seconds until the oldest failure in the window ages out (lock ends). */
+    public function lockRemainingSeconds(string $key, int $decaySeconds): int
+    {
+        $row = $this->rawOne(
+            "SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age
+             FROM `{$this->table}`
+             WHERE attempt_key = :k AND successful = 0
+               AND created_at > (NOW() - INTERVAL :decay SECOND)
+             ORDER BY created_at ASC
+             LIMIT 1",
+            ['k' => $key, 'decay' => $decaySeconds]
+        );
+        $age = (int) ($row['age'] ?? 0);
+        return max(1, $decaySeconds - $age);
+    }
+
     public function log(string $key, string $email, bool $successful, string $ip): void
     {
         $this->insert([

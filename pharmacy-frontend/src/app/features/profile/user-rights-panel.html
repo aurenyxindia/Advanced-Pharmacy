@@ -1,0 +1,189 @@
+<div class="user-rights-panel">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h5 class="fw-semibold mb-1"><i class="bi bi-shield-check me-2 text-pharma"></i>User Rights</h5>
+      <p class="text-secondary small mb-0">Create staff logins and assign View / Edit / Delete per module</p>
+    </div>
+    @if (!showForm()) {
+      <div class="d-flex flex-wrap gap-2">
+        <input type="text" class="form-control form-control-sm" placeholder="Search user…"
+          [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        <button type="button" class="btn btn-pharma btn-sm" (click)="openCreate()">
+          <i class="bi bi-plus-lg me-1"></i> Create User
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadUsers()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (message()) {
+    <div class="alert py-2" [class.alert-success]="messageType() === 'success'" [class.alert-danger]="messageType() === 'error'">
+      {{ message() }}
+    </div>
+  }
+
+  @if (showForm()) {
+    <div class="card card-pharma mb-3">
+      <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ form().id ? 'Edit User' : 'Create User' }}</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelForm()">Close</button>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Staff Name <span class="text-danger">*</span></label>
+            <input class="form-control form-control-sm" [ngModel]="form().name" (ngModelChange)="patchForm({ name: $event })" />
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Registration No.</label>
+            <input class="form-control form-control-sm" [ngModel]="form().reg_no" (ngModelChange)="patchForm({ reg_no: $event })" />
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Contact No.</label>
+            <input class="form-control form-control-sm" [ngModel]="form().phone" (ngModelChange)="patchForm({ phone: $event })" />
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Login Email <span class="text-danger">*</span></label>
+            <input class="form-control form-control-sm" [ngModel]="form().email" (ngModelChange)="patchForm({ email: $event })" autocomplete="off" />
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Password @if (!form().id) { <span class="text-danger">*</span> }</label>
+            <input type="password" class="form-control form-control-sm" [ngModel]="form().password"
+              (ngModelChange)="patchForm({ password: $event })" autocomplete="new-password"
+              [placeholder]="form().id ? 'Leave blank to keep current' : ''" />
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Role</label>
+            <select class="form-select form-select-sm" [ngModel]="form().staff_role" (ngModelChange)="patchForm({ staff_role: $event })">
+              <option value="pharmacist">Pharmacist</option>
+              <option value="purchase">Non-Pharmacist (Purchase)</option>
+              <option value="cashier">Cashier</option>
+              <option value="delivery">Delivery staff (rider app)</option>
+            </select>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Branch <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [ngModel]="form().branch_id" (ngModelChange)="patchForm({ branch_id: +$event })">
+              <option [ngValue]="0" disabled>Select branch</option>
+              @for (b of branches(); track b.id) {
+                <option [ngValue]="b.id">{{ b.code }} — {{ b.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="form-label small">Joining Date</label>
+            <input type="date" class="form-control form-control-sm" [ngModel]="form().joining_date"
+              (ngModelChange)="patchForm({ joining_date: $event })" />
+          </div>
+          <div class="col-12">
+            <label class="form-label small">Address</label>
+            <input class="form-control form-control-sm" [ngModel]="form().address" (ngModelChange)="patchForm({ address: $event })" />
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <h6 class="mb-0 fw-semibold">Module Rights</h6>
+          <div class="d-flex flex-wrap gap-1">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleColumn('can_view', true)">All View</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleColumn('can_edit', true)">All Edit</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleColumn('can_delete', true)">All Delete</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleColumn('can_view', false)">Clear All</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-3">
+            <thead class="table-light">
+              <tr>
+                <th>Module</th>
+                <th class="text-center">View</th>
+                <th class="text-center">Edit</th>
+                <th class="text-center">Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of form().rights; track r.module_code) {
+                <tr>
+                  <td>
+                    <div class="fw-medium">{{ r.module_name }}</div>
+                    @if (r.module_code === 'RETURN_NOTE') {
+                      <div class="small text-secondary mt-1">
+                        Access includes Debit Note, Credit Note, and Retail Sales Return
+                      </div>
+                    }
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" [checked]="!!r.can_view"
+                      (change)="r.can_view = $any($event.target).checked ? 1 : 0; onRightChange(r, 'can_view')" />
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" [checked]="!!r.can_edit"
+                      (change)="r.can_edit = $any($event.target).checked ? 1 : 0; onRightChange(r, 'can_edit')" />
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" [checked]="!!r.can_delete"
+                      (change)="r.can_delete = $any($event.target).checked ? 1 : 0; onRightChange(r, 'can_delete')" />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-pharma btn-sm" [disabled]="saving()" (click)="save()">
+            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Save User & Rights
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelForm()" [disabled]="saving()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="card card-pharma">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Reg. No</th>
+                <th>Contact</th>
+                <th>Login</th>
+                <th>Role</th>
+                <th>Rights</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loading()) {
+                <tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm text-pharma"></span></td></tr>
+              } @else if (!filteredUsers().length) {
+                <tr><td colspan="8" class="text-center text-secondary py-4">No users yet. Click Create User.</td></tr>
+              } @else {
+                @for (u of filteredUsers(); track u.id; let i = $index) {
+                  <tr>
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ u.name }}</td>
+                    <td>{{ u.reg_no || '—' }}</td>
+                    <td>{{ u.phone || '—' }}</td>
+                    <td><code class="small">{{ u.email }}</code></td>
+                    <td><span class="badge text-bg-light border">{{ roleLabel(u.role) }}</span></td>
+                    <td class="small">{{ rightsSummary(u) }}</td>
+                    <td class="text-center text-nowrap">
+                      <button type="button" class="btn btn-outline-primary btn-sm me-1" (click)="openEdit(u)"><i class="bi bi-pencil"></i></button>
+                      <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteUser(u)"><i class="bi bi-trash"></i></button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>

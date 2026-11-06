@@ -29,11 +29,11 @@ return [
 
     'rate_limit' => [
         'max_attempts'  => (int) Env::get('RATE_LIMIT_MAX_ATTEMPTS', 5),
-        'decay_seconds' => (int) Env::get('RATE_LIMIT_DECAY_SECONDS', 300),
+        'decay_seconds' => (int) Env::get('RATE_LIMIT_DECAY_SECONDS', 30),
     ],
 
     'upload' => [
-        'max_mb'        => (int) Env::get('UPLOAD_MAX_MB', 10),
+        'max_mb'        => (int) Env::get('UPLOAD_MAX_MB', 50),
         'allowed_mimes' => ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
     ],
 ];

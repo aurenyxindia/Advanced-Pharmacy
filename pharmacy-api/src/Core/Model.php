@@ -125,7 +125,7 @@ abstract class Model
         string $orderBy = 'id DESC'
     ): array {
         $page    = max(1, $page);
-        $perPage = max(1, min(200, $perPage));
+        $perPage = max(1, min(5000, $perPage));
         $offset  = ($page - 1) * $perPage;
 
         $clauses  = [];

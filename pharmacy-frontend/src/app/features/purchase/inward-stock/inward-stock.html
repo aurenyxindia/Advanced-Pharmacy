@@ -1,0 +1,264 @@
+<div class="inward-stock">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">
+        <i class="bi bi-box-arrow-in-down me-2 text-info"></i>Inward Stock
+      </h4>
+      <p class="text-secondary mb-0 small">
+        Shared bills from Paperless — approve to add a Purchase Report entry (stock inward).
+        PO No = source order · Distributor = medical name.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a routerLink="/app/purchase" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Purchase Report
+      </a>
+      <button type="button" class="btn btn-pharma btn-sm" (click)="reload()" [disabled]="loading()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  @if (toast()) {
+    <div class="alert alert-success py-2">{{ toast() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  <div class="filter-pills mb-3">
+    <button type="button" class="pill" [class.active]="statusFilter() === 'pending'" (click)="setFilter('pending')">Pending</button>
+    <button type="button" class="pill" [class.active]="statusFilter() === 'approved'" (click)="setFilter('approved')">Approved</button>
+    <button type="button" class="pill" [class.active]="statusFilter() === 'rejected'" (click)="setFilter('rejected')">Rejected</button>
+    <button type="button" class="pill" [class.active]="statusFilter() === 'all'" (click)="setFilter('all')">All</button>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0 inward-table purchase-log-table">
+        <thead>
+          <tr>
+            <th>PO No</th>
+            <th>Invoice No</th>
+            <th>Invoice Date</th>
+            <th>Distributor</th>
+            <th>C / D</th>
+            <th class="text-end">Net Total</th>
+            <th class="text-end">Discount</th>
+            <th class="text-end">Tax</th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">Balance</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">View</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="12" class="text-center py-4 text-secondary">
+                <span class="spinner-border spinner-border-sm me-2"></span> Loading…
+              </td>
+            </tr>
+          } @else if (!rows().length) {
+            <tr>
+              <td colspan="12" class="text-center py-5 text-secondary">
+                <i class="bi bi-inbox fs-3 d-block mb-2 opacity-50"></i>
+                No {{ statusFilter() === 'all' ? '' : statusFilter() + ' ' }}shared bills yet.
+              </td>
+            </tr>
+          } @else {
+            @for (r of rows(); track r.id) {
+              <tr>
+                <td class="fw-semibold">{{ r.po_no || r.source_order_no }}</td>
+                <td>{{ r.invoice_no || r.source_order_no }}</td>
+                <td class="text-nowrap">{{ (r.invoice_date || r.order_date) | date: 'dd-MM-yyyy' }}</td>
+                <td>{{ r.distributor || r.source_medical_name || r.source_host || '—' }}</td>
+                <td><span class="badge text-bg-light">{{ r.cash_credit || '—' }}</span></td>
+                <td class="text-end fw-semibold">{{ r.net_amt | number: '1.2-2' }}</td>
+                <td class="text-end">{{ r.discount_amt | number: '1.2-2' }}</td>
+                <td class="text-end">{{ r.gst_amt | number: '1.2-2' }}</td>
+                <td class="text-end">{{ paidOf(r) | number: '1.2-2' }}</td>
+                <td class="text-end" [class.text-danger]="balanceOf(r) > 0">{{ balanceOf(r) | number: '1.2-2' }}</td>
+                <td class="text-center">
+                  <span class="status-badge" [class]="statusBadge(r.status)">{{ r.status }}</span>
+                </td>
+                <td class="text-center">
+                  <div class="d-inline-flex flex-wrap gap-1 justify-content-center">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-success"
+                      title="View"
+                      (click)="openDetail(r)"
+                    >
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    @if (r.status === 'pending') {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-approve"
+                        [disabled]="actingId() === r.id"
+                        (click)="approve(r, $event)"
+                      >
+                        @if (actingId() === r.id) {
+                          <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                          Approve
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-reject"
+                        [disabled]="actingId() === r.id"
+                        (click)="reject(r, $event)"
+                      >
+                        Reject
+                      </button>
+                    } @else if (r.status === 'approved' && r.target_purchase_id) {
+                      <a
+                        class="btn btn-sm btn-outline-secondary"
+                        [routerLink]="['/app/purchase']"
+                        [queryParams]="{ view: r.target_purchase_id }"
+                        title="Open in Purchase Report"
+                      >
+                        Purchase
+                      </a>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@if (detailOpen()) {
+  <div class="modal-backdrop-custom" (click)="closeDetail()"></div>
+  <div class="modal-custom">
+    <div class="modal-card card-pharma" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0">Inward bill details</h5>
+          @if (detail(); as d) {
+            <div class="small text-secondary">PO {{ d.po_no || d.source_order_no }} · {{ d.status }}</div>
+          }
+        </div>
+        <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (detailLoading()) {
+          <div class="text-center py-4 text-secondary">
+            <span class="spinner-border spinner-border-sm me-2"></span> Loading…
+          </div>
+        } @else if (detail(); as d) {
+          <div class="row g-2 mb-3 small">
+            <div class="col-6 col-md-3"><span class="text-secondary">PO No</span><div class="fw-semibold">{{ d.po_no || d.source_order_no }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Invoice No</span><div class="fw-semibold">{{ d.invoice_no || d.source_order_no }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Distributor</span><div class="fw-semibold">{{ d.distributor || d.source_medical_name || '—' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">C / D</span><div class="fw-semibold">{{ d.cash_credit || '—' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Date</span><div class="fw-semibold">{{ (d.invoice_date || d.order_date) | date: 'dd-MM-yyyy' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Taxable</span><div class="fw-semibold">{{ d.taxable | number: '1.2-2' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Discount</span><div class="fw-semibold">{{ d.discount_amt | number: '1.2-2' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Tax</span><div class="fw-semibold">{{ d.gst_amt | number: '1.2-2' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Net</span><div class="fw-semibold">₹ {{ d.net_amt | number: '1.2-2' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Paid</span><div class="fw-semibold">{{ paidOf(d) | number: '1.2-2' }}</div></div>
+            <div class="col-6 col-md-3"><span class="text-secondary">Balance</span><div class="fw-semibold" [class.text-danger]="balanceOf(d) > 0">{{ balanceOf(d) | number: '1.2-2' }}</div></div>
+            @if (d.bill_type) {
+              <div class="col-6 col-md-3"><span class="text-secondary">Bill type</span><div class="fw-semibold">{{ d.bill_type }}</div></div>
+            }
+            @if (d.bill_narration && d.bill_narration !== '--') {
+              <div class="col-12"><span class="text-secondary">Narration</span><div class="fw-semibold">{{ d.bill_narration }}</div></div>
+            }
+          </div>
+
+          @if (d.warnings?.length) {
+            <div class="alert alert-warning py-2 small">
+              @for (w of d.warnings; track w) {
+                <div>{{ w }}</div>
+              }
+            </div>
+          }
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 inward-item-table">
+              <thead class="table-light">
+                <tr>
+                  <th>HSN</th>
+                  <th>Product</th>
+                  <th>Mfr</th>
+                  <th>Batch</th>
+                  <th>Expiry</th>
+                  <th>Pack</th>
+                  <th class="text-end">P Qty</th>
+                  <th class="text-end">F Qty</th>
+                  <th class="text-end">T Qty</th>
+                  <th class="text-end">Rate</th>
+                  <th class="text-end">PTR</th>
+                  <th class="text-end">Disc%</th>
+                  <th class="text-end">GST%</th>
+                  <th class="text-end">MRP</th>
+                  <th class="text-end">Taxable</th>
+                  <th class="text-end">Tax</th>
+                  <th class="text-end">Net</th>
+                  <th>Shelf</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of d.items; track $index) {
+                  <tr>
+                    <td class="small font-monospace">{{ itemHsn(it) || '—' }}</td>
+                    <td class="fw-semibold">
+                      {{ itemName(it) }}
+                      @if (itemCategory(it)) {
+                        <div class="small text-secondary">{{ itemCategory(it) }}</div>
+                      }
+                    </td>
+                    <td class="small">{{ itemMfr(it) || '—' }}</td>
+                    <td>{{ itemBatch(it) || '—' }}</td>
+                    <td class="text-nowrap">{{ itemExpiry(it) }}</td>
+                    <td>{{ itemPack(it) || '—' }}</td>
+                    <td class="text-end">{{ itemQty(it) }}</td>
+                    <td class="text-end">{{ itemFree(it) }}</td>
+                    <td class="text-end">{{ itemTotalQty(it) }}</td>
+                    <td class="text-end">{{ itemRate(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemPtr(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemDiscPct(it) }}</td>
+                    <td class="text-end">{{ itemGst(it) }}</td>
+                    <td class="text-end">{{ itemMrp(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemTaxable(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemTax(it) | number: '1.2-2' }}</td>
+                    <td class="text-end fw-semibold">{{ itemNet(it) | number: '1.2-2' }}</td>
+                    <td>{{ itemShelf(it) || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (d.status === 'pending') {
+            <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+              <button type="button" class="btn btn-reject" [disabled]="actingId() === d.id" (click)="reject(d)">
+                <i class="bi bi-x-circle me-1"></i> Reject
+              </button>
+              <button type="button" class="btn btn-approve" [disabled]="actingId() === d.id" (click)="approve(d)">
+                <i class="bi bi-check2-circle me-1"></i> Approve → Purchase
+              </button>
+            </div>
+          } @else if (d.status === 'approved' && d.target_purchase_id) {
+            <div class="d-flex justify-content-end mt-3">
+              <a
+                class="btn btn-pharma btn-sm"
+                [routerLink]="['/app/purchase']"
+                [queryParams]="{ view: d.target_purchase_id }"
+              >
+                Open in Purchase Report
+              </a>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}

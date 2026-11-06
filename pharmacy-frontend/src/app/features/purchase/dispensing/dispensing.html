@@ -1,0 +1,458 @@
+<div class="dispensing">
+  @if (toast()) {
+    <div class="alert alert-success py-2 ds-toast d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill"></i><span>{{ toast() }}</span>
+    </div>
+  }
+
+  <div class="ds-header">
+    <div class="d-flex align-items-center gap-3">
+      <div class="ds-icon"><i class="bi bi-hospital"></i></div>
+      <div>
+        <h4 class="fw-bold mb-0">Hospital Dispensing</h4>
+        <p class="text-secondary mb-0 small">Issue shop stock to the attached hospital (OT, ward, ICU). No payment — amount is saved for record.</p>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-sm btn-pharma" [disabled]="pdfBusy()" (click)="openReportPdf()"
+        title="Opens the PDF in a new tab (History filters apply)">
+        @if (pdfBusy()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-file-earmark-pdf me-1"></i> }
+        Hospital Dispensing Report
+      </button>
+      @if (canViewReports()) {
+        <a class="btn btn-sm btn-outline-secondary" routerLink="/app/reports" [queryParams]="{ report: 'hospDispensing' }">
+          <i class="bi bi-file-earmark-bar-graph me-1"></i> Report
+        </a>
+      }
+      <a class="btn btn-sm btn-light border" routerLink="/app/purchase">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+    </div>
+  </div>
+
+  <div class="filter-pills mb-3">
+    <button type="button" class="pill" [class.active]="tab() === 'new'" (click)="setTab('new')">
+      <i class="bi bi-plus-lg me-1"></i> New Dispensing
+    </button>
+    <button type="button" class="pill" [class.active]="tab() === 'history'" (click)="setTab('history')">
+      <i class="bi bi-clock-history me-1"></i> History
+    </button>
+  </div>
+
+  <!-- ===================== NEW DISPENSING ===================== -->
+  @if (tab() === 'new') {
+    <div class="card-pharma p-3 mb-3">
+      <div class="ds-section-title"><i class="bi bi-clipboard2-pulse"></i> Dispensing details</div>
+      <div class="row g-2 g-md-3">
+        <div class="col-12 col-md-6 col-xl-4">
+          <label class="form-label ds-label" for="ds-hospital">Hospital <span class="text-danger">*</span></label>
+          <select
+            id="ds-hospital"
+            class="form-select form-select-sm"
+            [class.is-invalid]="!hospitalsLoading() && !hospitalId() && hospitals().length > 0 && !!error()"
+            [disabled]="hospitalsLoading()"
+            [ngModel]="hospitalId()"
+            (ngModelChange)="hospitalId.set($event)"
+          >
+            <option [ngValue]="null">{{ hospitalsLoading() ? 'Loading hospitals…' : 'Select hospital…' }}</option>
+            @for (h of hospitals(); track h.id) {
+              <option [ngValue]="h.id">{{ h.name }}{{ isDefault(h) ? '  (Default)' : '' }}</option>
+            }
+          </select>
+          @if (!hospitalsLoading() && !hospitals().length) {
+            <div class="ds-hint text-warning-emphasis">
+              <i class="bi bi-info-circle me-1"></i>No hospitals yet —
+              <a routerLink="/app/masters/hospitals">add one in Hospital Master</a>.
+            </div>
+          } @else {
+            <div class="ds-hint">
+              Default hospital is pre-selected. <a routerLink="/app/masters/hospitals">Manage hospitals</a>
+            </div>
+          }
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+          <label class="form-label ds-label" for="ds-patient">Patient name</label>
+          <input id="ds-patient" class="form-control form-control-sm" placeholder="Optional" maxlength="150" [(ngModel)]="patientName" />
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+          <label class="form-label ds-label" for="ds-dept">OT / Ward</label>
+          <input id="ds-dept" class="form-control form-control-sm" placeholder="e.g. OT" maxlength="100" list="ds-dept-list" [(ngModel)]="department" />
+          <datalist id="ds-dept-list">
+            @for (d of departments; track d) { <option [value]="d"></option> }
+          </datalist>
+        </div>
+        <div class="col-6 col-md-3 col-xl-3">
+          <label class="form-label ds-label">Date &amp; time</label>
+          <div class="form-control form-control-sm bg-light text-nowrap">{{ now() | date: 'dd-MM-yyyy hh:mm a' }}</div>
+        </div>
+        <div class="col-12 col-md-5 col-xl-12">
+          <label class="form-label ds-label" for="ds-remarks">Remarks</label>
+          <input id="ds-remarks" class="form-control form-control-sm" placeholder="Optional — e.g. surgery name, indent no." maxlength="255" [(ngModel)]="remarks" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card-pharma mb-3 ds-items-card">
+      <div class="ds-card-head">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="ds-section-title mb-0"><i class="bi bi-list-check"></i> Dispensing items</span>
+          <span class="small text-secondary">{{ totals().items }} batch line(s) · Qty <b>{{ totals().qty }}</b></span>
+        </div>
+        <div class="combo stock-combo" [class.open]="showStockDropdown()">
+          <div class="combo-input-wrap" (mousedown)="$event.stopPropagation()">
+            <i class="bi bi-search combo-input-icon"></i>
+            <input
+              id="ds-search"
+              type="search"
+              class="form-control form-control-sm combo-input"
+              placeholder="Search product / batch…"
+              autocomplete="off"
+              [disabled]="!canEdit()"
+              [ngModel]="searchTerm()"
+              (ngModelChange)="onSearch($event)"
+              (focus)="openStockDropdown()"
+              (keydown)="onSearchKeydown($event)"
+              (click)="openStockDropdown()"
+            />
+            <button
+              type="button"
+              class="combo-caret"
+              tabindex="-1"
+              [disabled]="!canEdit()"
+              (click)="toggleStockDropdown($event)"
+              [attr.aria-label]="showStockDropdown() ? 'Close' : 'Open'"
+            >
+              <i class="bi" [class.bi-chevron-up]="showStockDropdown()" [class.bi-chevron-down]="!showStockDropdown()"></i>
+            </button>
+          </div>
+          @if (showStockDropdown()) {
+            <div class="combo-panel shadow-pharma-lg" (click)="$event.stopPropagation()">
+              <div class="combo-list">
+                @if (stock().length > 0 || stockLoading()) {
+                  <div class="combo-list-meta text-secondary small px-2 py-1">{{ stockComboMeta() }}</div>
+                }
+                @if (stockLoading() && !stock().length) {
+                  <div class="combo-empty"><span class="spinner-border spinner-border-sm me-1"></span>Loading stock…</div>
+                } @else {
+                  @for (p of stock(); track p.binding_id; let i = $index) {
+                    <button
+                      type="button"
+                      class="combo-item"
+                      [class.active-item]="i === highlight()"
+                      (mouseenter)="highlight.set(i)"
+                      (mousedown)="pickStockProduct(p, $event)"
+                    >
+                      <span class="fw-semibold">{{ p.product_name }}</span>
+                      @if (stockSecondary(p); as sec) {
+                        <span class="fw-normal text-secondary">{{ sec }}</span>
+                      }
+                    </button>
+                    @for (b of batchesFor(p.binding_id); track b.batch_id) {
+                      <button
+                        type="button"
+                        class="combo-item combo-item-batch"
+                        [class.batch-match]="batchMatchesSearch(b)"
+                        (mousedown)="pickStockBatch(p, b, $event)"
+                      >
+                        <span class="batch-line">
+                          <i class="bi bi-upc me-1"></i>{{ b.batch_no }}
+                          <span class="text-secondary">
+                            · Exp {{ b.expiry_date ? (b.expiry_date | date: 'MM/yy') : '—' }}
+                            · Avl {{ b.quantity }}
+                          </span>
+                        </span>
+                      </button>
+                    }
+                    @if (isBatchesLoading(p.binding_id) && !batchesReady(p.binding_id)) {
+                      <div class="combo-batch-loading text-secondary small px-3 py-1">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Loading batches…
+                      </div>
+                    }
+                  } @empty {
+                    <div class="combo-empty">
+                      @if (searchTerm().trim()) {
+                        No stock matches “{{ searchTerm().trim() }}”
+                      } @else {
+                        No stock available
+                      }
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 ds-table">
+          <thead>
+            <tr>
+              <th class="col-sr">#</th>
+              <th>Product</th>
+              <th class="col-batch">Batch</th>
+              <th>Expiry</th>
+              <th class="text-end">Avl.</th>
+              <th class="text-end col-qty">Qty</th>
+              <th class="text-end">MRP</th>
+              <th class="text-end col-disc">Disc %</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end col-act"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of lines(); track lineTrack(l, i); let i = $index) {
+              <tr [class.table-danger]="overStock(l)">
+                <td class="text-secondary">{{ i + 1 }}</td>
+                <td>
+                  <div class="fw-semibold">{{ l.product_name }}</div>
+                  <div class="small text-secondary">{{ l.pack || '—' }}{{ l.mfg ? ' · ' + l.mfg : '' }}</div>
+                  @if (l.batches.length > 1) {
+                    <div class="tiny text-teal">{{ l.batches.length }} batches in stock</div>
+                  }
+                </td>
+                <td>
+                  <select class="form-select form-select-sm" [ngModel]="l.batch_id" (ngModelChange)="setBatch(i, $event)">
+                    @for (b of l.batches; track b.batch_id) {
+                      <option [ngValue]="b.batch_id">{{ formatBatchLabel(b) }}</option>
+                    }
+                  </select>
+                </td>
+                <td class="text-nowrap">{{ batchOf(l)?.expiry_date ? (batchOf(l)!.expiry_date | date: 'MM/yy') : '—' }}</td>
+                <td class="text-end">{{ available(l) }}</td>
+                <td class="text-end">
+                  <input type="number" min="1" class="form-control form-control-sm text-end qty-input"
+                    [class.is-invalid]="!(l.qty > 0) || overStock(l)"
+                    [ngModel]="l.qty" (ngModelChange)="setQty(i, $event)" />
+                </td>
+                <td class="text-end text-nowrap">{{ unitMrp(l) | number: '1.2-2' }}</td>
+                <td class="text-end">
+                  <input type="number" min="0" max="100" class="form-control form-control-sm text-end disc-input"
+                    [ngModel]="l.disc" (ngModelChange)="setDisc(i, $event)" />
+                </td>
+                <td class="text-end fw-semibold text-nowrap">{{ lineAmount(l) | number: '1.2-2' }}</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-light border text-danger" title="Remove" (click)="removeLine(i)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="text-center py-5 text-secondary">
+                <i class="bi bi-capsule fs-2 d-block mb-2 opacity-50"></i>
+                No products added. Search shop stock above and pick a product or batch.
+              </td></tr>
+            }
+          </tbody>
+          @if (lines().length) {
+            <tfoot>
+              <tr class="ds-total-row">
+                <td colspan="5" class="text-end">Total</td>
+                <td class="text-end">{{ totals().qty }}</td>
+                <td colspan="2"></td>
+                <td class="text-end">₹{{ totals().amount | number: '1.2-2' }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-danger py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle"></i><span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="ds-action-bar">
+      <div class="small text-secondary">
+        <span class="badge text-bg-light border me-1"><i class="bi bi-cash-coin me-1"></i>No payment</span>
+        Amount <b class="text-dark">₹{{ totals().amount | number: '1.2-2' }}</b> saved for record · stock reduces batch-wise.
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-light border" [disabled]="saving()" (click)="clearForm()">Clear</button>
+        @if (canEdit()) {
+          <button type="button" class="btn btn-pharma" [disabled]="saving() || !lines().length" (click)="save()">
+            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-save me-1"></i> }
+            Save Dispensing
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ===================== HISTORY ===================== -->
+  @if (tab() === 'history') {
+    <div class="ds-kpis mb-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-clipboard2-pulse"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Dispensings</span><b class="kpi-value">{{ historyLoading() ? '—' : historyTotals().count }}</b></div>
+      </div>
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Total Qty</span><b class="kpi-value">{{ historyLoading() ? '—' : historyTotals().qty }}</b></div>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon"><i class="bi bi-currency-rupee"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Amount (record)</span><b class="kpi-value">{{ historyLoading() ? '—' : (historyTotals().amount | number: '1.2-2') }}</b></div>
+      </div>
+    </div>
+
+    <div class="card-pharma p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label ds-label">Search</label>
+          <div class="input-icon">
+            <i class="bi bi-search"></i>
+            <input type="search" class="form-control form-control-sm" placeholder="No, product, patient or OT / ward"
+              [(ngModel)]="histSearch" (input)="onHistorySearch()" />
+          </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label ds-label">From</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="histFrom" (change)="loadHistory()" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label ds-label">To</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="histTo" (change)="loadHistory()" />
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label ds-label">Hospital</label>
+          <select class="form-select form-select-sm" [(ngModel)]="histHospital" (ngModelChange)="loadHistory()">
+            <option [ngValue]="null">All hospitals</option>
+            @for (h of hospitals(); track h.id) { <option [ngValue]="h.id">{{ h.name }}</option> }
+          </select>
+        </div>
+        <div class="col-12 col-md-6 col-lg-2 d-grid">
+          <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pdfBusy()" (click)="openReportPdf()">
+            @if (pdfBusy()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-file-earmark-pdf me-1"></i> }
+            PDF Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (historyError()) {
+      <div class="alert alert-danger py-2">{{ historyError() }}</div>
+    }
+
+    <div class="card-pharma">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 ds-table">
+          <thead>
+            <tr>
+              <th>Dispensing No</th>
+              <th>Date &amp; Time</th>
+              <th>Hospital</th>
+              <th>Patient</th>
+              <th>OT / Ward</th>
+              <th>Products / Batches</th>
+              <th class="text-end">Items</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">Amount</th>
+              <th>User</th>
+              <th class="text-end col-act"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (historyLoading()) {
+              <tr><td colspan="11" class="text-center py-5 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+            } @else {
+              @for (r of history(); track r.dispensing_no) {
+                <tr>
+                  <td class="fw-semibold text-nowrap">{{ r.dispensing_no }}</td>
+                  <td class="text-nowrap">{{ r.dispensed_at.replace(' ', 'T') | date: 'dd-MM-yyyy hh:mm a' }}</td>
+                  <td>{{ r.hospital_name }}</td>
+                  <td>{{ r.patient_name || '—' }}</td>
+                  <td>{{ r.department || '—' }}</td>
+                  <td class="small hist-batches">{{ r.batch_summary || '—' }}</td>
+                  <td class="text-end">{{ r.items }}</td>
+                  <td class="text-end">{{ r.total_qty }}</td>
+                  <td class="text-end fw-semibold text-nowrap">{{ r.amount | number: '1.2-2' }}</td>
+                  <td class="small">{{ r.user_name }}</td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-light border" title="View" (click)="openDetail(r)"><i class="bi bi-eye"></i></button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="11" class="text-center py-5 text-secondary">
+                  <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>No dispensing found for the selected filters.
+                </td></tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- ===================== VIEW MODAL ===================== -->
+@if (detailOpen()) {
+  <div class="modal-backdrop-custom" (click)="closeDetail()"></div>
+  <div class="modal-custom" (click)="closeDetail()">
+    <div class="modal-card card-pharma" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0 fw-bold">Dispensing</h5>
+          @if (detail(); as d) { <div class="small text-secondary">{{ d.dispensing_no }}</div> }
+        </div>
+        <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (detailLoading()) {
+          <div class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        } @else if (detail(); as d) {
+          <div class="detail-grid mb-3">
+            <div><span>Dispensing No</span><b>{{ d.dispensing_no }}</b></div>
+            <div><span>Date &amp; Time</span><b>{{ d.dispensed_at.replace(' ', 'T') | date: 'dd-MM-yyyy hh:mm a' }}</b></div>
+            <div><span>Hospital</span><b>{{ d.hospital_name }}</b></div>
+            <div><span>Patient</span><b>{{ d.patient_name || '—' }}</b></div>
+            <div><span>OT / Ward</span><b>{{ d.department || '—' }}</b></div>
+            <div><span>Dispensed by</span><b>{{ d.user_name }}</b></div>
+            @if (d.remarks) { <div class="wide"><span>Remarks</span><b>{{ d.remarks }}</b></div> }
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 ds-table">
+              <thead>
+                <tr>
+                  <th class="col-sr">#</th>
+                  <th>Product</th>
+                  <th>Batch</th>
+                  <th>Expiry</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">MRP</th>
+                  <th class="text-end">Disc %</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of d.items; track $index; let i = $index) {
+                  <tr>
+                    <td class="text-secondary">{{ i + 1 }}</td>
+                    <td><div class="fw-semibold">{{ it.product_name }}</div><div class="small text-secondary">{{ it.pack_size }}</div></td>
+                    <td>{{ it.batch_no }}</td>
+                    <td class="text-nowrap">{{ it.expiry_date ? (it.expiry_date | date: 'MM/yy') : '—' }}</td>
+                    <td class="text-end">{{ it.qty }}</td>
+                    <td class="text-end">{{ it.unit_mrp | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ it.discount_pct }}</td>
+                    <td class="text-end fw-semibold">{{ it.amount | number: '1.2-2' }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="ds-total-row">
+                  <td colspan="7" class="text-end">Total (record only)</td>
+                  <td class="text-end">₹{{ d.amount | number: '1.2-2' }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-light border" (click)="closeDetail()">Close</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,100 @@
+@if (showIcon()) {
+  <button
+    type="button"
+    class="aura-ai-floating-icon"
+    [class.dragging]="fabDragging()"
+    [class.on-left]="fabOnLeft()"
+    [ngStyle]="fabStyle()"
+    (pointerdown)="onFabPointerDown($event)"
+    (click)="onFabClick()"
+    aria-label="Open AuraAI (drag to move)"
+  >
+    <img class="aura-ai-float-icon" src="assets/aura-ai-icon.svg" width="28" height="28" alt="" />
+    <span class="aura-ai-tooltip">
+      <span class="aura-ai-brand">AuraAI</span>
+      <span class="aura-ai-label">Drug info · Dose · Side effects · Brands</span>
+      <span class="aura-ai-label">Drag to move</span>
+    </span>
+  </button>
+}
+
+<div
+  #chatWidget
+  class="aura-ai-widget"
+  [class.minimized]="isMinimized()"
+  [class.hidden]="showIcon()"
+  [class.maximized]="isMaximized()"
+  [class.dragging]="dragging"
+  [ngStyle]="widgetStyle()"
+>
+  <div class="aura-ai-header">
+    <div
+      class="aura-ai-drag-handle"
+      (pointerdown)="onDragHandlePointerDown($event)"
+      title="Drag to move"
+    >
+      <img class="aura-ai-header-icon" src="assets/aura-ai-icon.svg" width="24" height="24" alt="" />
+      <div class="aura-ai-title">
+        <span class="aura-ai-brand">AuraAI</span>
+        <span class="aura-ai-sub">Pharmacy Assistant</span>
+      </div>
+      <i class="bi bi-grip-vertical aura-ai-grip" aria-hidden="true"></i>
+    </div>
+    <div class="aura-ai-header-actions">
+      <button
+        type="button"
+        class="aura-ai-header-btn"
+        (click)="toggleMaximize()"
+        [title]="isMaximized() ? 'Restore size' : 'Maximize'"
+      >
+        <i class="bi" [ngClass]="isMaximized() ? 'bi-fullscreen-exit' : 'bi-fullscreen'"></i>
+      </button>
+      <button type="button" class="aura-ai-header-btn" (click)="toggleMinimize()" title="Minimize">
+        <i class="bi bi-dash-lg"></i>
+      </button>
+      <button type="button" class="aura-ai-header-btn" (click)="closeChat()" title="Close">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
+  @if (!isMinimized()) {
+    <div class="aura-ai-body">
+      @if (!configured()) {
+        <div class="aura-ai-config-warn">
+          AuraAI is not configured on the server. Add OPENAI_API_KEY or GEMINI_API_KEY in API .env (same as Import Bill AI).
+        </div>
+      }
+      <div class="aura-ai-messages" #messagesContainer>
+        @for (msg of messages(); track $index) {
+          <div class="aura-ai-msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'" [class.error]="msg.error">
+            <div class="aura-ai-msg-bubble">
+              <span class="aura-ai-msg-text">{{ msg.content }}</span>
+            </div>
+          </div>
+        }
+        @if (isLoading()) {
+          <div class="aura-ai-msg assistant">
+            <div class="aura-ai-msg-bubble loading">
+              <span class="spinner-border spinner-border-sm me-2"></span> AuraAI is typing…
+            </div>
+          </div>
+        }
+      </div>
+      <div class="aura-ai-input-row">
+        <input
+          #messageInput
+          type="text"
+          class="aura-ai-input"
+          [(ngModel)]="userInput"
+          (keydown.enter)="send()"
+          placeholder="Ask about drug, dose, side effects, brand…"
+          [disabled]="isLoading() || !configured()"
+        />
+        <button type="button" class="aura-ai-send" (click)="send()" [disabled]="isLoading() || !userInput.trim() || !configured()">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </div>
+    </div>
+  }
+</div>

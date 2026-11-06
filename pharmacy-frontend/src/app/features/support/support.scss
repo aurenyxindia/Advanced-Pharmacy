@@ -1,0 +1,195 @@
+:host { display: block; }
+
+.form-label { font-weight: 500; font-size: 0.82rem; margin-bottom: 0.25rem; color: #334155; }
+
+.btn-outline-pharma {
+  color: var(--pharma-primary-dark, #0f766e);
+  border: 1px solid rgba(13, 148, 136, 0.45);
+  background: #fff;
+  &:hover { background: rgba(13, 148, 136, 0.08); color: var(--pharma-primary-dark, #0f766e); }
+}
+
+.spin { display: inline-block; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* KPIs */
+.kpi-mini { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+.kpi-icon {
+  width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem; color: #fff;
+  &.bg-slate { background: linear-gradient(135deg, #334155, #0f172a); }
+  &.bg-process { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+  &.bg-resolved { background: linear-gradient(135deg, var(--pharma-primary, #0d9488), var(--pharma-primary-dark, #0f766e)); }
+  &.bg-rejected { background: linear-gradient(135deg, #64748b, #475569); }
+}
+.kpi-val { font-size: 1.15rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+.kpi-lbl { font-size: 0.76rem; color: #64748b; }
+
+/* Table */
+.support-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 560px;
+
+  thead th {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8;
+    white-space: nowrap; padding: 0.5rem 0.6rem;
+  }
+  td { font-size: 0.8rem; padding: 0.4rem 0.6rem; }
+  .c-ticket { width: 128px; }
+  .c-status { width: 92px; }
+  .c-act { width: 84px; }
+  .c-open { width: 46px; }
+}
+.ticket-row { cursor: pointer; }
+.row-locked td { background: #f8fafc; }
+.cell-main, .cell-sub {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cell-main { color: #0f172a; line-height: 1.3; }
+.cell-sub { font-size: 0.72rem; color: #64748b; line-height: 1.3; }
+.cell-remark {
+  color: #334155; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.act-cell { font-size: 0.76rem; }
+.btn-open { padding: 0.15rem 0.45rem; }
+
+.status-badge {
+  display: inline-block; padding: 0.18rem 0.5rem; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; white-space: nowrap;
+  background: #f1f5f9; color: #334155;
+  &.st-generated { background: #f1f5f9; color: #334155; }
+  &.st-pending { background: #fef3c7; color: #92400e; }
+  &.st-process { background: #e0f2fe; color: #075985; }
+  &.st-resolved { background: #ccfbf1; color: #115e59; }
+  &.st-rejected { background: #fee2e2; color: #991b1b; }
+}
+
+.chat-count {
+  font-size: 0.8rem; color: #94a3b8; white-space: nowrap;
+  &.has-replies { color: var(--pharma-primary-dark, #0f766e); font-weight: 600; }
+}
+
+/* Modals */
+.modal-backdrop-custom { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1050; }
+.modal-custom {
+  position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 2rem 1rem; pointer-events: none; overflow-y: auto;
+}
+.modal-card { width: 100%; pointer-events: auto; }
+.new-card { max-width: 860px; }
+.view-card { max-width: 1180px; display: flex; flex-direction: column; max-height: calc(100vh - 4rem); }
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0;
+}
+.modal-body-custom { padding: 1.25rem; }
+.min-w-0 { min-width: 0; }
+.view-subject { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+
+.info-box {
+  background: #f0fdfa; border: 1px solid rgba(13, 148, 136, 0.18); border-radius: 0.75rem; padding: 1rem;
+  color: #134e4a;
+}
+
+.chip-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem; max-width: 100%;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px;
+  padding: 0.15rem 0.35rem 0.15rem 0.6rem; font-size: 0.75rem; color: #334155;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  button { border: 0; background: transparent; color: #64748b; font-size: 1rem; line-height: 1; padding: 0 0.2rem; }
+  button:hover { color: #0f172a; }
+}
+
+/* Detail view */
+.view-body {
+  display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+  min-height: 0; flex: 1 1 auto; overflow: hidden;
+}
+.view-side {
+  padding: 1rem 1.25rem; border-right: 1px solid #e2e8f0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.85rem;
+}
+.lbl {
+  display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+  color: #94a3b8; font-weight: 600; margin-bottom: 0.2rem;
+}
+.val { font-size: 0.86rem; color: #0f172a; }
+.info-grid { display: grid; gap: 0.6rem; }
+.text-box {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.6rem; padding: 0.6rem 0.75rem;
+  font-size: 0.86rem; color: #0f172a; white-space: pre-wrap; word-break: break-word;
+  max-height: 180px; overflow-y: auto;
+  &.remark { background: #f0fdfa; border-color: rgba(13, 148, 136, 0.2); color: #134e4a; }
+}
+.thumbs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.thumb {
+  width: 72px; height: 72px; border-radius: 0.5rem; border: 1px solid #e2e8f0; background: #f8fafc;
+  padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: zoom-in;
+  img { width: 100%; height: 100%; object-fit: cover; }
+  &.thumb-sm { width: 56px; height: 56px; }
+}
+.file-link {
+  display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.35rem 0.35rem 0 0; max-width: 100%;
+  border: 1px solid rgba(13, 148, 136, 0.3); background: #fff; color: var(--pharma-primary-dark, #0f766e);
+  border-radius: 0.45rem; padding: 0.2rem 0.55rem; font-size: 0.78rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  &:hover { background: rgba(13, 148, 136, 0.06); }
+}
+.admin-box {
+  border: 1px solid rgba(13, 148, 136, 0.25); border-radius: 0.75rem; padding: 0.85rem; background: #fff;
+}
+
+/* Chat */
+.chat { display: flex; flex-direction: column; min-height: 0; background: #f8fafc; }
+.chat-head {
+  padding: 0.7rem 1rem; font-weight: 600; font-size: 0.88rem; color: #0f172a;
+  border-bottom: 1px solid #e2e8f0; background: #fff;
+}
+.chat-messages {
+  flex: 1 1 auto; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.65rem;
+  min-height: 260px;
+}
+.chat-empty { margin: auto; text-align: center; color: #94a3b8; font-size: 0.86rem; }
+.bubble {
+  max-width: 82%; border-radius: 0.85rem; padding: 0.55rem 0.8rem; font-size: 0.86rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.bubble-client { align-self: flex-end; background: #fff; border: 1px solid #e2e8f0; border-bottom-right-radius: 0.25rem; }
+.bubble-admin {
+  align-self: flex-start; background: #f0fdfa; border: 1px solid rgba(13, 148, 136, 0.25);
+  border-bottom-left-radius: 0.25rem;
+}
+.bubble-meta {
+  display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.72rem; color: #64748b; margin-bottom: 0.2rem;
+  strong { color: #0f172a; }
+}
+.bubble-admin .bubble-meta strong { color: var(--pharma-primary-dark, #0f766e); }
+.bubble-text { white-space: pre-wrap; word-break: break-word; color: #0f172a; }
+.bubble-atts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; align-items: center; }
+.chat-composer { padding: 0.75rem 1rem; border-top: 1px solid #e2e8f0; background: #fff; }
+.chat-locked {
+  padding: 0.85rem 1rem; border-top: 1px solid #e2e8f0; background: #fff;
+  color: #64748b; font-size: 0.85rem; text-align: center;
+}
+
+.toast-custom {
+  position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border-radius: 0.7rem;
+  padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; max-width: calc(100vw - 2rem);
+}
+
+@media (max-width: 991.98px) {
+  .view-card { max-height: none; }
+  .view-body { grid-template-columns: 1fr; overflow: visible; }
+  .view-side { border-right: 0; border-bottom: 1px solid #e2e8f0; overflow: visible; }
+  .chat-messages { max-height: 55vh; }
+}
+
+@media (max-width: 575.98px) {
+  .modal-custom { padding: 0.5rem; }
+  .kpi-val { font-size: 1.1rem; }
+  .kpi-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 1rem; }
+  .bubble { max-width: 94%; }
+}

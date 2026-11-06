@@ -1,0 +1,1025 @@
+<div class="mr-page">
+  @if (flash(); as f) {
+    <div class="alert py-2 mr-toast d-flex align-items-center gap-2" [ngClass]="'alert-' + f.type">
+      <i class="bi" [ngClass]="f.type === 'success' ? 'bi-check-circle-fill' : f.type === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill'"></i>
+      <span>{{ f.text }}</span>
+    </div>
+  }
+
+  <div class="mr-header">
+    <div class="d-flex align-items-center gap-3 min-w-0">
+      <div class="mr-icon"><i class="bi bi-briefcase"></i></div>
+      <div class="min-w-0">
+        <h4 class="fw-bold mb-0">Medical Representative</h4>
+        <p class="text-secondary mb-0 small">Visits · Orders · Stock · Sales Monitor · Daily Reporting · Collections</p>
+      </div>
+    </div>
+    <div class="mr-meta">
+      <div><span>MR</span><b>{{ mrName() || '—' }}</b></div>
+      <div><span>Date</span><b>{{ today | date: 'dd-MM-yyyy' }}</b></div>
+    </div>
+  </div>
+
+  @if (blocked()) {
+    <div class="card-pharma p-4 text-center">
+      <i class="bi bi-shop fs-1 text-secondary opacity-50 d-block mb-2"></i>
+      <h5 class="fw-bold mb-1">Medical Representative Module</h5>
+      <p class="text-secondary mb-0">This module is available only for Wholesale / Both business types.</p>
+    </div>
+  } @else {
+    <div class="filter-pills mb-3">
+      <button type="button" class="pill" [class.active]="tab() === 'dashboard'" (click)="setTab('dashboard')"><i class="bi bi-grid-1x2 me-1"></i>Dashboard</button>
+      <button type="button" class="pill" [class.active]="tab() === 'visits'" (click)="setTab('visits')"><i class="bi bi-person-badge me-1"></i>Doctor Visits</button>
+      <button type="button" class="pill" [class.active]="tab() === 'orders'" (click)="setTab('orders')"><i class="bi bi-receipt me-1"></i>Orders / Quotation</button>
+      <button type="button" class="pill" [class.active]="tab() === 'stock'" (click)="setTab('stock')"><i class="bi bi-box-seam me-1"></i>Stock Follow-Up</button>
+      <button type="button" class="pill" [class.active]="tab() === 'monitor'" (click)="setTab('monitor')"><i class="bi bi-graph-up me-1"></i>Sales Monitor</button>
+      <button type="button" class="pill" [class.active]="tab() === 'reports'" (click)="setTab('reports')"><i class="bi bi-journal-text me-1"></i>Daily Report</button>
+      <button type="button" class="pill" [class.active]="tab() === 'outstanding'" (click)="setTab('outstanding')"><i class="bi bi-cash-stack me-1"></i>Outstanding</button>
+      <button type="button" class="pill" [class.active]="tab() === 'customers'" (click)="setTab('customers')"><i class="bi bi-people me-1"></i>Customers</button>
+    </div>
+
+    @if (tab() === 'visits' || tab() === 'orders' || tab() === 'stock' || tab() === 'monitor' || tab() === 'reports') {
+      <div class="mr-range mb-3">
+        <span class="mr-label mb-0">Period</span>
+        <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate" (change)="reloadRange()" aria-label="From" />
+        <span class="text-secondary small">to</span>
+        <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate" (change)="reloadRange()" aria-label="To" />
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="reloadRange()"><i class="bi bi-arrow-repeat me-1"></i>Load</button>
+      </div>
+    }
+
+    <!-- ===================== DASHBOARD ===================== -->
+    @if (tab() === 'dashboard') {
+      <div class="mr-kpis mb-3">
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon"><i class="bi bi-person-badge"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Visits Today</span><b class="kpi-value">{{ statsLoading() ? '—' : (stats()?.visits_today ?? 0) }}</b></div>
+        </div>
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Orders Today</span><b class="kpi-value">{{ statsLoading() ? '—' : (stats()?.orders_today ?? 0) }}</b></div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-icon"><i class="bi bi-currency-rupee"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Order Value</span><b class="kpi-value">{{ statsLoading() ? '—' : ((stats()?.order_value_today ?? 0) | number: '1.2-2') }}</b></div>
+        </div>
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Stock Checks</span><b class="kpi-value">{{ statsLoading() ? '—' : (stats()?.stock_checks_today ?? 0) }}</b></div>
+        </div>
+        <div class="kpi-card kpi-rose">
+          <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Open Outstanding</span><b class="kpi-value">{{ statsLoading() ? '—' : (stats()?.open_outstanding ?? 0) }}</b></div>
+        </div>
+        <div class="kpi-card kpi-slate">
+          <div class="kpi-icon"><i class="bi bi-people"></i></div>
+          <div class="kpi-body"><span class="kpi-label">Customers</span><b class="kpi-value">{{ statsLoading() ? '—' : (stats()?.customers ?? 0) }}</b></div>
+        </div>
+      </div>
+      <div class="card-pharma p-3">
+        <div class="mr-section-title"><i class="bi bi-signpost-split"></i> MR Workflow</div>
+        <ol class="mr-guide mb-0">
+          <li>Visit doctors / clinics — promote products, capture indications, dosage &amp; availability notes.</li>
+          <li>Take wholesaler orders — create an order or quotation against live medical stock.</li>
+          <li>Follow stock at pharmacy &amp; distributor — record availability, near-expiry, schemes.</li>
+          <li>Monitor secondary sales, returns, near-expiry &amp; outstanding.</li>
+          <li>Submit daily call / order / competitor report to the company.</li>
+        </ol>
+      </div>
+    }
+
+    <!-- ===================== VISITS ===================== -->
+    @if (tab() === 'visits') {
+      <div class="row g-3">
+        <div class="col-12 col-xl-6">
+          <form class="card-pharma p-3 h-100" (ngSubmit)="saveVisit()">
+            <div class="mr-section-title"><i class="bi bi-clipboard2-pulse"></i> Log Doctor / Clinic Visit</div>
+            @let ve = visitErrors();
+            <div class="row g-2">
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Visit Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" name="vd" [max]="today" [class.is-invalid]="ve['visit_date']" [(ngModel)]="visitForm.visit_date" />
+                @if (ve['visit_date']) { <div class="invalid-feedback">{{ ve['visit_date'] }}</div> }
+              </div>
+              <div class="col-6 col-md-8">
+                <label class="form-label mr-label">Doctor Name <span class="text-danger">*</span></label>
+                <input class="form-control form-control-sm" name="dn" placeholder="Dr. Name" maxlength="160" [class.is-invalid]="ve['doctor_name']" [(ngModel)]="visitForm.doctor_name" />
+                @if (ve['doctor_name']) { <div class="invalid-feedback">{{ ve['doctor_name'] }}</div> }
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label mr-label">Clinic / Hospital</label>
+                <input class="form-control form-control-sm" name="cl" maxlength="160" [class.is-invalid]="ve['clinic_name']" [(ngModel)]="visitForm.clinic_name" />
+                @if (ve['clinic_name']) { <div class="invalid-feedback">{{ ve['clinic_name'] }}</div> }
+              </div>
+              <div class="col-6 col-md-6">
+                <label class="form-label mr-label">Specialty</label>
+                <input class="form-control form-control-sm" name="sp" maxlength="120" [class.is-invalid]="ve['specialty']" [(ngModel)]="visitForm.specialty" />
+                @if (ve['specialty']) { <div class="invalid-feedback">{{ ve['specialty'] }}</div> }
+              </div>
+              <div class="col-6 col-md-6">
+                <label class="form-label mr-label">Area</label>
+                <input class="form-control form-control-sm" name="ar" maxlength="120" [class.is-invalid]="ve['area_name']" [(ngModel)]="visitForm.area_name" />
+                @if (ve['area_name']) { <div class="invalid-feedback">{{ ve['area_name'] }}</div> }
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label mr-label">Contact</label>
+                <input class="form-control form-control-sm" name="cn" maxlength="10" inputmode="numeric" placeholder="10-digit mobile"
+                  [class.is-invalid]="ve['contact_no']" [ngModel]="visitForm.contact_no" (input)="visitForm.contact_no = cleanPhone($event)" />
+                @if (ve['contact_no']) { <div class="invalid-feedback">{{ ve['contact_no'] }}</div> }
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Products Discussed</label>
+                <app-mr-stock-picker placeholder="Same stock as order — search product / batch" [disabled]="!canEdit()" (picked)="addDiscussed($event)" />
+                @if (discussed().length) {
+                  <div class="mr-chips mt-2">
+                    @for (p of discussed(); track p) {
+                      <span class="mr-chip">{{ p }} <button type="button" (click)="removeDiscussed(p)" aria-label="Remove">×</button></span>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Indications</label>
+                <textarea class="form-control form-control-sm" name="ind" rows="2" maxlength="1000" [(ngModel)]="visitForm.indications"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Dosage / Clinical Info</label>
+                <textarea class="form-control form-control-sm" name="dos" rows="2" maxlength="1000" [(ngModel)]="visitForm.dosage_notes"></textarea>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label mr-label">Availability</label>
+                <input class="form-control form-control-sm" name="av" maxlength="255" [(ngModel)]="visitForm.availability_notes" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label mr-label">Competitor Info</label>
+                <input class="form-control form-control-sm" name="ci" maxlength="255" [(ngModel)]="visitForm.competitor_info" />
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Next Visit</label>
+                <input type="date" class="form-control form-control-sm" name="nv" [min]="visitForm.visit_date" [class.is-invalid]="ve['next_visit_date']" [(ngModel)]="visitForm.next_visit_date" />
+                @if (ve['next_visit_date']) { <div class="invalid-feedback">{{ ve['next_visit_date'] }}</div> }
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Outcome</label>
+                <select class="form-select form-select-sm" name="oc" [(ngModel)]="visitForm.outcome">
+                  @for (o of outcomeOptions; track o) { <option [value]="o">{{ o }}</option> }
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Remarks</label>
+                <textarea class="form-control form-control-sm" name="rm" rows="2" maxlength="1000" [(ngModel)]="visitForm.remarks"></textarea>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="btn btn-sm btn-pharma" [disabled]="!canEdit() || savingVisit()">
+                @if (savingVisit()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-check2 me-1"></i> }
+                Save Visit
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="col-12 col-xl-6">
+          <div class="card-pharma h-100">
+            <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-clock-history"></i> Visit Log</span></div>
+            <div class="table-responsive">
+              <table class="table table-hover table-sm align-middle mb-0 mr-table">
+                <thead><tr><th>Date</th><th>Doctor</th><th>Clinic</th><th>Products</th><th>Outcome</th></tr></thead>
+                <tbody>
+                  @if (visitsLoading()) {
+                    <tr><td colspan="5" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+                  } @else {
+                    @for (v of visits(); track v.id) {
+                      <tr>
+                        <td class="text-nowrap">{{ v.visit_date | date: 'dd-MM-yyyy' }}</td>
+                        <td>
+                          <div class="fw-semibold">{{ v.doctor_name }}</div>
+                          @if (v.specialty || v.area_name) { <div class="small text-secondary">{{ v.specialty }}{{ v.specialty && v.area_name ? ' · ' : '' }}{{ v.area_name }}</div> }
+                        </td>
+                        <td>{{ v.clinic_name || '—' }}</td>
+                        <td class="small mr-clamp">{{ v.products_discussed || '—' }}</td>
+                        <td>@if (v.outcome) { <span class="badge text-bg-light border">{{ v.outcome }}</span> }</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="5" class="text-center py-4 text-secondary">No visits in range.</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== ORDERS ===================== -->
+    @if (tab() === 'orders') {
+      <div class="row g-3">
+        <div class="col-12 col-xxl-7">
+          <div class="card-pharma p-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+              <span class="mr-section-title mb-0"><i class="bi bi-receipt"></i> {{ editingId() ? 'Edit' : 'New' }} Order / Quotation</span>
+              <span class="badge rounded-pill text-bg-light border">Live medical stock billing</span>
+            </div>
+            @let oe = orderErrors();
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Order No</label>
+                <div class="form-control form-control-sm bg-light text-nowrap">{{ orderNo() || 'Auto generated' }}</div>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" [max]="today" [class.is-invalid]="oe['order_date']" [(ngModel)]="orderForm.order_date" />
+                @if (oe['order_date']) { <div class="invalid-feedback">{{ oe['order_date'] }}</div> }
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label mr-label">Customer <span class="text-danger">*</span> <span class="text-secondary text-lowercase">(wholesale only)</span></label>
+                <app-mr-customer-picker
+                  [customers]="customers()" [selectedId]="orderForm.customer_id" [selectedName]="orderForm.customer_name"
+                  [loading]="customersLoading()" [disabled]="!canEdit()" [invalid]="!!oe['customer']" [allowAdd]="canEdit()"
+                  (picked)="onOrderCustomerPicked($event)" (addNew)="openAddCustomer()" />
+                @if (oe['customer']) { <div class="text-danger small mt-1">{{ oe['customer'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Contact</label>
+                <input class="form-control form-control-sm" maxlength="10" inputmode="numeric" placeholder="10-digit mobile"
+                  [class.is-invalid]="oe['customer_contact']" [ngModel]="orderForm.customer_contact" (input)="orderForm.customer_contact = cleanPhone($event)" />
+                @if (oe['customer_contact']) { <div class="invalid-feedback">{{ oe['customer_contact'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Customer DL No</label>
+                <input class="form-control form-control-sm text-uppercase" maxlength="60" placeholder="Customer drug licence"
+                  [class.is-invalid]="oe['customer_dl_no']" [(ngModel)]="orderForm.customer_dl_no" />
+                @if (oe['customer_dl_no']) { <div class="invalid-feedback">{{ oe['customer_dl_no'] }}</div> }
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label mr-label">Order Type</label>
+                <select class="form-select form-select-sm" [(ngModel)]="orderForm.order_type">
+                  @for (o of orderTypeOptions; track o) { <option [value]="o">{{ o }}</option> }
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Address</label>
+                <input class="form-control form-control-sm" maxlength="255" [class.is-invalid]="oe['customer_address']" [(ngModel)]="orderForm.customer_address" />
+                @if (oe['customer_address']) { <div class="invalid-feedback">{{ oe['customer_address'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Expected Delivery Date</label>
+                <input type="date" class="form-control form-control-sm" [min]="orderForm.order_date" [class.is-invalid]="oe['expected_delivery_date']" [(ngModel)]="orderForm.expected_delivery_date" />
+                @if (oe['expected_delivery_date']) { <div class="invalid-feedback">{{ oe['expected_delivery_date'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Delivery Type</label>
+                <select class="form-select form-select-sm" [(ngModel)]="orderForm.delivery_type">
+                  @for (o of deliveryTypeOptions; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+                </select>
+              </div>
+            </div>
+
+            <div class="mr-stock-box mt-3">
+              <div class="mr-section-title mb-2"><i class="bi bi-box-seam"></i> Add From Current Medical Stock</div>
+              <app-mr-stock-picker placeholder="Same stock as wholesale sale billing — search product / batch"
+                [disabled]="!canEdit()" (picked)="selectStock($event)" />
+              <div class="mr-hint">Full product list from wholesale sale stock (available qty) with batch, pack, expiry, MRP, rate, PTR / PTS &amp; more.</div>
+
+              @if (selectedStock(); as s) {
+                <div class="detail-grid mt-2">
+                  <div class="wide"><span>Product</span><b>{{ s.p_name }}</b></div>
+                  <div><span>Pack Size</span><b>{{ s.pack_size || '—' }}</b></div>
+                  <div><span>Batch No</span><b>{{ s.batch_no }}</b></div>
+                  <div><span>Expiry</span><b>{{ s.expiry_date ? (s.expiry_date | date: 'MM/yy') : '—' }}</b></div>
+                  <div><span>Stock Qty (Strips)</span><b>{{ s.qty }}</b></div>
+                  <div><span>Units Qty</span><b>{{ s.units_qty }}</b></div>
+                  <div><span>MRP</span><b>{{ s.mrp | number: '1.2-2' }}</b></div>
+                  <div><span>Purchase Rate</span><b>{{ s.purchase_rate | number: '1.2-2' }}</b></div>
+                  <div><span>Sale Rate</span><b class="text-teal">{{ s.sale_rate | number: '1.2-2' }}</b></div>
+                  <div><span>PTR</span><b>{{ s.ptr | number: '1.2-2' }}</b></div>
+                  <div><span>PTS</span><b>{{ s.pts | number: '1.2-2' }}</b></div>
+                  <div><span>HSN</span><b>{{ s.hsn || '—' }}</b></div>
+                  <div><span>GST %</span><b>{{ s.gst }}%</b></div>
+                  <div><span>Manufacturer</span><b>{{ s.m_name || '—' }}</b></div>
+                  <div><span>Category</span><b>{{ s.category || '—' }}</b></div>
+                  <div><span>Shelf</span><b>{{ s.shelf || '—' }}</b></div>
+                  <div><span>Scheme %</span><b>{{ s.scheme_pct ?? 0 }}</b></div>
+                  <div><span>Disc %</span><b>{{ s.discount_pct ?? 0 }}</b></div>
+                </div>
+
+                @if (orderForm.customer_name) {
+                  <div class="mr-prev mt-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      <b class="small">Previous rate for this client</b>
+                      @if (previousRate() > 0) {
+                        <span class="badge text-bg-light border">₹ {{ previousRate() | number: '1.2-2' }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="usePreviousRate()">Use Previous Rate</button>
+                      } @else {
+                        <span class="small text-secondary">No previous sale rate found</span>
+                      }
+                    </div>
+                    @if (rateHistory().length) {
+                      <div class="table-responsive mt-2">
+                        <table class="table table-sm mb-0 mr-table">
+                          <thead><tr><th>Date</th><th>Bill / Order</th><th>Product</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th>Source</th></tr></thead>
+                          <tbody>
+                            @for (h of rateHistory().slice(0, 8); track $index) {
+                              <tr>
+                                <td class="text-nowrap">{{ h.date | date: 'dd-MM-yyyy' }}</td>
+                                <td class="text-nowrap">{{ h.ref_no }}</td>
+                                <td>{{ h.p_name }}</td>
+                                <td class="text-end">{{ h.qty }}</td>
+                                <td class="text-end">{{ h.sale_rate | number: '1.2-2' }}</td>
+                                <td><span class="badge" [ngClass]="h.source === 'Sale' ? 'text-bg-success' : 'text-bg-info'">{{ h.source }}</span></td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                  </div>
+                }
+
+                @let le = lineErrors();
+                <div class="mr-line-add mt-2">
+                  <div>
+                    <label class="form-label mr-label">Qty (strips) <span class="text-danger">*</span></label>
+                    <input type="number" min="1" step="1" [max]="s.qty" class="form-control form-control-sm" [class.is-invalid]="le['qty']"
+                      [ngModel]="lineQty()" (ngModelChange)="lineQty.set(+$event)" (keydown.enter)="addOrderLine()" />
+                    @if (le['qty']) { <div class="invalid-feedback">{{ le['qty'] }}</div> }
+                  </div>
+                  <div>
+                    <label class="form-label mr-label">Sale Rate <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" min="0.01" class="form-control form-control-sm" [class.is-invalid]="le['rate']"
+                      [ngModel]="lineRate()" (ngModelChange)="lineRate.set(+$event)" (keydown.enter)="addOrderLine()" />
+                    @if (le['rate']) { <div class="invalid-feedback">{{ le['rate'] }}</div> }
+                  </div>
+                  <div class="mr-line-amt">
+                    <span class="mr-label">Amount</span>
+                    <b>{{ (lineQty() || 0) * (lineRate() || 0) | number: '1.2-2' }}</b>
+                  </div>
+                  <div class="d-flex gap-2 align-self-end">
+                    <button type="button" class="btn btn-sm btn-pharma" [disabled]="!!le['qty'] || !!le['rate']" (click)="addOrderLine()"><i class="bi bi-plus-lg me-1"></i>Add Product</button>
+                    <button type="button" class="btn btn-sm btn-light border" (click)="clearSelectedStock()">Cancel</button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            @if (orderItems().length) {
+              <div class="table-responsive mt-3">
+                <table class="table table-sm align-middle mb-0 mr-table">
+                  <thead>
+                    <tr><th>Product</th><th>Batch</th><th class="text-end">Qty</th><th class="text-end">Sale Rate</th><th class="text-end">GST %</th><th class="text-end">Prev Rate</th><th class="text-end">Net Amount</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    @for (it of orderItems(); track $index; let i = $index) {
+                      <tr>
+                        <td><div class="fw-semibold">{{ it.product_name }}</div><div class="small text-secondary">{{ it.pack_size }}</div></td>
+                        <td class="text-nowrap">{{ it.batch_no }}</td>
+                        <td class="text-end">{{ it.qty }}</td>
+                        <td class="text-end">{{ it.rate | number: '1.2-2' }}</td>
+                        <td class="text-end">{{ it.gst }}%</td>
+                        <td class="text-end">{{ it.previous_rate ? (it.previous_rate | number: '1.2-2') : '—' }}</td>
+                        <td class="text-end fw-semibold">{{ it.amount | number: '1.2-2' }}</td>
+                        <td class="text-end"><button type="button" class="btn btn-sm btn-light border text-danger" title="Remove" (click)="removeOrderLine(i)"><i class="bi bi-x-lg"></i></button></td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr class="mr-total-row"><td colspan="6" class="text-end">Net Amount</td><td class="text-end">₹ {{ orderTotal() | number: '1.2-2' }}</td><td></td></tr>
+                  </tfoot>
+                </table>
+              </div>
+            }
+
+            @if (oe['items']) {
+              <div class="text-danger small mt-2"><i class="bi bi-exclamation-circle me-1"></i>{{ oe['items'] }}</div>
+            }
+            <div class="mt-3">
+              <label class="form-label mr-label">Remarks</label>
+              <textarea class="form-control form-control-sm" rows="2" maxlength="500" [(ngModel)]="orderForm.remarks"></textarea>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button type="button" class="btn btn-sm btn-pharma" [disabled]="!canEdit() || savingOrder()" (click)="saveOrder('Order')">
+                @if (savingOrder()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-bag-check me-1"></i> }
+                {{ editingId() ? 'Update As Order' : 'Save As Order' }}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="!canEdit() || savingOrder()" (click)="saveOrder('Quotation')">
+                <i class="bi bi-file-earmark-text me-1"></i>{{ editingId() ? 'Update As Quotation' : 'Save As Quotation' }}
+              </button>
+              @if (editingId() || orderItems().length) {
+                <button type="button" class="btn btn-sm btn-light border" (click)="resetOrderForm()"><i class="bi bi-x-circle me-1"></i>{{ editingId() ? 'Cancel Edit' : 'Clear' }}</button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xxl-5">
+          <div class="card-pharma h-100">
+            <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-clock-history"></i> Order History</span></div>
+            <div class="table-responsive">
+              <table class="table table-hover table-sm align-middle mb-0 mr-table">
+                <thead><tr><th>No</th><th>Date</th><th>Customer</th><th class="text-end">Amt</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                <tbody>
+                  @if (ordersLoading()) {
+                    <tr><td colspan="6" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+                  } @else {
+                    @for (o of orders(); track o.id) {
+                      <tr>
+                        <td class="text-nowrap fw-semibold">{{ o.order_no }}</td>
+                        <td class="text-nowrap">{{ o.order_date | date: 'dd-MM-yyyy' }}</td>
+                        <td><div>{{ o.customer_name }}</div><div class="small text-secondary">{{ o.order_type }}</div></td>
+                        <td class="text-end text-nowrap">{{ o.total_amount | number: '1.2-2' }}</td>
+                        <td><span class="badge" [ngClass]="statusClass(o)">{{ statusLabel(o) }}</span></td>
+                        <td class="text-end">
+                          <div class="btn-group btn-group-sm mr-actions">
+                            <button type="button" class="btn btn-light border" title="Show" (click)="showOrder(o)"><i class="bi bi-eye"></i></button>
+                            @if (canDoSale(o)) {
+                              <button type="button" class="btn btn-outline-success" title="Do Sale" (click)="doSale(o)"><i class="bi bi-cart-check"></i></button>
+                            }
+                            @if (canEdit() && !o.sale_id) {
+                              <button type="button" class="btn btn-light border" title="Edit" (click)="editOrder(o)"><i class="bi bi-pencil"></i></button>
+                            }
+                            <button type="button" class="btn btn-light border" title="Print" [disabled]="pdfBusy() === o.id" (click)="printOrder(o)">
+                              @if (pdfBusy() === o.id) { <span class="spinner-border spinner-border-sm"></span> } @else { <i class="bi bi-printer"></i> }
+                            </button>
+                            @if (canDelete()) {
+                              <button type="button" class="btn btn-light border text-danger" title="Delete" (click)="deleteOrder(o)"><i class="bi bi-trash"></i></button>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="6" class="text-center py-4 text-secondary">No orders yet.</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== STOCK FOLLOW-UP ===================== -->
+    @if (tab() === 'stock') {
+      <div class="row g-3">
+        <div class="col-12 col-xl-5">
+          <form class="card-pharma p-3 h-100" (ngSubmit)="saveStockFollowup()">
+            <div class="mr-section-title"><i class="bi bi-clipboard-check"></i> Stock Availability Follow-Up</div>
+            @let se = stockFuErrors();
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label mr-label">Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" name="sfd" [max]="today" [class.is-invalid]="se['followup_date']" [(ngModel)]="stockFuForm.followup_date" />
+                @if (se['followup_date']) { <div class="invalid-feedback">{{ se['followup_date'] }}</div> }
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Location Type</label>
+                <select class="form-select form-select-sm" name="slt" [(ngModel)]="stockFuForm.location_type">
+                  @for (o of locationTypeOptions; track o) { <option [value]="o">{{ o }}</option> }
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Location Name <span class="text-danger">*</span></label>
+                <input class="form-control form-control-sm" name="sln" maxlength="160" [class.is-invalid]="se['location_name']" [(ngModel)]="stockFuForm.location_name" />
+                @if (se['location_name']) { <div class="invalid-feedback">{{ se['location_name'] }}</div> }
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Product <span class="text-danger">*</span> <span class="text-secondary text-lowercase">(from current stock)</span></label>
+                <app-mr-stock-picker placeholder="Search / select product" [disabled]="!canEdit()" (picked)="pickStockFuProduct($event)" />
+                @if (stockFuProduct()) { <div class="mr-hint"><i class="bi bi-check2 text-success me-1"></i>{{ stockFuProduct() }}</div> }
+                @if (se['product_name']) { <div class="text-danger small mt-1">{{ se['product_name'] }}</div> }
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Available Qty</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="saq" [class.is-invalid]="se['available_qty']" [(ngModel)]="stockFuForm.available_qty" />
+                @if (se['available_qty']) { <div class="invalid-feedback">{{ se['available_qty'] }}</div> }
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Near-Expiry Qty</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="snq" [class.is-invalid]="se['near_expiry_qty']" [(ngModel)]="stockFuForm.near_expiry_qty" />
+                @if (se['near_expiry_qty']) { <div class="invalid-feedback">{{ se['near_expiry_qty'] }}</div> }
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Status</label>
+                <select class="form-select form-select-sm" name="sss" [(ngModel)]="stockFuForm.stock_status">
+                  @for (o of stockStatusOptions; track o) { <option [value]="o">{{ o }}</option> }
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label mr-label">Scheme Notes</label>
+                <input class="form-control form-control-sm" name="ssn" maxlength="255" [(ngModel)]="stockFuForm.scheme_notes" />
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Remarks</label>
+                <textarea class="form-control form-control-sm" name="srm" rows="2" maxlength="1000" [(ngModel)]="stockFuForm.remarks"></textarea>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="btn btn-sm btn-pharma" [disabled]="!canEdit() || savingStockFu()">
+                @if (savingStockFu()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-check2 me-1"></i> }
+                Save Follow-Up
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="col-12 col-xl-7 d-flex flex-column gap-3">
+          <div class="card-pharma">
+            <div class="mr-card-head">
+              <span class="mr-section-title mb-0"><i class="bi bi-buildings"></i> Company Warehouse Stock (Live)</span>
+              <div class="d-flex gap-2 mr-search">
+                <input type="search" class="form-control form-control-sm" placeholder="Search stock" [(ngModel)]="stockQuery" (keydown.enter)="loadStockList()" />
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="loadStockList()"><i class="bi bi-arrow-repeat"></i></button>
+              </div>
+            </div>
+            <div class="table-responsive mr-scroll">
+              <table class="table table-sm table-hover align-middle mb-0 mr-table">
+                <thead><tr><th>Product</th><th>Batch</th><th>Exp</th><th class="text-end">Qty</th><th class="text-end">MRP</th><th class="text-end">Sale Rate</th></tr></thead>
+                <tbody>
+                  @if (stockListLoading()) {
+                    <tr><td colspan="6" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+                  } @else {
+                    @for (s of stockList().slice(0, 50); track s.batch_id) {
+                      <tr>
+                        <td>{{ s.p_name }}<div class="small text-secondary">{{ s.pack_size }}</div></td>
+                        <td class="text-nowrap">{{ s.batch_no }}</td>
+                        <td class="text-nowrap">{{ s.expiry_date ? (s.expiry_date | date: 'MM/yy') : '—' }}</td>
+                        <td class="text-end">{{ s.qty }}</td>
+                        <td class="text-end">{{ s.mrp | number: '1.2-2' }}</td>
+                        <td class="text-end">{{ s.sale_rate | number: '1.2-2' }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="6" class="text-center py-4 text-secondary">No stock found.</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-pharma">
+            <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-geo-alt"></i> Field Follow-Ups</span></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0 mr-table">
+                <thead><tr><th>Date</th><th>Place</th><th>Product</th><th class="text-end">Qty</th><th>Status</th></tr></thead>
+                <tbody>
+                  @for (f of stockFollowups(); track f.id) {
+                    <tr>
+                      <td class="text-nowrap">{{ f.followup_date | date: 'dd-MM-yyyy' }}</td>
+                      <td>{{ f.location_name }}<div class="small text-secondary">{{ f.location_type }}</div></td>
+                      <td>{{ f.product_name }}</td>
+                      <td class="text-end">{{ f.available_qty ?? '—' }}</td>
+                      <td>@if (f.stock_status) { <span class="badge text-bg-light border">{{ f.stock_status }}</span> }</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="5" class="text-center py-4 text-secondary">No follow-ups in range.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== SALES MONITOR ===================== -->
+    @if (tab() === 'monitor') {
+      @if (monitorLoading()) {
+        <div class="card-pharma p-4 text-center text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+      } @else {
+        <div class="row g-3">
+          <div class="col-12 col-xl-4">
+            <div class="card-pharma h-100">
+              <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-receipt"></i> Sales Bills</span></div>
+              <div class="table-responsive mr-scroll">
+                <table class="table table-sm align-middle mb-0 mr-table">
+                  <thead><tr><th>Date</th><th>Customer</th><th>Bill</th><th class="text-end">Net</th></tr></thead>
+                  <tbody>
+                    @for (b of monitor()?.bills ?? []; track b.id) {
+                      <tr>
+                        <td class="text-nowrap">{{ b.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                        <td>{{ b.customer_name }}</td>
+                        <td class="text-nowrap">{{ b.invoice_no }}</td>
+                        <td class="text-end text-nowrap">{{ b.net_amount | number: '1.2-2' }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="4" class="text-center py-4 text-secondary">No data.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6 col-xl-4">
+            <div class="card-pharma h-100">
+              <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-hourglass-split"></i> Near Expiry Stock</span></div>
+              <div class="table-responsive mr-scroll">
+                <table class="table table-sm align-middle mb-0 mr-table">
+                  <thead><tr><th>Product</th><th>Batch</th><th>Exp</th><th class="text-end">Qty</th></tr></thead>
+                  <tbody>
+                    @for (n of monitor()?.near_expiry ?? []; track $index) {
+                      <tr>
+                        <td>{{ n.p_name }}</td>
+                        <td class="text-nowrap">{{ n.batch_no }}</td>
+                        <td class="text-nowrap" [class.text-danger]="isExpired(n.expiry_date)">{{ n.expiry_date | date: 'MM/yy' }}</td>
+                        <td class="text-end">{{ n.qty }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="4" class="text-center py-4 text-secondary">No data.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6 col-xl-4">
+            <div class="card-pharma h-100">
+              <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-arrow-counterclockwise"></i> Returns</span></div>
+              <div class="table-responsive mr-scroll">
+                <table class="table table-sm align-middle mb-0 mr-table">
+                  <thead><tr><th>Date</th><th>Customer</th><th class="text-end">Return</th></tr></thead>
+                  <tbody>
+                    @for (r of monitor()?.returns ?? []; track r.id) {
+                      <tr>
+                        <td class="text-nowrap">{{ r.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                        <td>{{ r.customer_name }}<div class="small text-secondary">{{ r.invoice_no }}</div></td>
+                        <td class="text-end text-nowrap">{{ r.return_total | number: '1.2-2' }}</td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="3" class="text-center py-4 text-secondary">No data.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ===================== DAILY REPORT ===================== -->
+    @if (tab() === 'reports') {
+      <div class="row g-3">
+        <div class="col-12 col-xl-6">
+          <form class="card-pharma p-3 h-100" (ngSubmit)="saveDailyReport()">
+            <div class="mr-section-title"><i class="bi bi-journal-text"></i> Daily Call Report</div>
+            @let re = reportErrors();
+            <div class="row g-2">
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Report Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" name="rd" [max]="today" [class.is-invalid]="re['report_date']" [(ngModel)]="reportForm.report_date" />
+                @if (re['report_date']) { <div class="invalid-feedback">{{ re['report_date'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Calls Planned</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="cp" [class.is-invalid]="re['calls_planned']" [(ngModel)]="reportForm.calls_planned" />
+                @if (re['calls_planned']) { <div class="invalid-feedback">{{ re['calls_planned'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Calls Done</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="cd" [class.is-invalid]="re['calls_done']" [(ngModel)]="reportForm.calls_done" />
+                @if (re['calls_done']) { <div class="invalid-feedback">{{ re['calls_done'] }}</div> }
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Doctor Visits</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="dv" [class.is-invalid]="re['doctor_visits']" [(ngModel)]="reportForm.doctor_visits" />
+                @if (re['doctor_visits']) { <div class="invalid-feedback">{{ re['doctor_visits'] }}</div> }
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Orders Taken</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="otn" [class.is-invalid]="re['orders_taken']" [(ngModel)]="reportForm.orders_taken" />
+                @if (re['orders_taken']) { <div class="invalid-feedback">{{ re['orders_taken'] }}</div> }
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Order Value</label>
+                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="ov" [class.is-invalid]="re['order_value']" [(ngModel)]="reportForm.order_value" />
+                @if (re['order_value']) { <div class="invalid-feedback">{{ re['order_value'] }}</div> }
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label mr-label">Stock Checks</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm" name="sc" [class.is-invalid]="re['stock_checks']" [(ngModel)]="reportForm.stock_checks" />
+                @if (re['stock_checks']) { <div class="invalid-feedback">{{ re['stock_checks'] }}</div> }
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Sales Summary</label>
+                <textarea class="form-control form-control-sm" name="ss" rows="2" maxlength="1000" [(ngModel)]="reportForm.sales_summary"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Competitor Info</label>
+                <textarea class="form-control form-control-sm" name="ci2" rows="2" maxlength="1000" [(ngModel)]="reportForm.competitor_info"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Outstanding Notes</label>
+                <textarea class="form-control form-control-sm" name="on" rows="2" maxlength="1000" [(ngModel)]="reportForm.outstanding_notes"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Remarks</label>
+                <textarea class="form-control form-control-sm" name="rr" rows="2" maxlength="1000" [(ngModel)]="reportForm.remarks"></textarea>
+              </div>
+            </div>
+            <div class="mt-3 d-flex flex-wrap align-items-center gap-2">
+              <button type="submit" class="btn btn-sm btn-pharma" [disabled]="!canEdit() || savingReport()">
+                @if (savingReport()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-send me-1"></i> }
+                Submit Daily Report
+              </button>
+              <span class="mr-hint mt-0">One report per day — submitting again replaces that day's report.</span>
+            </div>
+          </form>
+        </div>
+        <div class="col-12 col-xl-6">
+          <div class="card-pharma h-100">
+            <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-clock-history"></i> Submitted Reports</span></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0 mr-table">
+                <thead><tr><th>Date</th><th>MR</th><th class="text-end">Calls</th><th class="text-end">Visits</th><th class="text-end">Orders</th><th class="text-end">Value</th></tr></thead>
+                <tbody>
+                  @for (d of dailyReports(); track d.id) {
+                    <tr>
+                      <td class="text-nowrap">{{ d.report_date | date: 'dd-MM-yyyy' }}</td>
+                      <td class="small">{{ d.mr_name || '—' }}</td>
+                      <td class="text-end">{{ d.calls_done }}/{{ d.calls_planned }}</td>
+                      <td class="text-end">{{ d.doctor_visits }}</td>
+                      <td class="text-end">{{ d.orders_taken }}</td>
+                      <td class="text-end text-nowrap">{{ d.order_value | number: '1.2-2' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6" class="text-center py-4 text-secondary">No reports in range.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== OUTSTANDING ===================== -->
+    @if (tab() === 'outstanding') {
+      <div class="row g-3">
+        <div class="col-12 col-xl-6">
+          <div class="card-pharma h-100">
+            <div class="mr-card-head"><span class="mr-section-title mb-0"><i class="bi bi-cash-stack"></i> Customer Outstanding (From Sales)</span></div>
+            <div class="table-responsive mr-scroll-lg">
+              <table class="table table-sm table-hover align-middle mb-0 mr-table">
+                <thead><tr><th>Customer</th><th class="text-end">Outstanding</th><th class="text-end"></th></tr></thead>
+                <tbody>
+                  @if (osLoading()) {
+                    <tr><td colspan="3" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+                  } @else {
+                    @for (o of outstanding(); track $index) {
+                      <tr>
+                        <td>{{ o.customer_name }}</td>
+                        <td class="text-end fw-semibold text-nowrap">{{ o.outstanding_amt | number: '1.2-2' }}</td>
+                        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="pickOutstanding(o)">Follow Up</button></td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="3" class="text-center py-4 text-secondary">No outstanding.</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-xl-6">
+          <form class="card-pharma p-3 h-100" (ngSubmit)="saveOsFollowup()">
+            <div class="mr-section-title mb-1"><i class="bi bi-telephone-outbound"></i> Business Outstanding Follow-Up</div>
+            <p class="mr-hint mt-0 mb-2">Wholesaler handles credit / collection; MR may log business follow-ups.</p>
+            @let ose = osErrors();
+            <div class="row g-2">
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" name="ofd" [max]="today" [class.is-invalid]="ose['followup_date']" [(ngModel)]="osForm.followup_date" />
+                @if (ose['followup_date']) { <div class="invalid-feedback">{{ ose['followup_date'] }}</div> }
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label mr-label">Customer (Wholesale) <span class="text-danger">*</span></label>
+                <app-mr-customer-picker
+                  [customers]="customers()" [selectedId]="osForm.customer_id" [selectedName]="osForm.customer_name"
+                  [loading]="customersLoading()" [disabled]="!canEdit()" [invalid]="!!ose['customer']" [allowAdd]="canEdit()"
+                  (picked)="onOsCustomerPicked($event)" (addNew)="openAddCustomer()" />
+                @if (ose['customer']) { <div class="text-danger small mt-1">{{ ose['customer'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Amount</label>
+                <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="oam" [class.is-invalid]="ose['outstanding_amt']" [(ngModel)]="osForm.outstanding_amt" />
+                @if (ose['outstanding_amt']) { <div class="invalid-feedback">{{ ose['outstanding_amt'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label mr-label">Promised Date @if (osForm.status === 'Promised') { <span class="text-danger">*</span> }</label>
+                <input type="date" class="form-control form-control-sm" name="opd" [min]="osForm.followup_date" [class.is-invalid]="ose['promised_date']" [(ngModel)]="osForm.promised_date" />
+                @if (ose['promised_date']) { <div class="invalid-feedback">{{ ose['promised_date'] }}</div> }
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label mr-label">Status</label>
+                <select class="form-select form-select-sm" name="ost" [(ngModel)]="osForm.status">
+                  @for (o of osStatusOptions; track o) { <option [value]="o">{{ o }}</option> }
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label mr-label">Note</label>
+                <textarea class="form-control form-control-sm" name="ofn" rows="3" maxlength="1000" [(ngModel)]="osForm.followup_note"></textarea>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="btn btn-sm btn-pharma" [disabled]="!canEdit() || savingOs()">
+                @if (savingOs()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-check2 me-1"></i> }
+                Save Follow-Up
+              </button>
+            </div>
+            <div class="mr-section-title mt-3 mb-2"><i class="bi bi-clock-history"></i> Recent Follow-Ups</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0 mr-table">
+                <thead><tr><th>Date</th><th>Customer</th><th class="text-end">Amt</th><th>Promised</th><th>Status</th></tr></thead>
+                <tbody>
+                  @for (f of osFollowups().slice(0, 30); track f.id) {
+                    <tr>
+                      <td class="text-nowrap">{{ f.followup_date | date: 'dd-MM-yyyy' }}</td>
+                      <td>{{ f.customer_name }}@if (f.followup_note) { <div class="small text-secondary mr-clamp">{{ f.followup_note }}</div> }</td>
+                      <td class="text-end text-nowrap">{{ f.outstanding_amt | number: '1.2-2' }}</td>
+                      <td class="text-nowrap">{{ f.promised_date ? (f.promised_date | date: 'dd-MM-yyyy') : '—' }}</td>
+                      <td><span class="badge" [ngClass]="f.status === 'Closed' ? 'text-bg-success' : f.status === 'Promised' ? 'text-bg-info' : 'text-bg-warning'">{{ f.status }}</span></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="5" class="text-center py-3 text-secondary">No follow-ups yet.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== CUSTOMERS ===================== -->
+    @if (tab() === 'customers') {
+      <div class="card-pharma p-3 mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span class="mr-section-title mb-0"><i class="bi bi-people"></i> Customer Master (MR Access)</span>
+          <div class="d-flex flex-wrap gap-2 mr-search">
+            <div class="input-icon flex-grow-1">
+              <i class="bi bi-search"></i>
+              <input type="search" class="form-control form-control-sm" placeholder="Search wholesale customer"
+                [ngModel]="customerSearch()" (ngModelChange)="customerSearch.set($event)" />
+            </div>
+            <button type="button" class="btn btn-sm btn-pharma" [disabled]="!canEdit()" (click)="showCustomerForm.set(!showCustomerForm())">
+              <i class="bi me-1" [ngClass]="showCustomerForm() ? 'bi-x-lg' : 'bi-person-plus'"></i>{{ showCustomerForm() ? 'Close Form' : 'Add Customer' }}
+            </button>
+          </div>
+        </div>
+
+        @if (showCustomerForm()) {
+          <form class="mt-3 pt-3 border-top" (ngSubmit)="saveCustomer()">
+            @let ce = customerErrors();
+            <div class="row g-2">
+              <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label mr-label">Type</label>
+                <div class="form-control form-control-sm bg-light">Wholesale</div>
+              </div>
+              <div class="col-12 col-md-5 col-xl-4">
+                <label class="form-label mr-label">Name <span class="text-danger">*</span></label>
+                <input class="form-control form-control-sm text-uppercase" name="cnm" maxlength="150" [class.is-invalid]="ce['name']" [(ngModel)]="customerForm.name" />
+                @if (ce['name']) { <div class="invalid-feedback">{{ ce['name'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-3">
+                <label class="form-label mr-label">Contact <span class="text-danger">*</span></label>
+                <input class="form-control form-control-sm" name="cct" maxlength="10" inputmode="numeric" placeholder="10-digit mobile"
+                  [class.is-invalid]="ce['phone']" [ngModel]="customerForm.phone" (input)="customerForm.phone = cleanPhone($event)" />
+                @if (ce['phone']) { <div class="invalid-feedback">{{ ce['phone'] }}</div> }
+              </div>
+              <div class="col-12 col-md-6 col-xl-3">
+                <label class="form-label mr-label">Email</label>
+                <input type="email" class="form-control form-control-sm" name="cem" maxlength="120" placeholder="name@example.com" [class.is-invalid]="ce['email']" [(ngModel)]="customerForm.email" />
+                @if (ce['email']) { <div class="invalid-feedback">{{ ce['email'] }}</div> }
+              </div>
+              <div class="col-12 col-md-6 col-xl-6">
+                <label class="form-label mr-label">Address</label>
+                <input class="form-control form-control-sm" name="cad" maxlength="255" [class.is-invalid]="ce['address']" [(ngModel)]="customerForm.address" />
+                @if (ce['address']) { <div class="invalid-feedback">{{ ce['address'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label mr-label">State</label>
+                <input class="form-control form-control-sm" name="cst" maxlength="80" [class.is-invalid]="ce['state']" [(ngModel)]="customerForm.state" />
+                @if (ce['state']) { <div class="invalid-feedback">{{ ce['state'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label mr-label">City</label>
+                <input class="form-control form-control-sm" name="cci" maxlength="80" [class.is-invalid]="ce['city']" [(ngModel)]="customerForm.city" />
+                @if (ce['city']) { <div class="invalid-feedback">{{ ce['city'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label mr-label">Area</label>
+                <input class="form-control form-control-sm" name="car" maxlength="120" [class.is-invalid]="ce['area']" [(ngModel)]="customerForm.area" />
+                @if (ce['area']) { <div class="invalid-feedback">{{ ce['area'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-3">
+                <label class="form-label mr-label">GST No</label>
+                <input class="form-control form-control-sm text-uppercase" name="cgst" maxlength="15" placeholder="22AAAAA0000A1Z5"
+                  [class.is-invalid]="ce['gstin']" [ngModel]="customerForm.gstin" (input)="customerForm.gstin = cleanGstin($event)" />
+                @if (ce['gstin']) { <div class="invalid-feedback">{{ ce['gstin'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label mr-label">Credit Days</label>
+                <input type="number" min="0" max="365" step="1" class="form-control form-control-sm" name="ccd" [class.is-invalid]="ce['credit_days']" [(ngModel)]="customerForm.credit_days" />
+                @if (ce['credit_days']) { <div class="invalid-feedback">{{ ce['credit_days'] }}</div> }
+              </div>
+              <div class="col-6 col-md-4 col-xl-3">
+                <label class="form-label mr-label">DL No</label>
+                <input class="form-control form-control-sm text-uppercase" name="cdl" maxlength="60" [class.is-invalid]="ce['dl_no']" [(ngModel)]="customerForm.dl_no" />
+                @if (ce['dl_no']) { <div class="invalid-feedback">{{ ce['dl_no'] }}</div> }
+              </div>
+              <div class="col-12 col-xl-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-sm btn-pharma" [disabled]="savingCustomer()">
+                  @if (savingCustomer()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-check2 me-1"></i> }
+                  Save Customer
+                </button>
+              </div>
+            </div>
+          </form>
+        }
+      </div>
+
+      <div class="card-pharma">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm align-middle mb-0 mr-table">
+            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Contact</th><th>Area</th><th>GST</th><th class="text-end"></th></tr></thead>
+            <tbody>
+              @if (customersLoading()) {
+                <tr><td colspan="7" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+              } @else {
+                @for (c of filteredCustomers(); track c.id) {
+                  <tr>
+                    <td class="text-nowrap text-secondary">{{ c.code }}</td>
+                    <td class="fw-semibold">{{ c.name }}</td>
+                    <td><span class="badge text-bg-primary">Wholesale</span></td>
+                    <td class="text-nowrap">{{ c.phone || '—' }}</td>
+                    <td>{{ c.area || c.city || '—' }}</td>
+                    <td class="text-nowrap">{{ c.gstin || '—' }}</td>
+                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="useInOrder(c)">Use In Order</button></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="7" class="text-center py-4 text-secondary">No wholesale customers found.</td></tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+  }
+</div>
+
+<!-- ===================== ORDER DETAIL MODAL ===================== -->
+@if (viewOrder(); as v) {
+  <div class="modal-backdrop-custom" (click)="viewOrder.set(null)"></div>
+  <div class="modal-custom" (click)="viewOrder.set(null)">
+    <div class="modal-card card-pharma" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0 fw-bold">{{ v.order.status }}</h5>
+          <div class="small text-secondary">{{ v.order.order_no }}</div>
+        </div>
+        <button type="button" class="btn-close" (click)="viewOrder.set(null)" aria-label="Close"></button>
+      </div>
+      <div class="modal-body-custom">
+        <div class="detail-grid mb-3">
+          <div><span>Date</span><b>{{ v.order.order_date | date: 'dd-MM-yyyy' }}</b></div>
+          <div><span>Customer</span><b>{{ v.order.customer_name }}</b></div>
+          <div><span>Contact</span><b>{{ v.order.customer_contact || '—' }}</b></div>
+          <div><span>Type</span><b>{{ v.order.order_type }}</b></div>
+          <div><span>Status</span><b>{{ statusLabel(v.order) }}</b></div>
+          <div><span>Net Amount</span><b class="text-teal">{{ v.order.total_amount | number: '1.2-2' }}</b></div>
+          <div><span>Expected Delivery</span><b>{{ v.order.expected_delivery_date ? (v.order.expected_delivery_date | date: 'dd-MM-yyyy') : '—' }}</b></div>
+          <div><span>Delivery Type</span><b>{{ v.order.delivery_type || '—' }}</b></div>
+          <div><span>MR</span><b>{{ v.order.mr_name || '—' }}</b></div>
+          @if (v.order.remarks) { <div class="wide"><span>Remarks</span><b>{{ v.order.remarks }}</b></div> }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 mr-table">
+            <thead><tr><th>Product</th><th>Batch</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">GST</th><th class="text-end">Net</th></tr></thead>
+            <tbody>
+              @for (it of v.items; track $index) {
+                <tr>
+                  <td><div class="fw-semibold">{{ it.product_name }}</div><div class="small text-secondary">{{ it.pack_size }}</div></td>
+                  <td class="text-nowrap">{{ it.batch_no }}</td>
+                  <td class="text-end">{{ it.qty }}</td>
+                  <td class="text-end">{{ it.rate | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ it.gst || 0 }}%</td>
+                  <td class="text-end fw-semibold">{{ it.amount | number: '1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-foot flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printOrder(v.order)"><i class="bi bi-file-earmark-pdf me-1"></i>Print PDF</button>
+        @if (canDoSale(v.order)) {
+          <button type="button" class="btn btn-sm btn-pharma" (click)="doSale(v.order)"><i class="bi bi-cart-check me-1"></i>Do Sale</button>
+        }
+        @if (canEdit() && !v.order.sale_id) {
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="editOrder(v.order)"><i class="bi bi-pencil me-1"></i>Edit</button>
+        }
+        <button type="button" class="btn btn-sm btn-light border" (click)="viewOrder.set(null)">Close</button>
+      </div>
+    </div>
+  </div>
+}

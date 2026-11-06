@@ -4,55 +4,345 @@
       <h4 class="fw-bold mb-0">In-Patient (IPD) Admissions</h4>
       <p class="text-secondary mb-0 small">Bills accrue to an admission until discharge; partial payments are tracked.</p>
     </div>
-    <button class="btn btn-pharma" (click)="openAdmit()"><i class="bi bi-person-plus me-1"></i> Admit Patient</button>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-pharma" (click)="resetBill(); setTab('billing')">
+        <i class="bi bi-receipt me-1"></i> New IPD Bill
+      </button>
+      <button class="btn btn-pharma" (click)="openAdmit()"><i class="bi bi-person-plus me-1"></i> Admit Patient</button>
+    </div>
   </div>
 
   @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
 
-  <div class="btn-group btn-group-sm mb-3">
-    <button class="btn" [class.btn-pharma]="filter()==='admitted'" [class.btn-light]="filter()!=='admitted'" [class.border]="filter()!=='admitted'" (click)="setFilter('admitted')">Admitted</button>
-    <button class="btn" [class.btn-pharma]="filter()==='discharged'" [class.btn-light]="filter()!=='discharged'" [class.border]="filter()!=='discharged'" (click)="setFilter('discharged')">Discharged</button>
-    <button class="btn" [class.btn-pharma]="filter()===''" [class.btn-light]="filter()!==''" [class.border]="filter()!==''" (click)="setFilter('')">All</button>
-  </div>
-
-  <div class="card-pharma">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr><th>Admission</th><th>Patient</th><th>Ward/Bed</th><th>Doctor</th><th>Admitted</th>
-            <th class="text-end">Billed</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          @if (loading()) {
-            <tr><td colspan="10" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
-          } @else if (rows().length === 0) {
-            <tr><td colspan="10" class="text-center py-5 text-secondary"><i class="bi bi-hospital fs-3 d-block mb-2"></i> No admissions.</td></tr>
-          } @else {
-            @for (r of rows(); track r.id) {
-              <tr (click)="openDetail(r.id)" style="cursor:pointer">
-                <td class="fw-semibold">{{ r.admission_no }}</td>
-                <td>{{ r.patient_name }}</td>
-                <td class="small">{{ r.ward || '-' }} / {{ r.bed_no || '-' }}</td>
-                <td class="small">{{ r.doctor_name || '-' }}</td>
-                <td class="small">{{ r.admitted_at | date: 'dd MMM, HH:mm' }}</td>
-                <td class="text-end">{{ (r.billed || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
-                <td class="text-end text-success">{{ (r.paid || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
-                <td class="text-end fw-semibold" [class.text-danger]="(r.balance||0) > 0">{{ (r.balance || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
-                <td><span class="badge" [class.text-bg-success]="r.status==='admitted'" [class.text-bg-secondary]="r.status==='discharged'">{{ r.status }}</span></td>
-                <td><i class="bi bi-chevron-right text-secondary"></i></td>
-              </tr>
-            }
-          }
-        </tbody>
-      </table>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-hospital"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Admitted</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().admitted }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Total Billed</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().billed | number: '1.2-2') }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Total Paid</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().paid | number: '1.2-2') }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card" [class.kpi-rose]="kpis().outstanding > 0" [class.kpi-slate]="kpis().outstanding <= 0">
+        <div class="kpi-icon"><i class="bi bi-wallet2"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Outstanding</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().outstanding | number: '1.2-2') }}</b>
+        </div>
+      </div>
     </div>
   </div>
+
+  <ul class="nav nav-pills ipd-tabs mb-3">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab()==='admissions'" (click)="setTab('admissions')">
+        <i class="bi bi-hospital me-1"></i> Admissions
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab()==='billing'" (click)="setTab('billing')">
+        <i class="bi bi-clipboard2-pulse me-1"></i> IPD Billing
+      </button>
+    </li>
+  </ul>
+
+  @if (activeTab() === 'admissions') {
+    <div class="btn-group btn-group-sm mb-3">
+      <button class="btn" [class.btn-pharma]="filter()==='admitted'" [class.btn-light]="filter()!=='admitted'" [class.border]="filter()!=='admitted'" (click)="setFilter('admitted')">Admitted</button>
+      <button class="btn" [class.btn-pharma]="filter()==='discharged'" [class.btn-light]="filter()!=='discharged'" [class.border]="filter()!=='discharged'" (click)="setFilter('discharged')">Discharged</button>
+      <button class="btn" [class.btn-pharma]="filter()===''" [class.btn-light]="filter()!==''" [class.border]="filter()!==''" (click)="setFilter('')">All</button>
+    </div>
+
+    <div class="card-pharma">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th>Admission</th><th>Patient</th><th>Ward/Bed</th><th>Doctor</th><th>Admitted</th>
+              <th class="text-end">Billed</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="10" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+            } @else if (rows().length === 0) {
+              <tr><td colspan="10" class="text-center py-5 text-secondary"><i class="bi bi-hospital fs-3 d-block mb-2"></i> No admissions.</td></tr>
+            } @else {
+              @for (r of rows(); track r.id) {
+                <tr (click)="openDetail(r.id)" style="cursor:pointer">
+                  <td class="fw-semibold">{{ r.admission_no }}</td>
+                  <td>{{ r.patient_name }}</td>
+                  <td class="small">{{ r.ward || '-' }} / {{ r.bed_no || '-' }}</td>
+                  <td class="small">{{ r.doctor_name || '-' }}</td>
+                  <td class="small">{{ r.admitted_at | date: 'dd-MM-yyyy HH:mm' }}</td>
+                  <td class="text-end">{{ (r.billed || 0) | number: '1.0-0' }}</td>
+                  <td class="text-end text-success">{{ (r.paid || 0) | number: '1.0-0' }}</td>
+                  <td class="text-end fw-semibold" [class.text-danger]="(r.balance||0) > 0">{{ (r.balance || 0) | number: '1.0-0' }}</td>
+                  <td><span class="badge" [class.text-bg-success]="r.status==='admitted'" [class.text-bg-secondary]="r.status==='discharged'">{{ r.status }}</span></td>
+                  <td><i class="bi bi-chevron-right text-secondary"></i></td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'billing') {
+    <div class="card-pharma p-3 mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+        <h6 class="fw-semibold mb-0">Customer Details</h6>
+        @if (billAdmissionId()) {
+          <span class="badge text-bg-light">Linked admission #{{ billAdmissionId() }}</span>
+        }
+      </div>
+      @if (billError()) { <div class="alert alert-danger py-2">{{ billError() }}</div> }
+      <div class="row g-2">
+        <div class="col-6 col-md-2">
+          <label class="form-label">Contact No.</label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().contact_no"
+            (ngModelChange)="onContactLookup($event)" maxlength="12" placeholder="Contact No." />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Patient Name <span class="text-danger">*</span></label>
+          <select class="form-select form-select-sm"
+            [ngModel]="selectedPatientId()"
+            (ngModelChange)="onPatientSelect($event)">
+            <option [ngValue]="null">— Select IPD patient —</option>
+            @for (p of ipdPatients(); track p.id) {
+              <option [ngValue]="p.id">{{ p.patient_name }}{{ p.admission_no ? ' · ' + p.admission_no : '' }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control form-control-sm" [ngModel]="billForm().email"
+            (ngModelChange)="patchBill('email', $event)" placeholder="Email" />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Address</label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().address"
+            (ngModelChange)="patchBill('address', $event)" placeholder="Address" />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Hospital Name</label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().hospital_name"
+            (ngModelChange)="patchBill('hospital_name', $event)" placeholder="Hospital Name" />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Doctor Name</label>
+          <select class="form-select form-select-sm" [ngModel]="billForm().doctor_name"
+            (ngModelChange)="patchBill('doctor_name', $event)">
+            <option value="">— Doctor —</option>
+            @for (d of doctors(); track d.id) {
+              <option [value]="d.name">{{ d.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Ward Type</label>
+          <select class="form-select form-select-sm" [ngModel]="billForm().ward_type"
+            (ngModelChange)="patchBill('ward_type', $event)">
+            <option value="">— Ward Type —</option>
+            @for (w of wardTypes; track w) { <option [value]="w">{{ w }}</option> }
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Ward No.</label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().ward_no"
+            (ngModelChange)="patchBill('ward_no', $event)" placeholder="Ward No." />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Bed No.</label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().bed_no"
+            (ngModelChange)="patchBill('bed_no', $event)" placeholder="Bed No." />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Relative Ph. No. <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-sm" [ngModel]="billForm().relative_phone"
+            (ngModelChange)="patchBill('relative_phone', $event)" placeholder="Relative Ph. No." />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Relation With Patient</label>
+          <select class="form-select form-select-sm" [ngModel]="billForm().relation"
+            (ngModelChange)="patchBill('relation', $event)">
+            <option value="">— Relation —</option>
+            @for (r of relations; track r) { <option [value]="r">{{ r }}</option> }
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-pharma p-3 mb-3">
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-3"><span class="badge text-bg-success">Billing</span></div>
+        <div class="col-md-3">
+          <label class="form-label">Search By Generic Name</label>
+          <select class="form-select form-select-sm" [ngModel]="selectedGeneric()" (ngModelChange)="onGenericFilter($event)">
+            <option [ngValue]="null">— All generics —</option>
+            @for (g of generics(); track g.id) {
+              <option [ngValue]="g.id">{{ g.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="button" class="btn btn-sm btn-outline-danger" (click)="clearGenericFilter()">Clear Filter</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle ipd-bill-table mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th style="min-width:12rem">Product</th>
+              <th>Qty</th>
+              <th>Disc%</th>
+              <th>B. No</th>
+              <th>Shelf</th>
+              <th>Category</th>
+              <th>Pack</th>
+              <th>MRP</th>
+              <th class="text-end">Taxable</th>
+              <th class="text-end">Discount</th>
+              <th class="text-end">GST</th>
+              <th class="text-end">Net</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="draft-row">
+              <td>
+                <input type="date" class="form-control form-control-sm"
+                  [ngModel]="billForm().order_date" (ngModelChange)="patchBill('order_date', $event)" />
+              </td>
+              <td>
+                <div class="product-combo">
+                  <input class="form-control form-control-sm"
+                    [ngModel]="productQuery()"
+                    (ngModelChange)="productQuery.set($event); showProductDrop.set(true)"
+                    (focus)="showProductDrop.set(true)"
+                    placeholder="Search product…" />
+                  @if (showProductDrop()) {
+                    <div class="product-panel">
+                      @if (productsLoading()) {
+                        <div class="p-2 text-secondary small">Loading…</div>
+                      } @else {
+                        @for (p of filteredProducts(); track p.binding_id) {
+                          <button type="button" class="product-item" (click)="selectProduct(p)">
+                            <span class="fw-semibold">{{ p.product_name }}</span>
+                            <span class="text-secondary small">{{ p.manufacturer_short || '-' }} · Qty {{ p.available_qty }}</span>
+                          </button>
+                        } @empty {
+                          <div class="p-2 text-secondary small">No products.</div>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              </td>
+              <td><input type="number" class="form-control form-control-sm" [ngModel]="draft().qty" (ngModelChange)="patchDraft('qty', +$event)" /></td>
+              <td><input type="number" class="form-control form-control-sm" [ngModel]="draft().disc" (ngModelChange)="patchDraft('disc', +$event)" /></td>
+              <td>
+                @if (draft().batches.length) {
+                  <select class="form-select form-select-sm" [ngModel]="draft().batch?.batch_id"
+                    (ngModelChange)="onBatchSelect($event)">
+                    @for (b of draft().batches; track b.batch_id) {
+                      <option [ngValue]="b.batch_id">{{ b.batch_no }} ({{ b.quantity }})</option>
+                    }
+                  </select>
+                } @else { <span class="text-secondary small">-</span> }
+              </td>
+              <td class="small">{{ draft().batch?.shelf_location || draft().product?.shelf_location || '-' }}</td>
+              <td class="small">{{ draft().product?.schedule_category || '-' }}</td>
+              <td class="small">{{ draft().product?.pack_size || '-' }}</td>
+              <td class="small">{{ draft().batch?.unit_mrp ?? draft().batch?.mrp ?? draft().product?.mrp ?? '-' }}</td>
+              <td class="text-end small">{{ draftPreview().taxable | number: '1.2-2' }}</td>
+              <td class="text-end small">{{ draftPreview().disc | number: '1.2-2' }}</td>
+              <td class="text-end small">{{ draftPreview().gst | number: '1.2-2' }}</td>
+              <td class="text-end small">{{ draftPreview().net | number: '1.2-2' }}</td>
+              <td>
+                <button type="button" class="btn btn-sm btn-info text-white" (click)="addProductLine()">ADD</button>
+              </td>
+            </tr>
+
+            @for (l of billLines(); track $index; let i = $index) {
+              <tr>
+                <td class="small">{{ l.order_date | date: 'dd-MM-yyyy' }}</td>
+                <td class="fw-semibold small">{{ l.product_name }}</td>
+                <td><input type="number" class="form-control form-control-sm" [ngModel]="l.qty" (ngModelChange)="patchLine(i, 'qty', $event)" /></td>
+                <td><input type="number" class="form-control form-control-sm" [ngModel]="l.disc" (ngModelChange)="patchLine(i, 'disc', $event)" /></td>
+                <td class="small">{{ l.batch_no }}</td>
+                <td class="small">{{ l.shelf || '-' }}</td>
+                <td class="small"><span class="badge text-bg-light">{{ l.category }}</span></td>
+                <td class="small">{{ l.pack || '-' }}</td>
+                <td class="small">{{ l.mrp | number: '1.2-2' }}</td>
+                <td class="text-end small">{{ lineTaxable(l) | number: '1.2-2' }}</td>
+                <td class="text-end small">{{ lineDiscAmt(l) | number: '1.2-2' }}</td>
+                <td class="text-end small">{{ lineGst(l) | number: '1.2-2' }}</td>
+                <td class="text-end small fw-semibold">{{ lineNet(l) | number: '1.2-2' }}</td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeLine(i)"><i class="bi bi-trash"></i></button>
+                </td>
+              </tr>
+            }
+
+            <tr class="totals-row">
+              <td colspan="9" class="small text-secondary"><i>Note:</i> Add products then Save bill.</td>
+              <td class="text-end fw-semibold">{{ billTotals().taxable | number: '1.2-2' }}</td>
+              <td class="text-end fw-semibold">{{ billTotals().disc | number: '1.2-2' }}</td>
+              <td class="text-end fw-semibold">{{ billTotals().gst | number: '1.2-2' }}</td>
+              <td class="text-end fw-semibold">{{ billTotals().net | number: '1.2-2' }}</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td colspan="9"></td>
+              <td class="fw-semibold small">Paid Amt.</td>
+              <td colspan="2">
+                <input type="number" class="form-control form-control-sm"
+                  [ngModel]="billForm().paid_amt" (ngModelChange)="patchBill('paid_amt', +$event)" />
+              </td>
+              <td class="fw-semibold small">Balance</td>
+              <td class="fw-semibold" [class.text-danger]="balanceAmt() > 0">{{ balanceAmt() | number: '1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
+        <button type="button" class="btn btn-light border" (click)="resetBill(); setTab('admissions')">Cancel</button>
+        <button type="button" class="btn btn-pharma" [disabled]="billSaving()" (click)="saveBill()">
+          @if (billSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          Save
+        </button>
+      </div>
+    </div>
+  }
 
   <!-- Detail drawer -->
   @if (selected(); as adm) {
     <div class="modal-backdrop-custom" (click)="closeDetail()"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:720px;">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" style="max-width:720px;">
         <div class="modal-head">
           <div>
             <h5 class="mb-0 fw-semibold">{{ adm.patient_name }} <span class="badge" [class.text-bg-success]="adm.status==='admitted'" [class.text-bg-secondary]="adm.status==='discharged'">{{ adm.status }}</span></h5>
@@ -61,11 +351,10 @@
           <button class="btn-close" (click)="closeDetail()"></button>
         </div>
         <div class="modal-body-custom">
-          <!-- totals -->
           <div class="row g-2 mb-3">
-            <div class="col-4"><div class="tot-box"><span>Billed</span><b>{{ adm.totals.billed | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
-            <div class="col-4"><div class="tot-box paid"><span>Paid</span><b>{{ adm.totals.paid | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
-            <div class="col-4"><div class="tot-box bal"><span>Balance</span><b>{{ adm.totals.balance | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div></div>
+            <div class="col-4"><div class="tot-box"><span>Billed</span><b>{{ adm.totals.billed | number: '1.2-2' }}</b></div></div>
+            <div class="col-4"><div class="tot-box paid"><span>Paid</span><b>{{ adm.totals.paid | number: '1.2-2' }}</b></div></div>
+            <div class="col-4"><div class="tot-box bal"><span>Balance</span><b>{{ adm.totals.balance | number: '1.2-2' }}</b></div></div>
           </div>
 
           @if (adm.status === 'admitted') {
@@ -81,7 +370,7 @@
               <h6 class="fw-semibold small text-secondary">BILLS ({{ adm.bills.length }})</h6>
               <div class="mini-list">
                 @for (b of adm.bills; track b.id) {
-                  <div class="mini-row"><span>{{ b.invoice_no }}</span><span class="text-secondary small">{{ b.invoice_date | date: 'dd MMM' }}</span><span class="fw-semibold">{{ b.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+                  <div class="mini-row"><span>{{ b.invoice_no }}</span><span class="text-secondary small">{{ b.invoice_date | date: 'dd-MM-yyyy' }}</span><span class="fw-semibold">{{ b.net_amount | number: '1.2-2' }}</span></div>
                 } @empty { <div class="text-secondary small py-2">No bills yet.</div> }
               </div>
             </div>
@@ -89,7 +378,7 @@
               <h6 class="fw-semibold small text-secondary">PAYMENTS ({{ adm.payments.length }})</h6>
               <div class="mini-list">
                 @for (p of adm.payments; track p.id) {
-                  <div class="mini-row"><span class="badge text-bg-light">{{ p.mode }}</span><span class="text-secondary small">{{ p.paid_at | date: 'dd MMM' }}</span><span class="fw-semibold text-success">{{ p.amount | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+                  <div class="mini-row"><span class="badge text-bg-light">{{ p.mode }}</span><span class="text-secondary small">{{ p.paid_at | date: 'dd-MM-yyyy' }}</span><span class="fw-semibold text-success">{{ p.amount | number: '1.2-2' }}</span></div>
                 } @empty { <div class="text-secondary small py-2">No payments yet.</div> }
               </div>
             </div>
@@ -103,7 +392,7 @@
   @if (admitOpen()) {
     <div class="modal-backdrop-custom" (click)="admitOpen.set(false)"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:560px;">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" style="max-width:560px;">
         <div class="modal-head"><h5 class="mb-0 fw-semibold">Admit Patient</h5><button class="btn-close" (click)="admitOpen.set(false)"></button></div>
         <div class="modal-body-custom">
           <div class="row g-3">
@@ -127,7 +416,7 @@
   @if (payOpen()) {
     <div class="modal-backdrop-custom" (click)="payOpen.set(false)"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:440px;">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" style="max-width:440px;">
         <div class="modal-head"><h5 class="mb-0 fw-semibold">Record Payment</h5><button class="btn-close" (click)="payOpen.set(false)"></button></div>
         <div class="modal-body-custom">
           <label class="form-label">Amount <span class="text-danger">*</span></label>

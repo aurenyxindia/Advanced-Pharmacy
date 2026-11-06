@@ -1,0 +1,607 @@
+<div class="payments-hub-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="fw-bold mb-0">Payments</h4>
+      <p class="text-secondary small mb-0">Settle dues against bills · vouchers for cashbook</p>
+    </div>
+  </div>
+
+  <div class="card-pharma p-2 mb-3">
+    <div class="d-flex flex-wrap gap-2 pay-tabs">
+      <button type="button" class="btn btn-sm pay-tab" [class.active]="tab()==='distributor'" (click)="setTab('distributor')">Distributor Payment</button>
+      @if (showRetail()) {
+        <button type="button" class="btn btn-sm pay-tab" [class.active]="tab()==='customer'" (click)="setTab('customer')">Retail Customer Payment</button>
+      }
+      @if (showWholesale()) {
+        <button type="button" class="btn btn-sm pay-tab" [class.active]="tab()==='wcustomer'" (click)="setTab('wcustomer')">Wholesale Customer Payment</button>
+      }
+      <button type="button" class="btn btn-sm pay-tab" [class.active]="tab()==='vouchers'" (click)="setTab('vouchers')">Vouchers</button>
+    </div>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+  @if (toast()) { <div class="alert alert-success py-2">{{ toast() }}</div> }
+
+  <!-- ========== DISTRIBUTOR ========== -->
+  @if (tab() === 'distributor') {
+    @if (!distDetail && !showDistHistory) {
+      <div class="card-pharma p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+          <h6 class="mb-0 fw-semibold">Distributor Pending Payments</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openDistHistory()">View Payment History</button>
+        </div>
+        <div class="mb-3" style="max-width:280px">
+          <input class="form-control form-control-sm" placeholder="Search distributor…" [(ngModel)]="distFilter" />
+        </div>
+        @if (loading()) {
+          <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Distributor</th>
+                  <th class="text-end">Total Due</th>
+                  <th class="text-end">Bills</th>
+                  <th>Due From</th>
+                  <th class="text-end">Balance</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of filteredDist(); track p.distributor_name) {
+                  <tr>
+                    <td class="fw-semibold">{{ p.distributor_name }}</td>
+                    <td class="text-end">{{ roundRupee(p.net) | number: '1.0-0' }}</td>
+                    <td class="text-end">{{ p.total_dues }}</td>
+                    <td>{{ p.from_date | date: 'dd-MM-yyyy' }}</td>
+                    <td class="text-end">{{ roundRupee(p.balance) | number: '1.0-0' }}</td>
+                    <td><button type="button" class="btn btn-sm btn-outline-primary" (click)="openDist(p)">View</button></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" class="text-center text-secondary py-4">No pending distributor dues.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+
+    @if (distDetail) {
+      <div class="card-pharma p-3">
+        <h6 class="fw-semibold text-center mb-3">{{ distDetail.distributor_name }}</h6>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Amount</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="distAmount"
+              (ngModelChange)="applyDistFifo()" [max]="distMax()" min="0" step="0.01"
+              placeholder="Optional — auto-fills bills" />
+            <div class="small text-secondary">Max: {{ roundRupee(distMax()) | number: '1.0-0' }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Mode</label>
+            <select class="form-select form-select-sm" [(ngModel)]="distMode" (ngModelChange)="applyDistFifo()">
+              @for (m of modesDist; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Transaction / Cheque No</label>
+            <input class="form-control form-control-sm" [(ngModel)]="distTxn" (ngModelChange)="applyDistFifo()" />
+          </div>
+        </div>
+        <div class="row g-2 small mb-2">
+          <div class="col-md-3"><span class="text-secondary">Balance</span><div class="fw-semibold">{{ roundRupee(distDetail.balance) | number: '1.0-0' }}</div></div>
+          <div class="col-md-3"><span class="text-secondary">Due bills</span><div>{{ distDetail.total_dues }}</div></div>
+          <div class="col-md-3"><span class="text-secondary">Due from</span><div>{{ distDetail.from_date | date: 'dd-MM-yyyy' }}</div></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th class="text-center pay-check-col">
+                  <input type="checkbox" class="form-check-input m-0" title="Select all invoices"
+                    [checked]="distAllChecked()"
+                    (change)="onDistCheckAll($any($event.target).checked)" />
+                </th>
+                <th>Invoice</th><th>Date</th><th class="text-end">Amount</th><th class="text-end">Paid</th>
+                <th class="text-end">Remaining</th><th class="text-end">Pay Now</th><th class="text-end">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of distDetail.details; track d.id) {
+                <tr>
+                  <td class="text-center pay-check-col">
+                    <input type="checkbox" class="form-check-input m-0" [checked]="!!d.selected"
+                      (change)="onDistInvoiceCheck(d, $any($event.target).checked)"
+                      [title]="'Pay ' + d.invoice_no" />
+                  </td>
+                  <td>{{ d.invoice_no }}</td>
+                  <td>{{ d.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                  <td class="text-end">{{ roundRupee(d.net_total) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(d.paid) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(d.balance) | number: '1.0-0' }}</td>
+                  <td style="max-width:7rem">
+                    <input type="number" class="form-control form-control-sm text-end"
+                      [(ngModel)]="d.payment_amount" (ngModelChange)="onDistLinePay(d)" min="0" [max]="d.balance" step="1" />
+                  </td>
+                  <td class="text-end">{{ roundRupee(d.balance_amount) | number: '1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="distDetail = null">Close</button>
+          <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving()" (click)="saveDist()">
+            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } Save
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (showDistHistory) {
+      <div class="card-pharma p-3">
+        <div class="d-flex justify-content-between mb-3">
+          <h6 class="mb-0 fw-semibold">Distributor Payment History</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showDistHistory = false">Back</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Distributor</th><th>Bill</th><th>Date</th><th class="text-end">Bill Amt</th>
+                <th class="text-end">Paid</th><th class="text-end">Remaining</th><th>Mode</th><th>Txn</th><th>Entry</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of distHistory(); track h.id) {
+                <tr>
+                  <td>{{ h.distributor_name }}</td>
+                  <td>{{ h.bill_no }}</td>
+                  <td>{{ h.bill_date | date: 'dd-MM-yyyy' }}</td>
+                  <td class="text-end">{{ roundRupee(h.bill_amount) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(h.paid) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(h.remaining) | number: '1.0-0' }}</td>
+                  <td>{{ h.mode }}</td>
+                  <td>{{ h.transaction_no || '—' }}</td>
+                  <td>{{ h.entry_date | date: 'dd-MM-yyyy' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="9" class="text-center text-secondary py-4">No history.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ========== RETAIL CUSTOMER ========== -->
+  @if (tab() === 'customer') {
+    @if (!custDetail) {
+      <div class="card-pharma p-2 mb-3">
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm pay-tab" [class.active]="custSubTab==='payment'" (click)="showCustPaymentTab()">Retail Customer Payment</button>
+          <button type="button" class="btn btn-sm pay-tab" [class.active]="custSubTab==='history'" (click)="showCustHistoryTab()">Retail Payment History</button>
+        </div>
+      </div>
+
+      @if (custSubTab === 'payment') {
+        <div class="card-pharma p-3">
+          <h6 class="fw-semibold mb-3">Retail Customer Pending Payments</h6>
+          @if (loading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Customer</th><th>Contact</th><th class="text-end">Total Due</th>
+                    <th class="text-end">Bills</th><th>Due From</th><th class="text-end">Balance</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of custList(); track p.patient_name + p.contact_no) {
+                    <tr>
+                      <td class="fw-semibold">{{ p.patient_name }}</td>
+                      <td>{{ p.contact_no || '—' }}</td>
+                      <td class="text-end">{{ roundRupee(p.net) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ p.total_dues }}</td>
+                      <td>{{ p.from_date | date: 'dd-MM-yyyy' }}</td>
+                      <td class="text-end">{{ roundRupee(p.balance) | number: '1.0-0' }}</td>
+                      <td><button type="button" class="btn btn-sm btn-outline-primary" (click)="openCust(p)">View</button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="7" class="text-center text-secondary py-4">No pending retail dues.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      @if (custSubTab === 'history') {
+        <div class="card-pharma p-3">
+          <h6 class="fw-semibold mb-2">Retail Payment History</h6>
+          <p class="small text-secondary mb-3">Log of cleared / recorded payments</p>
+          <div class="mb-3" style="max-width:280px">
+            <input class="form-control form-control-sm" placeholder="Search customer / bill…" [(ngModel)]="custHistoryFilter" />
+          </div>
+          @if (loading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>Bill No.</th>
+                    <th>Bill Date</th>
+                    <th class="text-end">Bill Amount</th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Remaining</th>
+                    <th>Mode</th>
+                    <th>Transaction No</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (h of filteredCustCleared(); track h.id) {
+                    <tr>
+                      <td>{{ h.entry_date | date: 'dd-MM-yyyy' }}</td>
+                      <td>{{ h.patient_name || h.party_name }}</td>
+                      <td>{{ h.contact_no || '—' }}</td>
+                      <td>{{ h.bill_no }}</td>
+                      <td>{{ h.bill_date | date: 'dd-MM-yyyy' }}</td>
+                      <td class="text-end">{{ roundRupee(h.bill_amount) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ roundRupee(h.paid) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ roundRupee(h.remaining) | number: '1.0-0' }}</td>
+                      <td>{{ h.mode }}</td>
+                      <td>{{ h.transaction_no || '—' }}</td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary" title="Print receipt" (click)="printPayment(h.id)">
+                          <i class="bi bi-printer"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="11" class="text-center text-secondary py-4">No cleared payments found.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+    } @else {
+      <div class="card-pharma p-3">
+        <h6 class="fw-semibold text-center mb-3">{{ custDetail.patient_name }}</h6>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Amount to Pay <span class="text-danger">*</span></label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="custAmount" [max]="custMax()" min="0" step="0.01" />
+            <div class="small text-secondary">Max: {{ roundRupee(custMax()) | number: '1.0-0' }} (FIFO oldest bills)</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Mode</label>
+            <select class="form-select form-select-sm" [(ngModel)]="custMode">
+              @for (m of modesCust; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Transaction No</label>
+            <input class="form-control form-control-sm" [(ngModel)]="custTxn" />
+          </div>
+        </div>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr><th>Bill</th><th>Date</th><th class="text-end">Net</th><th class="text-end">Paid</th><th class="text-end">Balance</th></tr>
+            </thead>
+            <tbody>
+              @for (d of custDetail.details; track d.id) {
+                <tr>
+                  <td>{{ d.invoice_no }}</td>
+                  <td>{{ d.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                  <td class="text-end">{{ roundRupee(d.net) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(d.paid) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(d.balance) | number: '1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (custHistory().length) {
+          <h6 class="small fw-semibold">Recent payments for this customer</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Bill</th><th class="text-end">Paid</th><th>Mode</th><th>Date</th></tr></thead>
+              <tbody>
+                @for (h of custHistory().slice(0, 10); track h.id) {
+                  <tr>
+                    <td>{{ h.bill_no }}</td>
+                    <td class="text-end">{{ h.paid | number: '1.2-2' }}</td>
+                    <td>{{ h.mode }}</td>
+                    <td>{{ h.entry_date | date: 'dd-MM-yyyy' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="custDetail = null">Close</button>
+          <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving()" (click)="saveCust()">Save</button>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ========== WHOLESALE CUSTOMER ========== -->
+  @if (tab() === 'wcustomer') {
+    @if (!wcustDetail) {
+      <div class="card-pharma p-2 mb-3">
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm pay-tab" [class.active]="wcustSubTab==='payment'" (click)="showWcustPaymentTab()">Wholesale Customer Payment</button>
+          <button type="button" class="btn btn-sm pay-tab" [class.active]="wcustSubTab==='history'" (click)="showWcustHistoryTab()">Wholesale Payment History</button>
+        </div>
+      </div>
+
+      @if (wcustSubTab === 'payment') {
+        <div class="card-pharma p-3">
+          <h6 class="fw-semibold mb-3">Wholesale Customer Pending Payments</h6>
+          @if (loading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Customer</th><th>Contact</th><th class="text-end">Total Due</th>
+                    <th class="text-end">Bills</th><th class="text-end">Balance</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of wcustList(); track p.patient_name + p.contact_no) {
+                    <tr>
+                      <td class="fw-semibold">{{ p.patient_name }}</td>
+                      <td>{{ p.contact_no || '—' }}</td>
+                      <td class="text-end">{{ roundRupee(p.net) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ p.total_dues }}</td>
+                      <td class="text-end">{{ roundRupee(p.balance) | number: '1.0-0' }}</td>
+                      <td><button type="button" class="btn btn-sm btn-outline-primary" (click)="openWcust(p)">View</button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6" class="text-center text-secondary py-4">No pending wholesale dues.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      @if (wcustSubTab === 'history') {
+        <div class="card-pharma p-3">
+          <h6 class="fw-semibold mb-2">Wholesale Payment History</h6>
+          <p class="small text-secondary mb-3">Log of cleared / recorded payments</p>
+          <div class="mb-3" style="max-width:280px">
+            <input class="form-control form-control-sm" placeholder="Search customer / bill…" [(ngModel)]="wcustHistoryFilter" />
+          </div>
+          @if (loading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>Bill No.</th>
+                    <th>Bill Date</th>
+                    <th class="text-end">Bill Amount</th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Remaining</th>
+                    <th>Mode</th>
+                    <th>Transaction No</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (h of filteredWcustCleared(); track h.id) {
+                    <tr>
+                      <td>{{ h.entry_date | date: 'dd-MM-yyyy' }}</td>
+                      <td>{{ h.patient_name || h.party_name }}</td>
+                      <td>{{ h.contact_no || '—' }}</td>
+                      <td>{{ h.bill_no }}</td>
+                      <td>{{ h.bill_date | date: 'dd-MM-yyyy' }}</td>
+                      <td class="text-end">{{ roundRupee(h.bill_amount) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ roundRupee(h.paid) | number: '1.0-0' }}</td>
+                      <td class="text-end">{{ roundRupee(h.remaining) | number: '1.0-0' }}</td>
+                      <td>{{ h.mode }}</td>
+                      <td>{{ h.transaction_no || '—' }}</td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary" title="Print receipt" (click)="printPayment(h.id)">
+                          <i class="bi bi-printer"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="11" class="text-center text-secondary py-4">No cleared payments found.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+    } @else {
+      <div class="card-pharma p-3">
+        <h6 class="fw-semibold text-center mb-3">{{ wcustDetail.patient_name }}</h6>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Amount</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="wcustAmount"
+              (ngModelChange)="applyWcustFifo()" [max]="wcustMax()" min="0" step="0.01" />
+            <div class="small text-secondary">Max: {{ roundRupee(wcustMax()) | number: '1.0-0' }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Mode</label>
+            <select class="form-select form-select-sm" [(ngModel)]="wcustMode" (ngModelChange)="applyWcustFifo()">
+              @for (m of modesCust; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Transaction No</label>
+            <input class="form-control form-control-sm" [(ngModel)]="wcustTxn" (ngModelChange)="applyWcustFifo()" />
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Bill</th><th>Date</th><th class="text-end">Net</th><th class="text-end">Remaining</th>
+                <th class="text-end">Pay Now</th><th class="text-end">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of wcustDetail.details; track d.id) {
+                <tr>
+                  <td>{{ d.invoice_no }}</td>
+                  <td>{{ d.invoice_date | date: 'dd-MM-yyyy' }}</td>
+                  <td class="text-end">{{ roundRupee(d.net) | number: '1.0-0' }}</td>
+                  <td class="text-end">{{ roundRupee(d.balance) | number: '1.0-0' }}</td>
+                  <td style="max-width:7rem">
+                    <input type="number" class="form-control form-control-sm text-end"
+                      [(ngModel)]="d.payment_amount" (ngModelChange)="onWcustLinePay(d)" min="0" [max]="d.balance" step="1" />
+                  </td>
+                  <td class="text-end">{{ roundRupee(d.balance_amount) | number: '1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (wcustHistory().length) {
+          <h6 class="small fw-semibold mt-3">Recent payments for this customer</h6>
+          <div class="table-responsive mb-2">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Bill</th><th class="text-end">Paid</th><th>Mode</th><th>Date</th></tr></thead>
+              <tbody>
+                @for (h of wcustHistory().slice(0, 10); track h.id) {
+                  <tr>
+                    <td>{{ h.bill_no }}</td>
+                    <td class="text-end">{{ h.paid | number: '1.2-2' }}</td>
+                    <td>{{ h.mode }}</td>
+                    <td>{{ h.entry_date | date: 'dd-MM-yyyy' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="wcustDetail = null">Close</button>
+          <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving()" (click)="saveWcust()">Save</button>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ========== VOUCHERS (existing) ========== -->
+  @if (tab() === 'vouchers') {
+    <div class="card-pharma p-3">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+        <h6 class="mb-0 fw-semibold">Receipt &amp; Payment Vouchers</h6>
+        <button type="button" class="btn btn-sm btn-pharma" (click)="showVoucherForm = !showVoucherForm">
+          {{ showVoucherForm ? 'Cancel' : 'New Voucher' }}
+        </button>
+      </div>
+      @if (showVoucherForm) {
+        <div class="row g-2 mb-3 border rounded p-2 bg-light">
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Type</label>
+            <select class="form-select form-select-sm" [(ngModel)]="vForm.voucher_type">
+              <option value="receipt">Receipt (money in)</option>
+              <option value="payment">Payment (money out)</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Date</label>
+            <input type="date" class="form-control form-control-sm" [(ngModel)]="vForm.voucher_date" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Party Type</label>
+            <select class="form-select form-select-sm" [(ngModel)]="vForm.party_type">
+              <option value="customer">Customer</option>
+              <option value="supplier">Supplier</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Mode</label>
+            <select class="form-select form-select-sm" [(ngModel)]="vForm.mode">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="upi">UPI</option>
+              <option value="bank">Bank</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Party Name</label>
+            <input class="form-control form-control-sm text-uppercase" [(ngModel)]="vForm.party_name" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Amount</label>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="vForm.amount" min="0.01" step="0.01" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Ref No</label>
+            <input class="form-control form-control-sm" [(ngModel)]="vForm.ref_no" />
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">Narration</label>
+            <input class="form-control form-control-sm" [(ngModel)]="vForm.narration" />
+          </div>
+          <div class="col-12 text-end">
+            <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving()" (click)="saveVoucher()">Save Voucher</button>
+          </div>
+        </div>
+      }
+      <div class="mb-2" style="max-width:280px">
+        <input class="form-control form-control-sm" placeholder="Search vouchers…"
+          [(ngModel)]="voucherSearch" (ngModelChange)="loadVouchers()" />
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Voucher</th><th>Type</th><th>Party</th><th class="text-end">Amount</th>
+              <th>Mode</th><th>Date</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of vouchers(); track v.id) {
+              <tr>
+                <td>{{ v.voucher_no }}</td>
+                <td><span class="badge text-bg-light">{{ v.voucher_type }}</span></td>
+                <td>{{ v.party_name }}</td>
+                <td class="text-end">{{ v.amount | number: '1.2-2' }}</td>
+                <td>{{ v.mode }}</td>
+                <td>{{ v.voucher_date | date: 'dd-MM-yyyy' }}</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteVoucher(v.id)"><i class="bi bi-trash"></i></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="text-center text-secondary py-4">No vouchers.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

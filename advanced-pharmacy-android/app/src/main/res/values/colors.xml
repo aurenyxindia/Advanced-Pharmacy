@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="teal">#0F766E</color>
+    <!-- White plate so the Paperless Pharmacy emblem reads clearly on the launcher. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="page">#F4F7F8</color>
+</resources>

@@ -1,5 +1,23 @@
+# Allow large import uploads (up to ~50MB; keep post_max > upload_max).
+<IfModule mod_php.c>
+    php_value upload_max_filesize 52M
+    php_value post_max_size 56M
+    php_value max_execution_time 300
+    php_value memory_limit 1024M
+</IfModule>
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 52M
+    php_value post_max_size 56M
+    php_value max_execution_time 300
+    php_value memory_limit 1024M
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Pass Authorization header to PHP (CGI/FPM/cPanel often strips it).
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     # Allow direct access to existing files (e.g. generated invoices) ...
     RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -8,6 +26,13 @@
 
     # ... otherwise route everything to the front controller.
     RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_cgi.c>
+    CGIPassAuth On
+</IfModule>
+<IfModule mod_cgid.c>
+    CGIPassAuth On
 </IfModule>
 
 # Never serve the .env or source if doc root is misconfigured.

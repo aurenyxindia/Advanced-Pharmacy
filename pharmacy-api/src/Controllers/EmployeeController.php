@@ -16,7 +16,7 @@ use App\Models\User;
  */
 final class EmployeeController extends Controller
 {
-    private const ROLES = ['ho_admin', 'branch_admin', 'purchase', 'pharmacist', 'cashier'];
+    private const ROLES = ['ho_admin', 'branch_admin', 'purchase', 'pharmacist', 'cashier', 'delivery'];
 
     public function index(Request $request): Response
     {
@@ -42,13 +42,16 @@ final class EmployeeController extends Controller
     public function store(Request $request): Response
     {
         $data = $this->validate($request, [
-            'name'      => 'required|string|min:2|max:120',
-            'email'     => 'required|email|max:150',
-            'phone'     => 'string|max:20',
-            'role'      => 'required|in:' . implode(',', self::ROLES),
-            'branch_id' => 'required|integer',
-            'password'  => 'required|string|min:8',
-            'status'    => 'in:active,inactive,suspended',
+            'name'         => 'required|string|min:2|max:120',
+            'email'        => 'required|email|max:150',
+            'phone'        => 'string|regex:/^[6-9]\d{9}$/',
+            'role'         => 'required|in:' . implode(',', self::ROLES),
+            'branch_id'    => 'required|integer',
+            'password'     => 'required|string|min:8',
+            'status'       => 'in:active,inactive,suspended',
+            'reg_no'       => 'string|max:40',
+            'joining_date' => 'string|max:20',
+            'address'      => 'string|max:255',
         ]);
 
         $users = new User();
@@ -62,6 +65,9 @@ final class EmployeeController extends Controller
             'name'          => $data['name'],
             'email'         => strtolower(trim($data['email'])),
             'phone'         => $data['phone'] ?? null,
+            'reg_no'        => isset($data['reg_no']) ? strtoupper(trim((string) $data['reg_no'])) : null,
+            'joining_date'  => $data['joining_date'] ?? null,
+            'address'       => isset($data['address']) ? strtoupper(trim((string) $data['address'])) : null,
             'password_hash' => AuthService::hashPassword($data['password']),
             'role'          => $data['role'],
             'status'        => $data['status'] ?? 'active',
@@ -78,21 +84,31 @@ final class EmployeeController extends Controller
         $employee = $this->findScoped($request, $users);
 
         $data = $this->validate($request, [
-            'name'      => 'required|string|min:2|max:120',
-            'phone'     => 'string|max:20',
-            'role'      => 'required|in:' . implode(',', self::ROLES),
-            'branch_id' => 'required|integer',
-            'status'    => 'in:active,inactive,suspended',
-            'password'  => 'string|min:8',
+            'name'         => 'required|string|min:2|max:120',
+            'phone'        => 'string|regex:/^[6-9]\d{9}$/',
+            'role'         => 'required|in:' . implode(',', self::ROLES),
+            'branch_id'    => 'required|integer',
+            'status'       => 'in:active,inactive,suspended',
+            'password'     => 'string|min:8',
+            'reg_no'       => 'string|max:40',
+            'joining_date' => 'string|max:20',
+            'address'      => 'string|max:255',
         ]);
 
         $payload = [
-            'name'       => $data['name'],
-            'phone'      => $data['phone'] ?? null,
-            'role'       => $data['role'],
-            'branch_id'  => (int) $data['branch_id'],
-            'status'     => $data['status'] ?? $employee['status'],
-            'updated_at' => now(),
+            'name'         => $data['name'],
+            'phone'        => $data['phone'] ?? null,
+            'reg_no'       => array_key_exists('reg_no', $data)
+                ? (trim((string) ($data['reg_no'] ?? '')) !== '' ? strtoupper(trim((string) $data['reg_no'])) : null)
+                : ($employee['reg_no'] ?? null),
+            'joining_date' => array_key_exists('joining_date', $data) ? ($data['joining_date'] ?: null) : ($employee['joining_date'] ?? null),
+            'address'      => array_key_exists('address', $data)
+                ? (trim((string) ($data['address'] ?? '')) !== '' ? strtoupper(trim((string) $data['address'])) : null)
+                : ($employee['address'] ?? null),
+            'role'         => $data['role'],
+            'branch_id'    => (int) $data['branch_id'],
+            'status'       => $data['status'] ?? $employee['status'],
+            'updated_at'   => now(),
         ];
         if (!empty($data['password'])) {
             $payload['password_hash'] = AuthService::hashPassword($data['password']);

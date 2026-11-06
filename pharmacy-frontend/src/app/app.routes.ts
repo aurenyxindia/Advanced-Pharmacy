@@ -1,5 +1,6 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 import { authGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
+import { APP_ROLES } from './core/models/auth.models';
 
 export const routes: Routes = [
   // ---- Public ePharmacy storefront (no authentication) ----
@@ -10,6 +11,10 @@ export const routes: Routes = [
   {
     path: 'track',
     loadComponent: () => import('./features/shop/track').then((m) => m.Track),
+  },
+  {
+    path: 'agt-shop',
+    loadComponent: () => import('./features/agt-shop/agt-shop').then((m) => m.AgtShopPage),
   },
   {
     path: 'login',
@@ -31,45 +36,69 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase', 'pharmacist', 'cashier'] },
+        data: { roles: APP_ROLES, moduleCode: 'HOME' },
         loadComponent: () =>
           import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
         path: 'masters',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { roles: APP_ROLES },
         loadComponent: () =>
           import('./features/masters/masters-home').then((m) => m.MastersHome),
       },
       {
         path: 'masters/products',
         canActivate: [roleGuard],
-        data: { configKey: 'products', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { configKey: 'products', roles: APP_ROLES },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/generics',
         canActivate: [roleGuard],
-        data: { configKey: 'generics', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { configKey: 'generics', roles: APP_ROLES },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/manufacturers',
+        canActivate: [roleGuard],
+        data: { configKey: 'manufacturers', roles: APP_ROLES },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/hsn',
+        canActivate: [roleGuard],
+        data: { configKey: 'hsn', roles: APP_ROLES },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/customers',
         canActivate: [roleGuard],
-        data: { configKey: 'customers', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { configKey: 'customers', roles: APP_ROLES, moduleCode: 'MASTERS' },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/doctors',
         canActivate: [roleGuard],
-        data: { configKey: 'doctors', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { configKey: 'doctors', roles: APP_ROLES, moduleCode: 'MASTERS' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/hospitals',
+        canActivate: [roleGuard],
+        data: { configKey: 'hospitals', roles: APP_ROLES, moduleCode: 'MASTERS' },
+        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+      },
+      {
+        path: 'masters/distributors',
+        canActivate: [roleGuard],
+        data: { configKey: 'distributors', roles: APP_ROLES },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
         path: 'masters/suppliers',
         canActivate: [roleGuard],
-        data: { configKey: 'suppliers', roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { configKey: 'distributors', roles: APP_ROLES },
         loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
       },
       {
@@ -93,37 +122,75 @@ export const routes: Routes = [
       {
         path: 'purchase',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { roles: APP_ROLES, moduleCode: 'PURCHASE', openLog: true },
         loadComponent: () => import('./features/purchase/purchase-list').then((m) => m.PurchaseList),
       },
       {
         path: 'purchase/new',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { roles: APP_ROLES, moduleCode: 'PURCHASE' },
+        loadComponent: () => import('./features/purchase/purchase-entry').then((m) => m.PurchaseEntry),
+      },
+      {
+        path: 'purchase/import',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'IMPORT_BILL', requireEdit: true },
+        loadComponent: () => import('./features/purchase/import-hub/import-hub').then((m) => m.ImportHub),
+      },
+      {
+        path: 'purchase/inward-stock',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'PURCHASE', requireEdit: true },
+        loadComponent: () =>
+          import('./features/purchase/inward-stock/inward-stock').then((m) => m.InwardStock),
+      },
+      {
+        path: 'purchase-order',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'PURCHASE_ORDER' },
+        loadComponent: () =>
+          import('./features/purchase/purchase-order/purchase-order').then((m) => m.PurchaseOrderPage),
+      },
+      {
+        path: 'purchase/dispensing',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'DISPENSING' },
+        loadComponent: () => import('./features/purchase/dispensing/dispensing').then((m) => m.Dispensing),
+      },
+      {
+        path: 'purchase/:id/edit',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'PURCHASE', requireEdit: true },
         loadComponent: () => import('./features/purchase/purchase-entry').then((m) => m.PurchaseEntry),
       },
       {
         path: 'sales',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
+        data: { roles: APP_ROLES, moduleCode: 'SALES', openLog: true },
         loadComponent: () => import('./features/sales/sales-list').then((m) => m.SalesList),
       },
       {
         path: 'sales/new',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'pharmacist', 'cashier'] },
+        data: { roles: APP_ROLES, moduleCode: 'SALES' },
         loadComponent: () => import('./features/sales/billing').then((m) => m.Billing),
+      },
+      {
+        path: 'sales/:id/edit',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin'], moduleCode: 'SALES', requireEdit: true },
+        loadComponent: () => import('./features/sales/sale-bill-edit').then((m) => m.SaleBillEdit),
       },
       {
         path: 'opening-stock',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { roles: APP_ROLES, moduleCode: 'OPENING_STOCK', requireEdit: true },
         loadComponent: () => import('./features/stock/opening-stock').then((m) => m.OpeningStock),
       },
       {
         path: 'reports',
         canActivate: [roleGuard],
-        data: { roles: ['ho_admin', 'branch_admin', 'purchase'] },
+        data: { roles: APP_ROLES, moduleCode: 'ALL_REPORTS' },
         loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
       },
       {
@@ -157,6 +224,18 @@ export const routes: Routes = [
         loadComponent: () => import('./features/deliveries/deliveries').then((m) => m.Deliveries),
       },
       {
+        path: 'aura-ghar-tak',
+        canActivate: [roleGuard],
+        data: { roles: [...APP_ROLES], moduleCode: 'AURA_GHAR_TAK' },
+        loadComponent: () => import('./features/aura-ghar-tak/aura-ghar-tak').then((m) => m.AuraGharTakPage),
+      },
+      {
+        path: 'mr',
+        canActivate: [roleGuard],
+        data: { roles: [...APP_ROLES], moduleCode: 'MR' },
+        loadComponent: () => import('./features/mr/mr').then((m) => m.MrPage),
+      },
+      {
         path: 'ipd',
         canActivate: [roleGuard],
         data: { roles: ['ho_admin', 'branch_admin', 'pharmacist'] },
@@ -165,20 +244,62 @@ export const routes: Routes = [
       {
         path: 'payments',
         canActivate: [roleGuard],
-        data: { configKey: 'payments', roles: ['ho_admin', 'branch_admin'] },
-        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+        data: { roles: ['ho_admin', 'branch_admin'], moduleCode: 'PAYMENTS' },
+        loadComponent: () => import('./features/payments/payments-hub').then((m) => m.PaymentsHubPage),
       },
       {
         path: 'credit-notes',
         canActivate: [roleGuard],
-        data: { configKey: 'credit-notes', roles: ['ho_admin', 'branch_admin'] },
-        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/returns/wholesale-return').then((m) => m.WholesaleReturnPage),
       },
       {
         path: 'debit-notes',
         canActivate: [roleGuard],
-        data: { configKey: 'debit-notes', roles: ['ho_admin', 'branch_admin'] },
-        loadComponent: () => import('./features/masters/master-page').then((m) => m.MasterPage),
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/return-note/return-note').then((m) => m.ReturnNotePage),
+      },
+      {
+        path: 'return-note',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/return-note/return-note').then((m) => m.ReturnNotePage),
+      },
+      {
+        path: 'sales-return',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/returns/retail-sales-return').then((m) => m.RetailSalesReturnPage),
+      },
+      {
+        path: 'wholesale-return',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/returns/wholesale-return').then((m) => m.WholesaleReturnPage),
+      },
+      {
+        path: 'return-deduction',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'RETURN_NOTE' },
+        loadComponent: () => import('./features/returns/return-deduction').then((m) => m.ReturnDeductionPage),
+      },
+      {
+        path: 'profile',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES, moduleCode: 'MY_PROFILE' },
+        loadComponent: () => import('./features/profile/my-profile').then((m) => m.MyProfile),
+      },
+      {
+        path: 'admin',
+        canActivate: [roleGuard],
+        data: { roles: ['ho_admin', 'branch_admin'], platformAdminOnly: true },
+        loadComponent: () => import('./features/admin/admin-page').then((m) => m.AdminPage),
+      },
+      {
+        path: 'support',
+        canActivate: [roleGuard],
+        data: { roles: APP_ROLES },
+        loadComponent: () => import('./features/support/support').then((m) => m.SupportPage),
       },
     ],
   },

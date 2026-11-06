@@ -1,33 +1,868 @@
-:host { display: block; }
+:host {
+  display: block;
 
-label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.1rem; display: block; }
+  // Allow absolute dropdowns to escape cards/rows.
+  .card-pharma,
+  .row,
+  [class^='col-'] {
+    overflow: visible !important;
+  }
+
+  // Gradient border stacking was trapping/clipping menus — keep panels above siblings.
+  .form-gradient-border {
+    isolation: auto;
+
+    &.purchase-header-card:has(.supplier-combo.open) {
+      position: relative;
+      z-index: 80;
+      overflow: visible;
+    }
+
+    &.entry-card:has(.combo.open),
+    &:has(.pack-select-wrap.open) {
+      z-index: 90;
+      overflow: visible;
+    }
+
+    // Bump grid row that contains an open combo above the next row/card.
+    .purchase-header-grid:has(.supplier-combo.open),
+    .purchase-header-grid:has(.combo.open),
+    .entry-grid--row1:has(.combo.open),
+    .entry-grid--row1:has(.product-combo .combo.open),
+    > .row:has(.combo.open),
+    > .row:has(.supplier-combo.open),
+    > .row:has(.pack-select-wrap.open) {
+      position: relative;
+      z-index: 100 !important;
+      overflow: visible;
+    }
+
+    &.entry-card:has(.combo.open) .entry-grid--row2,
+    &.entry-card:has(.pack-select-wrap.open) .entry-grid--row1 {
+      position: relative;
+      z-index: 0;
+    }
+
+    &.entry-card:has(.pack-select-wrap.open) .entry-grid--row2:has(.pack-select-wrap.open) {
+      z-index: 100 !important;
+    }
+
+    &.purchase-lines-card:has(.pack-select-wrap.open) {
+      position: relative;
+      z-index: 95;
+      overflow: visible;
+    }
+
+    // Row 2 must stay under an open distributor list (same card, later in DOM).
+    &.purchase-header-card:has(.supplier-combo.open) .purchase-header-grid--row2 {
+      position: relative;
+      z-index: 1;
+    }
+  }
+}
+
+label {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-bottom: 0.1rem;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 .req { color: #dc2626; }
 .section-label { font-weight: 600; color: var(--pharma-primary-dark); font-size: 0.78rem; margin-bottom: 0.5rem; }
 
-.entry-card { border: 1px solid rgba(13, 148, 136, 0.25); overflow: visible; }
+.purchase-header-card {
+  overflow: visible;
 
-.entry-badge { position: absolute; top: -4px; right: 10px; font-size: 0.56rem; }
-.entry-dropdown {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 40;
-  background: #fff; border-radius: 0.5rem; max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0;
+  // Static border — spinning gradient reads as a "loader" near Distributor field.
+  &.form-gradient-border::before {
+    animation: none;
+    background: linear-gradient(135deg, #0d9488, #6366f1, #0ea5e9);
+  }
 }
-.entry-item {
-  display: block; width: 100%; text-align: left; border: none; background: transparent;
-  padding: 0.45rem 0.7rem; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem;
-  &:hover { background: #ecfdf5; }
+
+.purchase-header-grid {
+  display: grid;
+  gap: 0.45rem 0.55rem;
+  align-items: end;
+  overflow: visible;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (min-width: 576px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
+
+/* Row 1 — wrap on laptop; single line only on very wide viewports */
+.purchase-header-grid--row1 {
+  @media (min-width: 992px) and (max-width: 1499.98px) {
+    grid-template-columns: repeat(6, minmax(6.25rem, 1fr));
+
+    .ph-field--inv-no,
+    .ph-field--inv-date,
+    .ph-field--cash,
+    .ph-field--cd-mode,
+    .ph-field--cd-pct,
+    .ph-field--net-total,
+    .ph-field--net-bill,
+    .ph-field--cd-amt,
+    .ph-field--po {
+      grid-column: span 1;
+    }
+
+    .ph-field--due {
+      grid-column: span 2;
+    }
+
+    .ph-field--distributor {
+      grid-column: span 2;
+    }
+  }
+
+  @media (min-width: 1500px) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+
+    .ph-field--inv-no { grid-column: span 2; }
+    .ph-field--inv-date { grid-column: span 2; }
+    .ph-field--distributor { grid-column: span 2; }
+    .ph-field--cash { grid-column: span 1; }
+    .ph-field--due { grid-column: span 2; }
+    .ph-field--cd-mode { grid-column: span 1; }
+    .ph-field--cd-pct { grid-column: span 1; }
+    .ph-field--net-total { grid-column: span 1; }
+
+    &.purchase-header-grid--edit {
+      grid-template-columns: repeat(13, minmax(0, 1fr));
+
+      .ph-field--po { grid-column: span 1; }
+      .ph-field--inv-no { grid-column: span 2; }
+      .ph-field--inv-date { grid-column: span 2; }
+      .ph-field--distributor { grid-column: span 2; }
+      .ph-field--cash { grid-column: span 1; }
+      .ph-field--due { grid-column: span 2; }
+      .ph-field--cd-mode { grid-column: span 1; }
+      .ph-field--cd-pct { grid-column: span 1; }
+      .ph-field--net-total { grid-column: span 1; }
+    }
+
+    &.purchase-header-grid--cd-amount {
+      grid-template-columns: repeat(14, minmax(0, 1fr));
+
+      .ph-field--inv-no { grid-column: span 2; }
+      .ph-field--inv-date { grid-column: span 2; }
+      .ph-field--distributor { grid-column: span 2; }
+      .ph-field--cash { grid-column: span 1; }
+      .ph-field--due { grid-column: span 2; }
+      .ph-field--cd-mode { grid-column: span 1; }
+      .ph-field--net-bill { grid-column: span 1; }
+      .ph-field--cd-amt { grid-column: span 1; }
+      .ph-field--cd-pct { grid-column: span 1; }
+      .ph-field--net-total { grid-column: span 1; }
+    }
+
+    &.purchase-header-grid--edit.purchase-header-grid--cd-amount {
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+
+      .ph-field--po { grid-column: span 1; }
+    }
+  }
+
+  @media (min-width: 1680px) {
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+
+    .ph-field--distributor { grid-column: span 3; }
+    .ph-field--net-total { grid-column: span 2; }
+
+    &:not(.purchase-header-grid--edit):not(.purchase-header-grid--cd-amount) {
+      .ph-field--inv-no { grid-column: span 2; }
+      .ph-field--inv-date { grid-column: span 2; }
+    }
+
+    &.purchase-header-grid--edit:not(.purchase-header-grid--cd-amount) {
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      .ph-field--po { grid-column: span 1; }
+      .ph-field--distributor { grid-column: span 3; }
+      .ph-field--net-total { grid-column: span 2; }
+    }
+
+    &.purchase-header-grid--cd-amount:not(.purchase-header-grid--edit) {
+      grid-template-columns: repeat(16, minmax(0, 1fr));
+      .ph-field--net-total { grid-column: span 2; }
+    }
+  }
+}
+
+.purchase-header-grid--row2 {
+  @media (min-width: 768px) {
+    grid-template-columns: 2.5fr repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 992px) {
+    grid-template-columns: 3fr repeat(3, minmax(5.5rem, 1fr));
+  }
+
+  .ph-field--debit-select {
+    min-width: 0;
+  }
+
+  .ph-field--debit-amt,
+  .ph-field--bill-net,
+  .ph-field--net-after {
+    .form-control {
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+.ph-field {
+  min-width: 0;
+
+  .form-control,
+  .form-select,
+  .combo-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.purchase-header-grid:has(.supplier-combo.open) .ph-field:not(.ph-field--distributor) {
+  position: relative;
+  z-index: 1;
+}
+
+.ph-field--distributor {
+  &:has(.supplier-combo.open) {
+    position: relative;
+    z-index: 120;
+  }
+}
+
+.ph-field--net-total,
+.ph-field--net-after {
+  .form-control {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+}
+
+.ph-select {
+  min-width: 0;
+  width: 100%;
+  padding-right: 1.75rem;
+}
+
+.ph-field--cash .ph-select {
+  min-width: 5.25rem;
+}
+
+.entry-card {
+  border: 1px solid rgba(13, 148, 136, 0.25);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+
+  &:has(.combo.open) {
+    z-index: 90;
+  }
+
+  label {
+    font-size: 0.66rem;
+    margin-bottom: 0.08rem;
+    text-align: left;
+  }
+
+  .form-control-sm,
+  .form-select-sm {
+    font-size: 0.74rem;
+    padding: 0.2rem 0.35rem;
+    min-height: 1.65rem;
+    text-align: left;
+  }
+
+  .form-select-sm {
+    padding-right: 1.35rem;
+    background-position: right 0.3rem center;
+    background-size: 0.65rem;
+  }
+
+  .ef-select-left {
+    text-align: left;
+    text-align-last: left;
+  }
+
+  /* Product search — must beat .form-control-sm compact padding */
+  .combo-input-wrap {
+    position: relative;
+    width: 100%;
+
+    .combo-input {
+      width: 100%;
+      padding-left: 1.75rem;
+      padding-right: 2rem;
+    }
+
+    .combo-input-icon {
+      position: absolute;
+      left: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 0.75rem;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .combo-caret {
+      position: absolute;
+      right: 0.2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: transparent;
+      color: #64748b;
+      padding: 0.2rem 0.35rem;
+      line-height: 1;
+      z-index: 1;
+    }
+  }
+
+  .product-combo:has(.entry-badge) .combo-input {
+    padding-right: 3.25rem;
+  }
+}
+
+/* Hide number input spinners (Retail-style plain fields) */
+.input-no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+/* ADD PRODUCT — continuous rows, no orphan Expiry/Shelf/Qty */
+.entry-grid {
+  display: grid;
+  gap: 0.35rem 0.4rem;
+  align-items: end;
+  overflow: visible;
+
+  .ef {
+    min-width: 0;
+    position: relative;
+
+    .form-control,
+    .form-select {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
+.entry-grid--row1:has(.combo.open) {
+  z-index: 100;
+}
+
+.entry-grid--row2 {
+  position: relative;
+  z-index: 1;
+}
+
+.entry-card:has(.combo.open) .entry-grid--row2 {
+  z-index: 0;
+}
+
+.entry-grid--row1 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  .ef-expiry {
+    grid-column: span 2;
+  }
+
+  @media (min-width: 576px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+
+    .ef-product { grid-column: span 2; }
+    .ef-hsn { grid-column: span 1; }
+    .ef-cat { grid-column: span 1; }
+    .ef-sched { grid-column: span 1; }
+    .ef-batch { grid-column: span 1; }
+    .ef-expiry { grid-column: span 2; }
+    .ef-shelf { grid-column: span 1; }
+    .ef-qty { grid-column: span 1; }
+  }
+
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+
+    .ef-product { grid-column: span 3; }
+    .ef-hsn { grid-column: span 1; }
+    .ef-cat { grid-column: span 1; }
+    .ef-sched { grid-column: span 1; }
+    /* Batch → Expiry → Shelf → Qty stay adjacent; expiry needs room for month picker */
+    .ef-batch { grid-column: span 1; }
+    .ef-expiry { grid-column: span 2; }
+    .ef-shelf { grid-column: span 1; }
+    .ef-qty { grid-column: span 1; }
+
+    &.entry-grid--catalog {
+      .ef-product { grid-column: span 3; }
+      .ef-cat { grid-column: span 1; }
+      /* 3+1+1+1+1+1+1 = 9; batch-exp-shelf-qty continuous at cols 6-9 */
+    }
+  }
+}
+
+.entry-grid--row2 {
+  margin-top: 0.35rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (min-width: 576px) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+
+    .ef-pack { grid-column: span 2; }
+    .ef-upp, .ef-free, .ef-gst { grid-column: span 1; }
+    .ef-rate, .ef-mrp, .ef-ptr, .ef-pts { grid-column: span 1; }
+    .ef-disc, .ef-disc-amt, .ef-scheme { grid-column: span 1; }
+    .ef-net-rate, .ef-total { grid-column: span 1; }
+    .ef-add { grid-column: span 1; }
+  }
+}
+
+.entry-grid .ef.ef-expiry {
+  min-width: 7.25rem;
+
+  .form-control {
+    min-width: 7rem;
+  }
+}
+
+.ef-month {
+  font-size: 0.74rem;
+  padding: 0.2rem 0.45rem;
+  min-width: 7rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+
+  &::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.85;
+  }
+
+  &::-webkit-datetime-edit {
+    display: inline-flex;
+    min-width: 4.5rem;
+  }
+
+  &::-webkit-datetime-edit-year-field,
+  &::-webkit-datetime-edit-month-field {
+    padding: 0 0.1rem;
+  }
+}
+
+.product-combo,
+.supplier-combo {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+.ef-product:has(.combo.open),
+.product-combo:has(.combo.open),
+.supplier-combo.open {
+  z-index: 150;
+  overflow: visible;
+}
+
+.entry-card:has(.combo.open) .ef:not(.ef-product) {
+  z-index: 0;
+}
+
+.entry-badge { position: absolute; top: -4px; right: 10px; font-size: 0.56rem; z-index: 2; }
+
+.combo { position: relative; z-index: 1; overflow: visible; }
+.combo.open { z-index: 150; }
+.combo-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  cursor: pointer; background: #fff; min-height: 31px;
+}
+.combo-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; }
+.combo-value.placeholder { color: #94a3b8; }
+.combo-actions { display: inline-flex; align-items: center; gap: 0.35rem; color: #64748b; flex-shrink: 0; }
+.combo-clear { cursor: pointer; &:hover { color: #dc2626; } }
+
+.combo-input-wrap { position: relative; display: flex; align-items: center; width: 100%; }
+.combo-input { padding-left: 1.75rem; padding-right: 2rem; }
+.combo-input-icon {
+  position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%);
+  color: #94a3b8; font-size: 0.75rem; pointer-events: none; z-index: 1;
+}
+.combo-caret {
+  position: absolute; right: 0.2rem; top: 50%; transform: translateY(-50%);
+  border: none; background: transparent;
+  color: #64748b; padding: 0.2rem 0.35rem; line-height: 1; z-index: 1;
+}
+
+.combo-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 500;
+  background: #ffffff !important;
+  opacity: 1 !important;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  display: flex; flex-direction: column; max-height: 280px; overflow: hidden;
+  min-width: 100%;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.product-combo .combo-panel {
+  min-width: min(420px, 90vw);
+  max-width: min(480px, 95vw);
+  z-index: 500;
+}
+.supplier-combo .combo-panel {
+  min-width: 100%;
+  z-index: 400;
+}
+
+.combo-search {
+  display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+  flex-shrink: 0;
+  i { color: #94a3b8; font-size: 0.8rem; }
+  input { border: 0; background: transparent; box-shadow: none; padding-left: 0; }
+  input:focus { box-shadow: none; }
+}
+.combo-list-meta {
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+.combo-list {
+  overflow-y: auto; max-height: 230px;
+  background: #fff;
+}
+.combo-item {
+  display: flex; flex-direction: column; width: 100%; text-align: left; border: none;
+  background: #fff; padding: 0.5rem 0.7rem; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem;
+  &:hover, &:focus, &.active-item { background: #ecfdf5; outline: none; }
+}
+.combo-item.active-item { background: #ccfbf1; box-shadow: inset 3px 0 0 var(--pharma-primary); }
+.combo-item-new { color: var(--pharma-primary); flex-direction: row; align-items: center; background: #f0fdfa; }
+.combo-empty { padding: 0.75rem; text-align: center; color: #94a3b8; font-size: 0.8rem; background: #fff; }
 
 .lines-table th {
-  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8; white-space: nowrap;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: #94a3b8;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 0.28rem 0.15rem;
+  font-weight: 600;
+}
+
+.purchase-lines-card {
+  position: relative;
+  z-index: 0;
+
+  .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+
+    &:has(.pack-select-wrap.open) {
+      overflow: visible;
+      position: relative;
+      z-index: 20;
+    }
+  }
+
+  &:has(.pack-select-wrap.open) .grid-footer {
+    position: relative;
+    z-index: 0;
+  }
+
+  @media (min-width: 1200px) {
+    .table-responsive {
+      overflow-x: visible;
+    }
+  }
+}
+
+.purchase-lines-table {
+  font-size: 0.72rem;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0;
+  table-layout: fixed;
+
+  td {
+    vertical-align: middle;
+    padding: 0.2rem 0.12rem;
+    overflow: hidden;
+  }
+
+  td.line-pack-cell {
+    overflow: visible;
+    position: relative;
+
+    &:has(.pack-select-wrap.open) {
+      z-index: 250;
+    }
+  }
+
+  tr:has(.pack-select-wrap.open) {
+    position: relative;
+    z-index: 200;
+  }
+
+  tr:has(.pack-select-wrap.open) td {
+    overflow: visible;
+  }
+
+  .prod-cell {
+    font-weight: 600;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+}
+
+.purchase-line-row:nth-child(even) td { background: rgba(248, 250, 252, 0.65); }
+
+.col-product { width: 11%; }
+.col-pack { width: 5.5%; }
+.col-hsn { width: 5%; }
+.col-batch { width: 5.5%; }
+.col-exp { width: 8.75%; min-width: 7.25rem; }
+.col-qty { width: 4%; }
+.col-rate { width: 4.8%; }
+.col-gst { width: 4.5%; }
+
+.purchase-lines-table {
+  .col-gst {
+    vertical-align: middle;
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+  }
+}
+.col-disc { width: 4.2%; }
+.col-net { width: 5.5%; }
+.col-action { width: 2%; }
+
+.p-cell-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.68rem;
+  padding: 0.12rem 0.18rem;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.p-cell-num {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cell-exp {
+  font-size: 0.68rem;
+  padding: 0.12rem 0.35rem;
+  min-width: 6.75rem;
+  text-align: left;
+
+  &::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+}
+
+.p-cell-gst {
+  font-size: 0.68rem;
+  padding: 0.12rem 1rem 0.12rem 0.18rem;
+  text-align: left;
+  text-align-last: left;
+  min-width: 0;
+  min-height: 1.45rem;
+  line-height: 1.2;
+  height: 100%;
+  width: 100%;
+  background-position: right 0.12rem center;
+  background-size: 0.55rem;
+  border-radius: 0.25rem;
+}
+
+.cell-num {
+  display: block;
+  width: 100%;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 0.1rem;
 }
 
 .grid-footer {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0.75rem 1rem; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 0.75rem;
+  padding: 0.5rem 0.65rem; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 0.5rem;
 }
-.totals-chips { display: flex; gap: 1rem; font-size: 0.82rem; color: #64748b; b { color: #0f172a; } }
+.totals-chips { display: flex; flex-wrap: wrap; gap: 0.65rem 1rem; font-size: 0.78rem; color: #64748b; b { color: #0f172a; } }
 .net-total { display: flex; flex-direction: column; }
-.net-amount { font-size: 1.4rem; font-weight: 800; color: var(--pharma-primary); }
+.net-amount { font-size: 1.2rem; font-weight: 800; color: var(--pharma-primary); }
 
 .toast-custom { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff;
   border-radius: 0.7rem; padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; }
+
+.pack-select-wrap {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+
+  &.open {
+    z-index: 60;
+  }
+
+  .pack-size-drop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    max-height: 180px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+    z-index: 200;
+
+    li {
+      padding: 0.45rem 0.65rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0f172a;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      &:last-child { border-bottom: none; }
+      &:hover { background: #ecfdf5; color: #0f766e; }
+    }
+  }
+
+  /* Open upward near footer so list does not overlap fields below */
+  .pack-size-drop--up {
+    top: auto;
+    bottom: calc(100% + 2px);
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.18);
+  }
+
+  .pack-size-drop--empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    z-index: 200;
+  }
+}
+
+/* Pack dropdown in lines table — opens upward (footer is below) */
+.pack-select-wrap--line {
+  width: 100%;
+
+  &.open {
+    z-index: 260;
+  }
+
+  .pack-size-drop {
+    left: 0;
+    right: auto;
+    min-width: 140px;
+    width: max-content;
+    max-width: min(240px, 92vw);
+    top: auto;
+    bottom: calc(100% + 2px);
+    z-index: 400;
+    background: #fff !important;
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.22);
+  }
+
+  .pack-size-drop--empty {
+    min-width: 140px;
+    width: max-content;
+    max-width: min(240px, 92vw);
+    top: auto;
+    bottom: calc(100% + 2px);
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.22);
+  }
+}
+
+// Sold-stock edit confirmation
+.modal-backdrop-custom {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1050;
+}
+.modal-custom {
+  position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 3rem 1rem; pointer-events: none; overflow-y: auto;
+}
+.modal-card {
+  pointer-events: auto;
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+}
+.sold-edit-card { width: min(640px, 100%); }
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; gap: 0.75rem;
+}
+.modal-body-custom { padding: 1rem 1.25rem; overflow-y: auto; }
+.modal-foot {
+  display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.75rem 1.25rem; border-top: 1px solid #e2e8f0;
+}
+.sold-edit-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem; border-radius: 50%; flex-shrink: 0;
+  background: #fef3c7; color: #b45309; font-size: 1.1rem;
+}
+
+@media (max-width: 575.98px) {
+  .modal-custom { padding: 0.5rem; }
+  .modal-foot .btn { flex: 1 1 auto; }
+}

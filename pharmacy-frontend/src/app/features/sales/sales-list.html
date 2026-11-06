@@ -1,0 +1,415 @@
+<div class="sales-list">
+  @if (toast()) {
+    <div class="alert alert-info py-2 d-flex justify-content-between align-items-center">
+      <span>{{ toast() }}</span>
+      <button type="button" class="btn-close" (click)="toast.set(null)"></button>
+    </div>
+  }
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Sales Report</h4>
+      <p class="text-secondary mb-0 small">Billing history (Retail log)</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (canViewSales()) {
+        <button type="button" class="btn btn-pharma" (click)="newSale()">
+          <i class="bi bi-plus-lg me-1"></i> NEW SALES
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Total Bills</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().bills }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Amount</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().net | number: '1.2-2') }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-wallet2"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Paid</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().paid | number: '1.2-2') }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card" [class.kpi-rose]="kpis().balance > 0" [class.kpi-green]="kpis().balance <= 0">
+        <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Balance</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().balance | number: '1.2-2') }}</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma p-3 mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6 col-md-3 col-lg-2">
+        <label class="form-label small text-secondary mb-1">Type</label>
+        <select class="form-select form-select-sm" [ngModel]="billMode()" (ngModelChange)="onTypeChange($event)">
+          <option value="">All</option>
+          <option value="retail">Retail</option>
+          <option value="wholesale">Wholesale</option>
+          <option value="ipd">IPD</option>
+        </select>
+      </div>
+      <div class="col-12 col-sm-6 col-md-5 col-lg-5">
+        <label class="form-label small text-secondary mb-1">Search by Bill No, Name, Contact or Product</label>
+        <div class="input-group input-group-sm">
+          <input class="form-control" placeholder="Bill no / Customer / Contact / Product / Batch…"
+            [ngModel]="search()" (ngModelChange)="search.set($event)" (keyup.enter)="reload()" />
+          <button class="btn btn-outline-secondary" type="button" (click)="reload()">Search</button>
+        </div>
+      </div>
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="tiny text-secondary">Default list · use search for older bills</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive sales-log-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 sales-log-table">
+        <thead>
+          <tr>
+            <th class="col-bill">Bill No</th>
+            <th class="col-date">Date</th>
+            <th class="col-customer">Customer</th>
+            <th class="col-contact">Contact</th>
+            <th class="col-pay">C / D</th>
+            <th class="col-amt text-end">Amount</th>
+            <th class="col-amt text-end">Paid</th>
+            <th class="col-amt text-end">Bal</th>
+            <th class="col-act text-center">View</th>
+            <th class="col-edit text-center">Edit</th>
+            <th class="col-del text-center">Delete</th>
+            <th class="col-print text-center">Print</th>
+            <th class="col-wa text-center" title="WhatsApp">WA</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="13" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="13" class="text-center py-5 text-secondary">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i> No sales found.
+            </td></tr>
+          } @else {
+            @for (r of rows(); track r['id']) {
+              <tr>
+                <td class="col-bill fw-semibold" [title]="r['invoice_no']">
+                  <span class="bill-no">{{ r['invoice_no'] }}</span>
+                  @if (r['is_locked'] == 1) { <i class="bi bi-lock-fill text-warning bill-lock" title="Locked"></i> }
+                </td>
+                <td class="col-date">{{ r['invoice_date'] | date: 'dd-MM-yyyy' }}</td>
+                <td class="col-customer" [title]="r['patient_name'] || r['customer_name'] || 'Walk-in'">{{ r['patient_name'] || r['customer_name'] || 'Walk-in' }}</td>
+                <td class="col-contact" [title]="r['contact_no'] || ''">{{ r['contact_no'] || '-' }}</td>
+                <td class="col-pay"><span class="badge text-bg-light text-uppercase pay-badge">{{ payLabel(r) }}</span></td>
+                <td class="col-amt text-end fw-semibold">{{ +(r['net_amount'] || 0) | number: '1.2-2' }}</td>
+                <td class="col-amt text-end">{{ +(r['paid'] || 0) | number: '1.2-2' }}</td>
+                <td class="col-amt text-end" [class.text-danger]="+(r['balance'] || 0) > 0">{{ +(r['balance'] || 0) | number: '1.2-2' }}</td>
+                <td class="col-act text-center">
+                  <button type="button" class="btn btn-sm btn-outline-primary log-btn" (click)="view(+r['id'])" title="View"><i class="bi bi-eye"></i></button>
+                </td>
+                <td class="col-edit text-center">
+                  <div class="d-inline-flex gap-1 flex-nowrap justify-content-center">
+                    @if (canEditSavedBill()) {
+                      <button type="button" class="btn btn-sm btn-warning log-btn" (click)="editBill(+r['id'])" title="Edit bill"><i class="bi bi-pencil-square"></i></button>
+                    }
+                    @if (canEditPaymentModeOnly()) {
+                      <button type="button" class="btn btn-sm btn-outline-warning log-btn" (click)="openEdit(+r['id'])" title="Edit payment mode"><i class="bi bi-pencil"></i></button>
+                    }
+                    @if (!canEditSavedBill() && !canEditPaymentModeOnly()) {
+                      <span class="text-secondary">—</span>
+                    }
+                  </div>
+                </td>
+                <td class="col-del text-center">
+                  @if (canDeleteSales()) {
+                    <button type="button" class="btn btn-sm btn-outline-danger log-btn" title="Delete bill"
+                      [disabled]="deletingId() === +r['id']" (click)="remove(+r['id'])">
+                      @if (deletingId() === +r['id']) {
+                        <span class="spinner-border spinner-border-sm"></span>
+                      } @else {
+                        <i class="bi bi-trash"></i>
+                      }
+                    </button>
+                  } @else {
+                    <span class="text-secondary">—</span>
+                  }
+                </td>
+                <td class="col-print text-center">
+                  <div class="btn-group btn-group-sm print-group" role="group" aria-label="Print options">
+                    <button type="button" class="btn btn-outline-secondary" (click)="invoice(+r['id'])" title="Print"><i class="bi bi-printer"></i></button>
+                    <button type="button" class="btn btn-outline-info" (click)="invoiceDual(+r['id'])" title="Dual Print (Customer + Shop)"><i class="bi bi-files"></i></button>
+                    <button type="button" class="btn btn-outline-dark" (click)="invoiceDotMatrix(+r['id'])" title="Dot Matrix Print (80 column)"><i class="bi bi-printer-fill"></i></button>
+                  </div>
+                </td>
+                <td class="col-wa text-center">
+                  <button type="button" class="btn btn-sm btn-success log-btn" title="Send bill on WhatsApp"
+                    [disabled]="whatsappSending() === +r['id']"
+                    (click)="sendWhatsApp(+r['id'], r['contact_no'])">
+                    @if (whatsappSending() === +r['id']) {
+                      <span class="spinner-border spinner-border-sm"></span>
+                    } @else {
+                      <i class="bi bi-whatsapp"></i>
+                    }
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@if (viewing() || viewLoading()) {
+  <div class="modal-backdrop-custom" (click)="closeView()"></div>
+  <div class="modal-custom">
+    <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:920px;">
+      <div class="modal-head">
+        <h5 class="mb-0 fw-semibold">Sales Bill</h5>
+        <button class="btn btn-sm btn-light border" (click)="closeView()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (viewLoading()) {
+          <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+        } @else if (viewing(); as sale) {
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Bill No</th><th>Bill Date</th><th>Customer</th><th>Contact</th>
+                  <th>Email</th><th>Doctor</th><th>Pay Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ sale['invoice_no'] }}</td>
+                  <td>{{ $any(sale['invoice_date']) | date: 'dd-MM-yyyy' }}</td>
+                  <td>{{ sale['patient_name'] || sale['customer_name'] }}</td>
+                  <td>{{ sale['contact_no'] || '-' }}</td>
+                  <td>{{ sale['email'] || '-' }}</td>
+                  <td>{{ sale['doctor_name'] || '-' }}</td>
+                  <td class="text-uppercase">{{ sale['payment_mode'] }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Product</th><th class="text-end">Qty</th><th class="text-end">Rate</th>
+                  <th class="text-end">MRP</th><th class="text-end">Disc%</th><th class="text-end">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of itemsOf(sale); track it['id']) {
+                  <tr>
+                    <td>{{ it['product_name'] }}</td>
+                    <td class="text-end">{{ itemQty(it) | number: '1.0-2' }}</td>
+                    <td class="text-end">{{ itemRate(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemMrp(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemDiscPct(it) | number: '1.2-2' }}</td>
+                    <td class="text-end fw-semibold">{{ itemNet(it) | number: '1.2-2' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" class="text-center text-secondary py-3">No line items</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <div class="small text-secondary">
+              Net {{ +((sale['net_amount'] ?? sale['display_net_amount']) || 0) | number: '1.2-2' }}
+              · GST {{ +(sale['gst_amount'] || 0) | number: '1.2-2' }}
+              · Paid {{ +(sale['paid'] || 0) | number: '1.2-2' }}
+              · Balance {{ +(sale['balance'] || 0) | number: '1.2-2' }}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              @if (canDeleteSales()) {
+                <button type="button" class="btn btn-outline-danger btn-sm"
+                  [disabled]="deletingId() === +sale['id']!"
+                  (click)="remove(+sale['id']!)">
+                  @if (deletingId() === +sale['id']!) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  } @else {
+                    <i class="bi bi-trash me-1"></i>
+                  }
+                  Delete
+                </button>
+              }
+              <button class="btn btn-success btn-sm"
+                [disabled]="whatsappSending() === +sale['id']!"
+                (click)="sendWhatsApp(+sale['id']!, (sale['contact_no'] || '') + '')">
+                @if (whatsappSending() === +sale['id']!) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  <i class="bi bi-whatsapp me-1"></i>
+                }
+                WhatsApp
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" (click)="invoice(+sale['id']!)"><i class="bi bi-printer me-1"></i> Print</button>
+              <button class="btn btn-outline-info btn-sm" (click)="invoiceDual(+sale['id']!)" title="Customer + Shop copy"><i class="bi bi-files me-1"></i> Dual</button>
+              <button class="btn btn-outline-dark btn-sm" (click)="invoiceDotMatrix(+sale['id']!)" title="Dot Matrix Print (80 column)"><i class="bi bi-printer-fill me-1"></i> Dot Matrix</button>
+              <button class="btn btn-pharma btn-sm" (click)="closeView()">Close</button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (editing() || editLoading()) {
+  <div class="modal-backdrop-custom" (click)="closeEdit()"></div>
+  <div class="modal-custom">
+    <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:920px;">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0 fw-semibold">Edit Payment Mode</h5>
+          <div class="small text-secondary">Only payment mode can be changed. Bill lines stay as saved.</div>
+        </div>
+        <button class="btn btn-sm btn-light border" (click)="closeEdit()"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (editLoading()) {
+          <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+        } @else if (editing(); as sale) {
+          @if (editError()) {
+            <div class="alert alert-danger py-2">{{ editError() }}</div>
+          }
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Bill No</th><th>Bill Date</th><th>Customer</th><th>Contact</th>
+                  <th>Email</th><th>Doctor</th><th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ sale['invoice_no'] }}</td>
+                  <td>{{ $any(sale['invoice_date']) | date: 'dd-MM-yyyy' }}</td>
+                  <td>{{ sale['patient_name'] || sale['customer_name'] }}</td>
+                  <td>{{ sale['contact_no'] || '-' }}</td>
+                  <td>{{ sale['email'] || '-' }}</td>
+                  <td>{{ sale['doctor_name'] || '-' }}</td>
+                  <td class="text-uppercase">{{ sale['bill_mode'] || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label small text-secondary mb-1">Payment Mode</label>
+              <select class="form-select form-select-sm"
+                [ngModel]="editPaymentMode()"
+                (ngModelChange)="onEditPaymentModeChange($event)">
+                @for (m of paymentModes; track m) {
+                  <option [value]="m">{{ m }}</option>
+                }
+              </select>
+            </div>
+            @if (editPaymentMode() === 'Card') {
+              <div class="col-12 col-md-5">
+                <label class="form-label small text-secondary mb-1">Bank / Card Account</label>
+                <select class="form-select form-select-sm"
+                  [ngModel]="editAccountId()"
+                  (ngModelChange)="editAccountId.set($event ? +$event : null)">
+                  <option [ngValue]="null">Select account…</option>
+                  @for (a of accounts(); track a.id) {
+                    <option [ngValue]="a.id">{{ a.name }}@if (a.bank_name) { · {{ a.bank_name }} }@if (a.account_no) { · {{ a.account_no }} }</option>
+                  }
+                </select>
+              </div>
+            }
+            @if (editPaymentMode() === 'Cash+UPI') {
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-secondary mb-1">Cash Amount <span class="text-danger">*</span></label>
+                <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" placeholder="0.00"
+                  [ngModel]="editCashAmount()"
+                  (ngModelChange)="editCashAmount.set($event === '' || $event == null ? null : +$event); editError.set(null)" />
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label small text-secondary mb-1">UPI Amount</label>
+                <input type="text" class="form-control form-control-sm text-end bg-light" readonly
+                  [value]="editSplitUpi() | number: '1.2-2'" />
+              </div>
+            }
+            <div class="col-12 col-md-3">
+              <div class="small text-secondary mb-1">Will update</div>
+              <div class="fw-semibold">
+                Paid {{ editPreview().paid | number: '1.2-2' }}
+                · Bal {{ editPreview().balance | number: '1.2-2' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Product</th><th class="text-end">Qty</th><th class="text-end">Rate</th>
+                  <th class="text-end">MRP</th><th class="text-end">Disc%</th><th class="text-end">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of itemsOf(sale); track it['id']) {
+                  <tr>
+                    <td>{{ it['product_name'] }}</td>
+                    <td class="text-end">{{ itemQty(it) | number: '1.0-2' }}</td>
+                    <td class="text-end">{{ itemRate(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemMrp(it) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ itemDiscPct(it) | number: '1.2-2' }}</td>
+                    <td class="text-end fw-semibold">{{ itemNet(it) | number: '1.2-2' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" class="text-center text-secondary py-3">No line items</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <div class="small text-secondary">
+              Amount {{ +(sale['net_amount'] || 0) | number: '1.2-2' }}
+              · GST {{ +(sale['gst_amount'] || 0) | number: '1.2-2' }}
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+              <button type="button" class="btn btn-pharma btn-sm" (click)="savePaymentMode()" [disabled]="editSaving()">
+                @if (editSaving()) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  <i class="bi bi-check-lg me-1"></i>
+                }
+                Save Payment Mode
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

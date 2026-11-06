@@ -8,6 +8,8 @@ use App\Core\Model;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\PaymentVoucher;
+use App\Services\PaymentReceiptService;
+use App\Services\PaymentSettlementService;
 
 final class PaymentController extends ResourceController
 {
@@ -40,10 +42,98 @@ final class PaymentController extends ResourceController
     {
         $data = $this->validate($request, $this->storeRules());
         $payload = $this->fillData($data, $request);
-        $payload['voucher_no'] = $payload['voucher_no'] ?: ('PV-' . strtoupper(substr($data['voucher_type'], 0, 1)) . '-' . time());
+        $payload['voucher_no'] = ($payload['voucher_no'] ?? '')
+            ?: ('PV-' . strtoupper(substr((string) $data['voucher_type'], 0, 1)) . '-' . time());
         $payload['created_at'] = now();
         $payload['updated_at'] = now();
         $id = $this->model()->insert($payload);
         return $this->created(['id' => $id], 'Voucher saved.');
+    }
+
+    public function distributorDues(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $rows = (new PaymentSettlementService())->distributorDues((int) $request->clientId(), $branchId);
+        return $this->success($rows, 'Distributor dues.');
+    }
+
+    public function customerDues(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $rows = (new PaymentSettlementService())->customerDues((int) $request->clientId(), $branchId, 'retail');
+        return $this->success($rows, 'Retail customer dues.');
+    }
+
+    public function wholesaleCustomerDues(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $rows = (new PaymentSettlementService())->customerDues((int) $request->clientId(), $branchId, 'wholesale');
+        return $this->success($rows, 'Wholesale customer dues.');
+    }
+
+    public function settleDistributor(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $userId = isset($request->user()['id']) ? (int) $request->user()['id'] : null;
+        $result = (new PaymentSettlementService())->settleDistributor(
+            (int) $request->clientId(),
+            $branchId,
+            $userId,
+            $request->all()
+        );
+        return $this->success($result, 'Distributor payment saved.');
+    }
+
+    public function settleCustomer(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $userId = isset($request->user()['id']) ? (int) $request->user()['id'] : null;
+        $result = (new PaymentSettlementService())->settleCustomer(
+            (int) $request->clientId(),
+            $branchId,
+            $userId,
+            $request->all(),
+            'retail'
+        );
+        return $this->success($result, 'Customer payment saved.');
+    }
+
+    public function settleWholesaleCustomer(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $userId = isset($request->user()['id']) ? (int) $request->user()['id'] : null;
+        $result = (new PaymentSettlementService())->settleCustomer(
+            (int) $request->clientId(),
+            $branchId,
+            $userId,
+            $request->all(),
+            'wholesale'
+        );
+        return $this->success($result, 'Wholesale customer payment saved.');
+    }
+
+    public function history(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $partyType = trim((string) ($request->query('party_type') ?? 'distributor'));
+        $party = trim((string) ($request->query('party') ?? ''));
+        $phone = trim((string) ($request->query('phone') ?? ''));
+        $rows = (new PaymentSettlementService())->history(
+            (int) $request->clientId(),
+            $branchId,
+            $partyType,
+            $party !== '' ? $party : null,
+            $phone !== '' ? $phone : null
+        );
+        return $this->success($rows, 'Payment history.');
+    }
+
+    /** HTML payment receipt (Retail wholesale_customer_payment_print parity). */
+    public function printReceipt(Request $request): Response
+    {
+        $branchId = (int) ($request->branchId() ?: 0);
+        $id = (int) $request->attribute('id');
+        $html = (new PaymentReceiptService())->html((int) $request->clientId(), $branchId, $id);
+        return Response::raw($html, 'text/html; charset=utf-8');
     }
 }

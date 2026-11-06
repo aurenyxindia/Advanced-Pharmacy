@@ -1,0 +1,141 @@
+:host { display: block; }
+.retail-sales-return-page { min-width: 0; }
+
+.rsr-manual-card {
+  position: relative;
+  overflow: visible;
+
+  &.menu-open { z-index: 5; }
+}
+
+.rsr-stock-combo {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 220px;
+  width: 100%;
+  max-width: 320px;
+  overflow: visible;
+
+  &.open { z-index: 80; }
+}
+
+.combo-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.combo-input {
+  padding-left: 1.75rem;
+  padding-right: 1.85rem;
+}
+
+.combo-input-icon {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.75rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.combo-caret {
+  position: absolute;
+  right: 0.15rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 0.2rem 0.35rem;
+  line-height: 1;
+  z-index: 1;
+
+  &:disabled { opacity: 0.5; }
+}
+
+.combo-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 500;
+  width: min(420px, 92vw);
+  background: #fff !important;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow: hidden;
+}
+
+.combo-list-meta {
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.combo-list {
+  overflow-y: auto;
+  max-height: 260px;
+  background: #fff;
+}
+
+.combo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: #fff;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.82rem;
+
+  &:hover,
+  &:focus,
+  &.active-item {
+    background: #ecfdf5;
+    outline: none;
+  }
+
+  &.active-item {
+    background: #ccfbf1;
+    box-shadow: inset 3px 0 0 #0f766e;
+  }
+}
+
+.combo-item-batch {
+  padding: 0.35rem 0.7rem 0.35rem 1.35rem;
+  font-size: 0.76rem;
+  background: #f8fafc;
+
+  &:hover,
+  &:focus { background: #ecfeff; }
+}
+
+.batch-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.combo-batch-loading { background: #f8fafc; }
+
+.combo-empty {
+  padding: 0.75rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  background: #fff;
+}
+
+.text-pharma { color: #0f766e; }

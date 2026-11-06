@@ -1,22 +1,64 @@
 <div class="auth-wrapper bg-auth">
-  <div class="auth-card shadow-pharma-lg">
+  <div class="auth-card shadow-pharma-lg form-gradient-border">
     <!-- Branding panel -->
     <div class="auth-brand d-none d-lg-flex">
       <div class="brand-inner">
-        <div class="brand-logo">
-          <i class="bi bi-capsule-pill"></i>
+        <img
+          class="auth-brand-logo"
+          src="assets/paperless-pharmacy-logo.png"
+          alt="Paperless Pharmacy"
+          width="220"
+          height="50"
+        />
+        <div class="ai-hero" aria-hidden="true">
+          <div class="ai-orbit ai-orbit-a"></div>
+          <div class="ai-orbit ai-orbit-b"></div>
+          <div class="ai-glow"></div>
+          <div class="ai-portrait-wrap">
+            <img
+              class="ai-portrait"
+              src="assets/login-pharmacist-ai.png"
+              alt=""
+              width="220"
+              height="220"
+            />
+            <span class="ai-scan"></span>
+          </div>
+          <span class="float-pill float-pill-1"><i class="bi bi-capsule"></i></span>
+          <span class="float-pill float-pill-2"><i class="bi bi-prescription2"></i></span>
+          <span class="float-pill float-pill-3"><i class="bi bi-heart-pulse"></i></span>
         </div>
-        <h1>Advanced Pharmacy Suite</h1>
+        <h1>Paperless Pharmacy</h1>
+        <p class="brand-by">by Aurenyx Pharmatech Pvt. Ltd.</p>
         <p class="brand-tag">
-          Multi-pharmacy retail &amp; distribution platform with intelligent inventory,
-          billing and analytics.
+          Run your pharmacy smarter — from the billing counter to the books,
+          everything in one place.
         </p>
         <ul class="brand-points">
-          <li><i class="bi bi-check-circle-fill"></i> Batch-wise inventory &amp; expiry control</li>
-          <li><i class="bi bi-check-circle-fill"></i> GST billing with profit analytics</li>
-          <li><i class="bi bi-check-circle-fill"></i> Schedule H/H1/X compliance</li>
-          <li><i class="bi bi-check-circle-fill"></i> Centralized multi-branch control</li>
+          <li><i class="bi bi-check-circle-fill"></i> Faster billing, zero paperwork</li>
+          <li><i class="bi bi-check-circle-fill"></i> Never lose money to expired stock</li>
+          <li><i class="bi bi-check-circle-fill"></i> Every branch, every rupee — in one view</li>
         </ul>
+        <div class="brand-contacts">
+          <a class="brand-contact" href="tel:+918530800550">
+            <span class="bc-icon"><i class="bi bi-exclamation-circle-fill"></i></span>
+            <span><span class="bc-label">Complaint</span><span class="bc-value">8530800550</span></span>
+          </a>
+          <a class="brand-contact" href="mailto:paperlessgmp@gmail.com">
+            <span class="bc-icon"><i class="bi bi-envelope-fill"></i></span>
+            <span><span class="bc-label">Email</span><span class="bc-value">paperlessgmp&#64;gmail.com</span></span>
+          </a>
+        </div>
+        <div class="brand-footer">
+          <p>
+            Developed And Maintained By
+            <a href="https://aurenyxpharmatech.com/" target="_blank" rel="noopener noreferrer">Aurenyx Pharmatech Pvt. Ltd.</a>
+          </p>
+          <p>
+            Copyright 2023 © Aurenyx Pharmatech Pvt. Ltd. ·
+            <a class="terms-link" href="https://gmpsoftwareindia.com/terms&amp;privacy.html" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
+          </p>
+        </div>
       </div>
     </div>
 
@@ -25,7 +67,12 @@
       <div class="form-inner">
         <div class="text-center mb-4">
           <div class="mobile-logo d-lg-none">
-            <i class="bi bi-capsule-pill"></i>
+            <img
+              src="assets/paperless-pharmacy-logo.png"
+              alt="Paperless Pharmacy"
+              width="196"
+              height="44"
+            />
           </div>
           <h2 class="fw-bold mb-1">Welcome back</h2>
           <p class="text-secondary mb-0">Sign in to your pharmacy dashboard</p>
@@ -38,22 +85,41 @@
           </div>
         }
 
+        @if (lockSecondsLeft() > 0) {
+          <div class="alert alert-warning d-flex align-items-center justify-content-between py-2" role="status">
+            <span><i class="bi bi-hourglass-split me-2"></i>Login locked</span>
+            <span class="fw-bold font-monospace fs-5">{{ lockSecondsLeft() }}s</span>
+          </div>
+        }
+
+        @if (infoMessage()) {
+          <div class="alert alert-success d-flex align-items-center py-2" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span>{{ infoMessage() }}</span>
+          </div>
+        }
+
+        @if (mode() === 'login') {
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Email address</label>
+            <label class="form-label fw-semibold">Username</label>
             <div class="input-group">
-              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
               <input
-                type="email"
+                type="text"
                 class="form-control"
-                placeholder="you@pharmacy.com"
+                placeholder="Email or 10-digit mobile"
                 formControlName="email"
                 autocomplete="username"
+                maxlength="150"
+                (input)="onLoginInput($event)"
                 [class.is-invalid]="form.controls.email.touched && form.controls.email.invalid"
               />
             </div>
-            @if (form.controls.email.touched && form.controls.email.invalid) {
-              <div class="text-danger small mt-1">Enter a valid email address.</div>
+            @if (loginHint(); as hint) {
+              <div class="text-danger small mt-1">{{ hint }}</div>
+            } @else {
+              <div class="form-text small mt-1">Use your registered email address or mobile number.</div>
             }
           </div>
 
@@ -78,21 +144,138 @@
             }
           </div>
 
-          <button type="submit" class="btn btn-pharma w-100 py-2 fw-semibold" [disabled]="loading()">
+          <div class="d-flex justify-content-end mb-2">
+            <button type="button" class="btn btn-link btn-sm p-0 text-pharma text-decoration-none" (click)="openForgot()">
+              Forgot password?
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-pharma w-100 py-2 fw-semibold"
+            [disabled]="loading() || lockSecondsLeft() > 0"
+          >
             @if (loading()) {
               <span class="spinner-border spinner-border-sm me-2"></span> Signing in...
+            } @else if (lockSecondsLeft() > 0) {
+              <i class="bi bi-lock-fill me-2"></i> Locked · {{ lockSecondsLeft() }}s
             } @else {
               <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
             }
           </button>
         </form>
+        } @else {
+        <div class="mb-3">
+          <h2 class="h5 fw-bold mb-1">Change Password</h2>
+          <p class="text-secondary small mb-0">Reset your password using OTP sent to your registered email</p>
+        </div>
 
-        <p class="text-center mt-4 mb-0 text-secondary">
+        <form [formGroup]="forgotForm" novalidate>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Email or 10-digit mobile"
+                formControlName="username"
+                autocomplete="username"
+                maxlength="150"
+                (input)="onForgotUsernameInput($event)"
+                [class.is-invalid]="forgotForm.controls.username.touched && forgotForm.controls.username.invalid"
+              />
+            </div>
+            @if (forgotUsernameHint(); as hint) {
+              <div class="text-danger small mt-1">{{ hint }}</div>
+            }
+          </div>
+
+          @if (otpSent()) {
+            <div class="mb-3">
+              <label class="form-label fw-semibold">New password</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                <input
+                  [type]="showNewPassword() ? 'text' : 'password'"
+                  class="form-control"
+                  placeholder="Enter new password"
+                  formControlName="password"
+                  autocomplete="new-password"
+                />
+                <button class="btn btn-outline-secondary" type="button" (click)="toggleNewPassword()">
+                  <i class="bi" [class.bi-eye]="!showNewPassword()" [class.bi-eye-slash]="showNewPassword()"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">OTP</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Enter OTP from email"
+                  formControlName="security_code"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                />
+              </div>
+            </div>
+          }
+
+          <div class="d-grid gap-2">
+            @if (!otpSent()) {
+              <button type="button" class="btn btn-pharma py-2 fw-semibold" [disabled]="loading()" (click)="sendOtp()">
+                @if (loading()) {
+                  <span class="spinner-border spinner-border-sm me-2"></span> Sending OTP...
+                } @else {
+                  <i class="bi bi-send me-2"></i> Send OTP
+                }
+              </button>
+            } @else {
+              <button type="button" class="btn btn-pharma py-2 fw-semibold" [disabled]="loading() || forgotForm.invalid" (click)="resetPassword()">
+                @if (loading()) {
+                  <span class="spinner-border spinner-border-sm me-2"></span> Updating...
+                } @else {
+                  <i class="bi bi-key me-2"></i> Change Password
+                }
+              </button>
+            }
+            <button type="button" class="btn btn-light border" (click)="backToLogin()">
+              <i class="bi bi-arrow-left me-1"></i> Back to Login
+            </button>
+          </div>
+        </form>
+        }
+
+        <p class="text-center mt-3 mb-0 text-secondary">
           New pharmacy?
           <a routerLink="/register" class="text-pharma fw-semibold text-decoration-none">
             Register your business
           </a>
         </p>
+
+        <a class="login-support" href="tel:+918181000550" aria-label="Call support 8181000550">
+          <i class="bi bi-headset"></i>
+          <span>Need help? Call support <strong>8181000550</strong></span>
+        </a>
+
+        <div class="mobile-footer d-lg-none">
+          <div class="mf-contacts">
+            <a href="tel:+918530800550"><i class="bi bi-exclamation-circle"></i> Complaint: 8530800550</a>
+            <a href="mailto:paperlessgmp@gmail.com"><i class="bi bi-envelope"></i> paperlessgmp&#64;gmail.com</a>
+          </div>
+          <p class="mb-0">
+            Developed And Maintained By
+            <a href="https://aurenyxpharmatech.com/" target="_blank" rel="noopener noreferrer">Aurenyx Pharmatech Pvt. Ltd.</a>
+          </p>
+          <p class="mb-0">
+            Copyright 2023 © Aurenyx Pharmatech Pvt. Ltd. ·
+            <a href="https://gmpsoftwareindia.com/terms&amp;privacy.html" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
+          </p>
+        </div>
       </div>
     </div>
   </div>

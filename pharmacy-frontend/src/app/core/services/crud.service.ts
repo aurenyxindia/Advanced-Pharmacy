@@ -20,12 +20,23 @@ export class CrudService {
 
   list<T>(
     path: string,
-    opts: { search?: string; page?: number; perPage?: number } = {},
+    opts: {
+      search?: string;
+      page?: number;
+      perPage?: number;
+      filters?: Record<string, string | number | undefined | null>;
+    } = {},
   ): Observable<Paginated<T>> {
     let params = new HttpParams();
     if (opts.search) params = params.set('search', opts.search);
     if (opts.page) params = params.set('page', String(opts.page));
     if (opts.perPage) params = params.set('per_page', String(opts.perPage));
+    if (opts.filters) {
+      for (const [key, value] of Object.entries(opts.filters)) {
+        if (value === undefined || value === null || value === '') continue;
+        params = params.set(key, String(value));
+      }
+    }
 
     return this.http
       .get<ApiResponse<Paginated<T>>>(`${environment.apiUrl}/${path}`, { params })

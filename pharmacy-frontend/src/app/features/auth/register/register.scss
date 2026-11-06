@@ -58,3 +58,54 @@
   background: #f8fafc;
   color: #64748b;
 }
+
+.gstin-field {
+  position: relative;
+
+  input[formControlName='gstin'] {
+    padding-right: 3.25rem;
+    text-transform: uppercase;
+    background-image: none !important;
+    background-position: unset;
+  }
+
+  .gstin-ok {
+    border-color: #198754;
+  }
+}
+
+.gstin-counter {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 2;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.reg-type-panel {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.65rem;
+  padding: 1rem 1.1rem;
+  background: #f8fafc;
+}
+
+.reg-type-retail {
+  border-left: 4px solid #0d9488;
+}
+
+.reg-type-wholesale {
+  border-left: 4px solid #6366f1;
+}
+
+.reg-feature-list {
+  margin: 0;
+  padding-left: 1.15rem;
+
+  li + li {
+    margin-top: 0.2rem;
+  }
+}

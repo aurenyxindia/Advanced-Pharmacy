@@ -1,0 +1,30 @@
+@if (notification(); as n) {
+  <div class="sp-card shadow-pharma-lg" role="dialog" aria-live="polite">
+    <div class="sp-head">
+      <div class="sp-icon"><i class="bi" [ngClass]="icon()"></i></div>
+      <div class="sp-title-block">
+        <span class="sp-badge">{{ badge() }}</span>
+        <div class="sp-title">{{ title() }}</div>
+      </div>
+      <button type="button" class="btn-close btn-close-sm" (click)="dismiss()" aria-label="Close"></button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-meta">
+        <span class="fw-semibold">{{ n.ticket.ticket_no || ('#' + n.ticket.id) }}</span>
+        @if (n.ticket.status) { <span class="sp-status">{{ n.ticket.status }}</span> }
+      </div>
+      @if (n.type !== 'status_update' && n.ticket.medical_name) {
+        <div class="small text-secondary">{{ n.ticket.medical_name }}</div>
+      }
+      @if (n.ticket.subject) { <div class="sp-subject">{{ n.ticket.subject }}</div> }
+      @if (body()) { <div class="sp-text">{{ body() }}</div> }
+    </div>
+    <div class="sp-actions">
+      <button type="button" class="btn btn-sm btn-light border" (click)="dismiss()">Dismiss</button>
+      @if (canReply()) {
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="open(true)"><i class="bi bi-reply me-1"></i>Reply</button>
+      }
+      <button type="button" class="btn btn-sm btn-pharma" (click)="open()"><i class="bi bi-box-arrow-up-right me-1"></i>Open</button>
+    </div>
+  </div>
+}

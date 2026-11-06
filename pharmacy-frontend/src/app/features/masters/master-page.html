@@ -1,4 +1,5 @@
 <div class="master-page">
+  @if (!embedded()) {
   <!-- Header -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div class="d-flex align-items-center gap-3">
@@ -8,24 +9,57 @@
         <p class="text-secondary mb-0 small">{{ config.subtitle }}</p>
       </div>
     </div>
-    @if (config.canCreate) {
-      <button class="btn btn-pharma" (click)="openCreate()">
-        <i class="bi bi-plus-lg me-1"></i> Add New
-      </button>
-    }
+    <div class="d-flex align-items-center gap-2">
+      @if (returnUrl()) {
+        <button type="button" class="btn btn-light border" (click)="cancelReturn()">
+          <i class="bi bi-arrow-left me-1"></i> {{ returnBackLabel() }}
+        </button>
+      } @else {
+        <button type="button" class="btn btn-light border" (click)="goBack()">
+          <i class="bi bi-arrow-left me-1"></i> Back
+        </button>
+      }
+      @if (config.canCreate) {
+        <button class="btn btn-pharma" (click)="openCreate()">
+          <i class="bi bi-plus-lg me-1"></i> Add New
+        </button>
+      }
+    </div>
   </div>
+
+  @if (returnBanner()) {
+    <div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
+      <i class="bi bi-info-circle"></i>
+      <span>{{ returnBanner() }}</span>
+    </div>
+  }
 
   <!-- Stats (e.g. Product Master: HO catalog vs chemist subscription) -->
   @if (statCards().length) {
-    <div class="row g-3 mb-3">
+    <div class="stat-grid mb-3" [attr.data-count]="statCards().length">
       @for (c of statCards(); track c.label) {
-        <div class="col-6 col-md-4">
-          <div class="stat-card card-pharma">
-            <div class="stat-icon"><i class="bi" [ngClass]="c.icon || 'bi-box'"></i></div>
-            <div>
-              <div class="stat-value">{{ c.value | number }}</div>
-              <div class="stat-label">{{ c.label }}</div>
-              @if (c.sub) { <div class="stat-sub">{{ c.sub }}</div> }
+        <div class="stat-card card-pharma">
+          <div class="stat-icon"><i class="bi" [ngClass]="c.icon || 'bi-box'"></i></div>
+          <div class="stat-body">
+            <div class="stat-value">{{ c.value | number }}</div>
+            <div class="stat-label">{{ c.label }}</div>
+            @if (c.sub) { <div class="stat-sub">{{ c.sub }}</div> }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Soft KPIs (payments / credit notes / debit notes) -->
+  @if (kpiCards().length) {
+    <div class="row g-3 mb-3">
+      @for (c of kpiCards(); track c.label) {
+        <div class="col-6" [class.col-lg-3]="kpiCards().length === 4" [class.col-lg-4]="kpiCards().length === 3">
+          <div class="kpi-card" [ngClass]="c.tone">
+            <div class="kpi-icon"><i class="bi" [ngClass]="c.icon"></i></div>
+            <div class="kpi-body">
+              <span class="kpi-label">{{ c.label }}</span>
+              <b class="kpi-value">{{ kpiLoading() ? '—' : c.value }}</b>
             </div>
           </div>
         </div>
@@ -33,10 +67,48 @@
     </div>
   }
 
+  @if (config.key === 'rate-margins') {
+    <div class="card-pharma p-3 mb-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div>
+          <div class="fw-semibold"><i class="bi bi-sliders me-1"></i>Common Margin (Fixed)</div>
+          <div class="small text-secondary">Used when a product has no category, or its category has no margin row below. Rate = MRP − margin %.</div>
+        </div>
+        @if (commonMargin().id) {
+          <span class="badge text-bg-light border">Saved</span>
+        } @else {
+          <span class="badge text-bg-warning-subtle text-warning-emphasis border">Not set</span>
+        }
+      </div>
+      <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-3">
+          <label class="form-label small text-secondary mb-1">Margin To Retailer (PTR) % <span class="text-danger">*</span></label>
+          <input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm"
+            [ngModel]="commonMargin().ptr" (ngModelChange)="patchCommonMargin('ptr', $event)" />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small text-secondary mb-1">P.T.S % <span class="text-danger">*</span></label>
+          <input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm"
+            [ngModel]="commonMargin().pts" (ngModelChange)="patchCommonMargin('pts', $event)" />
+        </div>
+        <div class="col-12 col-md-3">
+          <button type="button" class="btn btn-pharma btn-sm w-100" [disabled]="commonSaving()" (click)="saveCommonMargin()">
+            @if (commonSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Save
+          </button>
+        </div>
+        @if (commonError()) {
+          <div class="col-12"><div class="text-danger small">{{ commonError() }}</div></div>
+        }
+      </div>
+    </div>
+  }
+
   <!-- Toolbar -->
   <div class="card-pharma p-3 mb-3">
-    <div class="row g-2 align-items-center">
-      <div class="col">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md">
+        <label class="form-label small text-secondary mb-1">Search</label>
         <div class="input-group">
           <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
           <input
@@ -47,8 +119,30 @@
           />
         </div>
       </div>
-      <div class="col-auto d-flex align-items-center gap-2">
-        <span class="text-secondary small d-none d-sm-inline">{{ total() | number }} total</span>
+      @if (config.listFilters?.length) {
+        @for (f of config.listFilters; track f.key) {
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label small text-secondary mb-1">{{ f.label }}</label>
+            <select
+              class="form-select"
+              [ngModel]="listFilterValues()[f.key] || ''"
+              (ngModelChange)="onListFilter(f.key, $event)"
+            >
+              <option value="">All</option>
+              @for (opt of filterOptions(f.key, f.source); track opt.value) {
+                <option [ngValue]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="col-auto">
+          <button type="button" class="btn btn-light border" title="Clear filters" (click)="clearListFilters()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      }
+      <div class="col-auto d-flex align-items-center gap-2 ms-md-auto pb-1">
+        <span class="text-secondary small d-none d-sm-inline">{{ total() | number }} shown</span>
         <select class="form-select form-select-sm" style="width:auto"
           [ngModel]="perPage()" (ngModelChange)="changePerPage(+$event)">
           <option [ngValue]="10">10 / page</option>
@@ -85,7 +179,12 @@
             @for (row of rows(); track row['id']) {
               <tr>
                 @for (col of config.columns; track col.key) {
-                  <td [class.text-end]="col.type === 'currency' || col.type === 'number'">
+                  <td
+                    [class.text-end]="col.type === 'currency' || col.type === 'number'"
+                    [class.text-danger]="config.key === 'products' && col.key === 'mrp' && row['old_mrp'] != null && row['old_mrp'] !== '' && row['mrp'] !== row['old_mrp']"
+                    [class.fw-semibold]="config.key === 'products' && (col.key === 'mrp' || col.key === 'old_mrp')"
+                    [class.text-success]="config.key === 'products' && col.key === 'old_mrp' && row['old_mrp'] != null && row['old_mrp'] !== '' && row['mrp'] !== row['old_mrp']"
+                  >
                     @if (col.type === 'badge') {
                       <span class="badge" [ngClass]="(col.badgeClass && col.badgeClass[row[col.key] + '']) || 'text-bg-light'"
                         [title]="badgeTitle(col, row)">
@@ -102,9 +201,11 @@
                       <i class="bi bi-box-arrow-in-down"></i>
                     </button>
                   }
-                  <button class="btn btn-sm btn-outline-secondary me-1" title="Edit" (click)="openEdit(row)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
+                  @if (config.canEdit !== false) {
+                    <button class="btn btn-sm btn-outline-secondary me-1" title="Edit" (click)="openEdit(row)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  }
                   @if (config.canDelete) {
                     <button class="btn btn-sm btn-outline-danger" title="Delete" (click)="remove(row)">
                       <i class="bi bi-trash"></i>
@@ -134,12 +235,13 @@
       </div>
     }
   </div>
+  }
 
   <!-- Modal form -->
   @if (modalOpen()) {
     <div class="modal-backdrop-custom" (click)="closeModal()"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" [class.modal-card-wide]="config.key === 'products' || config.key === 'customers' || config.key === 'accounts' || config.key === 'rate-margins' || config.key === 'employees' || config.key === 'doctors'">
         <div class="modal-head">
           <h5 class="mb-0 fw-semibold">
             {{ editingId() ? 'Edit' : 'Add' }} {{ config.title }}
@@ -153,6 +255,7 @@
           }
           <div class="row g-3">
             @for (field of config.fields; track field.key) {
+              @if (showField(field)) {
               <div [ngClass]="field.col || 'col-md-6'">
                 <label class="form-label">
                   {{ field.label }}
@@ -169,25 +272,251 @@
                       }
                     </select>
                   }
+                  @case ('packSelect') {
+                    <div class="master-pack-select position-relative" [class.open]="showPackDropdown()">
+                      <input
+                        type="text"
+                        class="form-control text-uppercase"
+                        [value]="packSizeSearch()"
+                        (input)="onPackFieldSearch($any($event.target).value)"
+                        (focus)="openPackFieldDropdown()"
+                        (click)="openPackFieldDropdown()"
+                        (blur)="onPackFieldBlur()"
+                        [placeholder]="field.placeholder || 'Search pack…'"
+                        autocomplete="off"
+                        [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid"
+                      />
+                      @if (showPackDropdown() && filteredPackSizes().length > 0) {
+                        <ul class="master-pack-drop">
+                          @for (p of filteredPackSizes(); track p.pack) {
+                            <li (mousedown)="selectPackField(p); $event.preventDefault()">{{ p.label || p.pack }}</li>
+                          }
+                        </ul>
+                      }
+                      @if (showPackDropdown() && filteredPackSizes().length === 0) {
+                        <div class="master-pack-drop master-pack-drop--empty">No pack size found</div>
+                      }
+                    </div>
+                  }
+                  @case ('genericSelect') {
+                    <div class="master-generic-select position-relative" [class.open]="showGenericDropdown()">
+                      <div class="input-group input-group-sm master-generic-input">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input
+                          type="text"
+                          class="form-control text-uppercase"
+                          [value]="genericSearch()"
+                          (input)="onGenericSearch($any($event.target).value)"
+                          (focus)="openGenericDropdown()"
+                          (click)="openGenericDropdown()"
+                          (blur)="onGenericBlur()"
+                          [placeholder]="field.placeholder || 'Search generic…'"
+                          autocomplete="off"
+                          [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid"
+                        />
+                        @if (genericSearch()) {
+                          <button type="button" class="btn btn-outline-secondary" title="Clear" (mousedown)="clearGeneric(); $event.preventDefault()">
+                            <i class="bi bi-x-lg"></i>
+                          </button>
+                        }
+                      </div>
+                      @if (showGenericDropdown()) {
+                        <div class="master-generic-drop">
+                          @if (filteredGenerics().length > 0) {
+                            <ul>
+                              @for (g of filteredGenerics(); track g.value) {
+                                <li (mousedown)="selectGeneric(g); $event.preventDefault()">{{ g.label }}</li>
+                              }
+                            </ul>
+                          } @else {
+                            <div class="master-generic-empty">No generic found for “{{ genericSearch() }}”</div>
+                          }
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-pharma master-generic-add"
+                            (mousedown)="openGenericCreatePopup(); $event.preventDefault()"
+                          >
+                            <i class="bi bi-plus-circle me-1"></i>
+                            {{ genericSearch().trim() ? 'Add “' + genericSearch().trim().toUpperCase() + '” in Generic Master' : 'Add new generic (Generic Master)' }}
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @case ('manufacturerSelect') {
+                    <div class="master-manufacturer-select position-relative" [class.open]="showManufacturerDropdown()">
+                      <div class="input-group input-group-sm master-generic-input">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input
+                          type="text"
+                          class="form-control text-uppercase"
+                          [value]="manufacturerSearch()"
+                          (input)="onManufacturerSearch($any($event.target).value)"
+                          (focus)="openManufacturerDropdown()"
+                          (click)="openManufacturerDropdown()"
+                          (blur)="onManufacturerBlur()"
+                          [placeholder]="field.placeholder || 'Search manufacturer…'"
+                          autocomplete="off"
+                          [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid"
+                        />
+                        @if (manufacturerSearch()) {
+                          <button type="button" class="btn btn-outline-secondary" title="Clear" (mousedown)="clearManufacturer(); $event.preventDefault()">
+                            <i class="bi bi-x-lg"></i>
+                          </button>
+                        }
+                      </div>
+                      @if (showManufacturerDropdown()) {
+                        <div class="master-generic-drop">
+                          @if (filteredManufacturers().length > 0) {
+                            <ul>
+                              @for (m of filteredManufacturers(); track m.value) {
+                                <li (mousedown)="selectManufacturer(m); $event.preventDefault()">{{ m.label }}</li>
+                              }
+                            </ul>
+                          } @else {
+                            <div class="master-generic-empty">No manufacturer found for “{{ manufacturerSearch() }}”</div>
+                          }
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-pharma master-generic-add"
+                            (mousedown)="openManufacturerCreatePopup(); $event.preventDefault()"
+                          >
+                            <i class="bi bi-plus-circle me-1"></i>
+                            {{ manufacturerSearch().trim() ? 'Add “' + manufacturerSearch().trim().toUpperCase() + '” in Manufacturer Master' : 'Add new manufacturer (Manufacturer Master)' }}
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
                   @case ('textarea') {
                     <textarea class="form-control" rows="2" [formControlName]="field.key"
-                      [placeholder]="field.placeholder || ''"></textarea>
+                      [placeholder]="field.placeholder || ''"
+                      [attr.maxlength]="field.maxLength || null"
+                      [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid"
+                      (input)="onFieldInput(field, $event)"></textarea>
                   }
                   @default {
-                    <input [type]="field.type" class="form-control" [formControlName]="field.key"
-                      [placeholder]="field.placeholder || ''"
-                      [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid" />
+                    <div class="position-relative">
+                      <input [type]="field.type === 'text' && field.validation === 'phone' ? 'tel' : field.type"
+                        class="form-control" [formControlName]="field.key"
+                        [placeholder]="field.placeholder || ''"
+                        [attr.maxlength]="field.maxLength || null"
+                        [attr.inputmode]="field.validation === 'phone' || field.validation === 'phoneDistributor' || field.validation === 'pincode' || field.validation === 'hsn' || field.validation === 'hsnStrict' || field.validation === 'fssai' ? 'numeric' : null"
+                        [class.text-uppercase]="field.uppercase && field.type !== 'email'"
+                        [class.is-invalid]="form.get(field.key)?.touched && form.get(field.key)?.invalid"
+                        [class.is-valid]="field.validation === 'gstin' && form.get(field.key)?.touched && form.get(field.key)?.valid && form.get(field.key)?.value"
+                        (input)="onFieldInput(field, $event)" />
+                      @if (gstinCount(field); as count) {
+                        <span class="gstin-counter" [class.text-danger]="form.get(field.key)?.invalid && form.get(field.key)?.touched"
+                          [class.text-success]="form.get(field.key)?.valid && (form.get(field.key)?.value + '').length === 15">
+                          {{ count }}
+                        </span>
+                      }
+                    </div>
                   }
                 }
+                @if (fieldError(field); as err) {
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                } @else if (field.hint) {
+                  <div class="form-text">{{ field.hint }}</div>
+                }
               </div>
+              }
             }
           </div>
 
           <div class="modal-foot">
-            <button type="button" class="btn btn-light border" (click)="closeModal()">Cancel</button>
+            <button type="button" class="btn btn-light border" (click)="closeModal()">
+              {{ returnUrl() && !editingId() ? returnBackLabel() : 'Cancel' }}
+            </button>
             <button type="submit" class="btn btn-pharma" [disabled]="saving()">
               @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
               Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Nested: Add Generic (same API as Generic Master) -->
+  @if (genericCreateOpen()) {
+    <div class="modal-backdrop-custom modal-backdrop-nested" (click)="closeGenericCreatePopup()"></div>
+    <div class="modal-custom modal-nested">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border modal-card-sm" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <div>
+            <h5 class="mb-0 fw-semibold"><i class="bi bi-droplet-half me-2 text-pharma"></i>Add Generic</h5>
+            <div class="small text-secondary">Generic Master — creates via the same catalog API</div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeGenericCreatePopup()"></button>
+        </div>
+        <form [formGroup]="genericCreateForm" (ngSubmit)="saveNewGeneric()" class="modal-body-custom">
+          @if (genericCreateError()) {
+            <div class="alert alert-danger py-2">{{ genericCreateError() }}</div>
+          }
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Generic Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control text-uppercase" formControlName="name" placeholder="Molecule / composition" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Therapeutic Class</label>
+              <input type="text" class="form-control text-uppercase" formControlName="therapeutic_class" placeholder="Optional" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Class of Drug <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="schedule_category">
+                @for (opt of scheduleOptionsForGenericCreate(); track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn btn-light border" (click)="closeGenericCreatePopup()">Cancel</button>
+            <button type="submit" class="btn btn-pharma" [disabled]="genericSaving()">
+              @if (genericSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Save Generic
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Nested: Add Manufacturer (same API as Manufacturer Master) -->
+  @if (manufacturerCreateOpen()) {
+    <div class="modal-backdrop-custom modal-backdrop-nested" (click)="closeManufacturerCreatePopup()"></div>
+    <div class="modal-custom modal-nested">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border modal-card-sm" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <div>
+            <h5 class="mb-0 fw-semibold"><i class="bi bi-building me-2 text-pharma"></i>Add Manufacturer</h5>
+            <div class="small text-secondary">Manufacturer Master — creates via the same catalog API</div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeManufacturerCreatePopup()"></button>
+        </div>
+        <form [formGroup]="manufacturerCreateForm" (ngSubmit)="saveNewManufacturer()" class="modal-body-custom">
+          @if (manufacturerCreateError()) {
+            <div class="alert alert-danger py-2">{{ manufacturerCreateError() }}</div>
+          }
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Manufacturer Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control text-uppercase" formControlName="name" placeholder="Company name" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">S Code <span class="text-danger">*</span></label>
+              <input type="text" class="form-control text-uppercase" formControlName="s_code" maxlength="20" placeholder="Short bill code e.g. CIP" />
+              <div class="form-text">Used as Mfg short on products and bills</div>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn btn-light border" (click)="closeManufacturerCreatePopup()">Cancel</button>
+            <button type="submit" class="btn btn-pharma" [disabled]="manufacturerSaving()">
+              @if (manufacturerSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Save Manufacturer
             </button>
           </div>
         </form>

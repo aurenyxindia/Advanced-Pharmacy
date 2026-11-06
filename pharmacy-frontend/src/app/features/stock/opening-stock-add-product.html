@@ -1,0 +1,136 @@
+@if (open()) {
+  <div class="modal-backdrop-custom" (click)="close.emit()"></div>
+  <div class="modal-custom os-add-product-modal" (click)="onModalClick($event)">
+    <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border modal-card-wide">
+      <div class="modal-head">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2"></i>Add Product</h5>
+        <button type="button" class="btn-close" (click)="close.emit()"></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label>Product Type <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [ngModel]="form().product_type" (ngModelChange)="patch('product_type', $event)">
+              @for (t of productTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label>Product Name <span class="text-danger">*</span></label>
+            <input class="form-control form-control-sm text-uppercase" [ngModel]="form().name" (ngModelChange)="patch('name', $event)" />
+          </div>
+          <div class="col-12 col-md-4 field-select-wrap" [class.open]="showGenericDropdown()">
+            <label>Generic</label>
+            <input type="text" class="form-control form-control-sm text-uppercase"
+              [ngModel]="genericSearch()" (ngModelChange)="onGenericSearchInput($event)"
+              (focus)="openGenericDropdown()" (click)="openGenericDropdown()" (blur)="onGenericSearchBlur()"
+              placeholder="Search generic…" autocomplete="off" />
+            @if (showGenericDropdown() && filteredGenerics().length) {
+              <ul class="field-drop field-drop--up">
+                @for (g of filteredGenerics(); track g.id) {
+                  <li (mousedown)="selectGeneric(g); $event.preventDefault()">{{ g.name }}</li>
+                }
+              </ul>
+            }
+            @if (showGenericDropdown() && !filteredGenerics().length) {
+              <div class="field-drop field-drop--up field-drop--empty">
+                @if (genericSearch().trim()) {
+                  No generic found
+                } @else {
+                  Type to search generic
+                }
+              </div>
+            }
+          </div>
+          <div class="col-12 col-md-4">
+            <label>Schedule Category <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [ngModel]="form().schedule_category" (ngModelChange)="patch('schedule_category', $event)">
+              @for (s of schedules; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+          </div>
+          <div class="col-12 col-md-4">
+            <label>Margin Category (Wholesale)</label>
+            <select class="form-select form-select-sm" [ngModel]="form().product_category" (ngModelChange)="patch('product_category', $event)">
+              @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4 field-select-wrap" [class.open]="showPackDropdown()">
+            <label>Pack Size <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm text-uppercase"
+              [ngModel]="packSizeSearch()" (ngModelChange)="onPackSearchInput($event)"
+              (focus)="openPackDropdown()" (click)="openPackDropdown()" (blur)="onPackSearchBlur()"
+              placeholder="Search pack…" autocomplete="off" />
+            @if (showPackDropdown() && filteredPackSizes().length) {
+              <ul class="field-drop field-drop--up">
+                @for (p of filteredPackSizes(); track p.pack) {
+                  <li (mousedown)="selectPackSize(p); $event.preventDefault()">{{ packLabel(p) }}</li>
+                }
+              </ul>
+            }
+            @if (showPackDropdown() && !filteredPackSizes().length) {
+              <div class="field-drop field-drop--up field-drop--empty">No pack size found</div>
+            }
+          </div>
+
+          <div class="col-12 col-md-4 field-select-wrap" [class.open]="showDosageDropdown()">
+            <label>Dosage</label>
+            <input type="text" class="form-control form-control-sm text-uppercase"
+              [ngModel]="dosageSearch()" (ngModelChange)="onDosageSearchInput($event)"
+              (focus)="openDosageDropdown()" (click)="openDosageDropdown()" (blur)="onDosageSearchBlur()"
+              placeholder="Search dosage…" autocomplete="off" />
+            @if (showDosageDropdown() && filteredDosages().length) {
+              <ul class="field-drop field-drop--up">
+                @for (d of filteredDosages(); track d) {
+                  <li (mousedown)="selectDosage(d); $event.preventDefault()">{{ d }}</li>
+                }
+              </ul>
+            }
+            @if (showDosageDropdown() && !filteredDosages().length) {
+              <div class="field-drop field-drop--up field-drop--empty">No dosage found</div>
+            }
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label>MRP <span class="text-danger">*</span></label>
+            <input type="number" class="form-control form-control-sm" [ngModel]="form().mrp" (ngModelChange)="patch('mrp', +$event)" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label>Strength</label>
+            <input class="form-control form-control-sm text-uppercase" [ngModel]="form().strength" (ngModelChange)="patch('strength', $event)" placeholder="e.g. 500 MG" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label>Packing Desc.</label>
+            <input class="form-control form-control-sm text-uppercase" [ngModel]="form().packing_desc" (ngModelChange)="patch('packing_desc', $event)" />
+          </div>
+          <div class="col-12 col-md-6 field-select-wrap" [class.open]="showMfgDropdown()">
+            <label>Manufacturer</label>
+            <input type="text" class="form-control form-control-sm"
+              [ngModel]="mfgSearch()" (ngModelChange)="onMfgSearchInput($event)"
+              (focus)="openMfgDropdown()" (click)="openMfgDropdown()" (blur)="onMfgSearchBlur()"
+              placeholder="Search manufacturer…" autocomplete="off" />
+            @if (showMfgDropdown() && filteredManufacturers().length) {
+              <ul class="field-drop field-drop--up">
+                @for (m of filteredManufacturers(); track m.name) {
+                  <li (mousedown)="selectManufacturer(m); $event.preventDefault()">
+                    {{ m.name }}@if (m.sCode) { <span class="text-secondary"> ({{ m.sCode }})</span> }
+                  </li>
+                }
+              </ul>
+            }
+            @if (showMfgDropdown() && !filteredManufacturers().length) {
+              <div class="field-drop field-drop--up field-drop--empty">No manufacturer found</div>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="close.emit()">Close</button>
+        <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving()" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          <i class="bi bi-save me-1"></i> Save Product
+        </button>
+      </div>
+    </div>
+  </div>
+}

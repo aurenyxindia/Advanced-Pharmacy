@@ -1,0 +1,329 @@
+<div class="return-note-page">
+  <app-return-tabs />
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div class="min-w-0">
+      <h4 class="fw-bold mb-0">
+        @if (mode() === 'list') { Return Note }
+        @else if (mode() === 'create') { New Return Note }
+        @else if (mode() === 'edit') { Edit Return Note }
+        @else { View Return Note }
+      </h4>
+      <p class="text-secondary small mb-0">Purchase return to distributor (Debit Note)</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (mode() !== 'list') {
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">
+          <i class="bi bi-arrow-left me-1"></i>Back
+        </button>
+      }
+      @if (mode() === 'list' && canEditReturn()) {
+        <button type="button" class="btn btn-sm btn-pharma" (click)="openCreate()">
+          <i class="bi bi-plus-lg me-1"></i>New Return Note
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+  @if (toast()) {
+    <div class="alert alert-success py-2">{{ toast() }}</div>
+  }
+
+  @if (loading() && mode() === 'list') {
+    <div class="card-pharma p-5 text-center"><span class="spinner-border text-pharma"></span></div>
+  }
+
+  @if (mode() === 'list') {
+    <div class="card-pharma p-3">
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <div class="rn-search flex-grow-1">
+          <i class="bi bi-search"></i>
+          <input
+            class="form-control form-control-sm"
+            placeholder="Search note no / distributor…"
+            [ngModel]="search()"
+            (ngModelChange)="onSearch($event)"
+          />
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Distributor</th>
+              <th>Contact</th>
+              <th>Note No</th>
+              <th>Date</th>
+              <th class="text-end">Taxable</th>
+              <th class="text-end">Tax</th>
+              <th class="text-end">Net</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (n of notes(); track n.id; let i = $index) {
+              <tr>
+                <td>{{ i + 1 }}</td>
+                <td>{{ n.distributor_name || n.party_name }}</td>
+                <td>{{ n.d_cont || '—' }}</td>
+                <td class="fw-semibold">{{ n.note_no || n.order_no }}</td>
+                <td>{{ (n.note_date || n.order_date) | date: 'dd-MM-yyyy' }}</td>
+                <td class="text-end">{{ n.taxable | number: '1.2-2' }}</td>
+                <td class="text-end">{{ n.tax || n.gst_amount | number: '1.2-2' }}</td>
+                <td class="text-end">{{ n.netTotal || n.amount | number: '1.2-2' }}</td>
+                <td>
+                  <span class="badge" [class.text-bg-success]="statusOf(n) === 'Open'" [class.text-bg-secondary]="statusOf(n) === 'Cleared'">
+                    {{ statusOf(n) }}
+                  </span>
+                  @if (statusOf(n) === 'Cleared' && n.applied_po_no) {
+                    <div class="small text-secondary">PO: {{ n.applied_po_no }}</div>
+                  }
+                </td>
+                <td class="text-nowrap">
+                  <button type="button" class="btn btn-sm btn-outline-primary me-1" (click)="viewNote(n)">View</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Print" (click)="printNote(n.id)">
+                    <i class="bi bi-printer"></i>
+                  </button>
+                  @if (statusOf(n) === 'Open') {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openEdit(n)">Edit</button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="text-center text-secondary py-4">No return notes yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (mode() === 'view' && selected(); as note) {
+    <div class="card-pharma p-3">
+      <div class="row g-2 mb-3 small">
+        <div class="col-md-3"><span class="text-secondary">Distributor</span><div class="fw-semibold">{{ note.distributor_name || note.party_name }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Contact</span><div>{{ note.d_cont || '—' }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">GSTIN</span><div>{{ note.d_gst || '—' }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">State</span><div>{{ note.state || '—' }}</div></div>
+        <div class="col-md-3"><span class="text-secondary">Status</span>
+          <div>
+            <span class="badge" [class.text-bg-success]="statusOf(note) === 'Open'" [class.text-bg-secondary]="statusOf(note) === 'Cleared'">{{ statusOf(note) }}</span>
+            @if (note.applied_po_no) { <span class="ms-2 small">PO {{ note.applied_po_no }}</span> }
+          </div>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th class="text-end">Stock</th><th class="text-end">Rate</th>
+              <th>Expiry</th><th class="text-end">Return</th><th>Reason</th>
+              <th class="text-end">Taxable</th><th class="text-end">GST %</th>
+              <th class="text-end">GST Amt</th><th class="text-end">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of note.products || []; track $index) {
+              <tr>
+                <td>{{ p.p_name || p.product_name }}</td>
+                <td>{{ p.batch_no }}</td>
+                <td class="text-end">{{ p.saleQty || p.stock_qty }}</td>
+                <td class="text-end">{{ p.net_rate | number: '1.2-2' }}</td>
+                <td>{{ formatExpiry(p.exp_date) }}</td>
+                <td class="text-end">{{ p.return_qty }}</td>
+                <td>{{ p.reason }}</td>
+                <td class="text-end">{{ p.taxable | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.gst_per ?? 0 }}</td>
+                <td class="text-end">{{ p.tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.netTotal | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="fw-semibold">
+              <td colspan="7" class="text-end">Total</td>
+              <td class="text-end">{{ note.taxable | number: '1.2-2' }}</td>
+              <td></td>
+              <td class="text-end">{{ note.tax || note.gst_amount | number: '1.2-2' }}</td>
+              <td class="text-end">{{ note.netTotal || note.amount | number: '1.2-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      @if (statusOf(note) === 'Open') {
+        <div class="mt-3 d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-pharma" (click)="openEdit(note)">Edit</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printNote(note.id)">
+            <i class="bi bi-printer me-1"></i>Print
+          </button>
+        </div>
+      } @else {
+        <div class="mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printNote(note.id)">
+            <i class="bi bi-printer me-1"></i>Print
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (mode() === 'create' || mode() === 'edit') {
+    <div class="card-pharma p-3 mb-3 rn-entry-card" [class.rn-menu-open]="showProductMenu()">
+      @if (mode() === 'edit') {
+        <div class="alert alert-light border py-2 small mb-3">
+          Editing <b>{{ editNoteNo }}</b> — stock will be re-synced on save.
+        </div>
+      }
+
+      <!-- Entry fields outside table so product menu is not clipped -->
+      <div class="rn-entry-form mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-4 col-xl-3">
+            <label class="form-label small mb-1">Product <span class="text-danger">*</span></label>
+            <div class="rn-combo" [class.open]="showProductMenu()" (click)="$event.stopPropagation()">
+              <input
+                class="form-control form-control-sm"
+                placeholder="Search product…"
+                [ngModel]="productQuery()"
+                (ngModelChange)="onProductQuery($event)"
+                (focus)="showProductMenu.set(true)"
+                (keydown.enter)="$event.preventDefault(); pickFirstProduct()"
+              />
+              @if (showProductMenu()) {
+                <div class="rn-combo-menu">
+                  @for (p of filteredProducts(); track p.value) {
+                    <button type="button" class="rn-combo-item" (mousedown)="$event.preventDefault(); pickProduct(p.value)">{{ p.label }}</button>
+                  } @empty {
+                    <div class="rn-combo-empty">{{ productOptions().length ? 'No match' : 'No stocked products' }}</div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+          <div class="col-6 col-md-2 col-xl-2">
+            <label class="form-label small mb-1">Batch <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [(ngModel)]="batch_no" (ngModelChange)="onBatchChange()" [disabled]="!batches().length">
+              <option value="">{{ loadingBatches() ? 'Loading…' : (batches().length ? 'Select…' : '—') }}</option>
+              @for (b of batches(); track b.batch_id) {
+                <option [value]="b.batch_no">{{ b.batch_no }} ({{ b.stock_qty }})</option>
+              }
+            </select>
+          </div>
+          <div class="col-6 col-md-3 col-xl-3">
+            <label class="form-label small mb-1">Distributor <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" [(ngModel)]="distributor_name" (ngModelChange)="onSupplierChange()" [disabled]="!suppliers().length">
+              <option value="">{{ loadingSuppliers() ? 'Loading…' : (suppliers().length ? 'Select…' : '—') }}</option>
+              @for (s of suppliers(); track s.distributor_name) {
+                <option [value]="s.distributor_name">{{ s.distributor_name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">Stock</label>
+            <div class="form-control form-control-sm bg-light text-end">{{ stock_qty }}</div>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">Rate</label>
+            <div class="form-control form-control-sm bg-light text-end">{{ net_rate | number: '1.2-2' }}</div>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">Expiry</label>
+            <div class="form-control form-control-sm bg-light">{{ formatExpiry(exp_date) }}</div>
+          </div>
+          <div class="col-6 col-md-2 col-xl-1">
+            <label class="form-label small mb-1">Invoice</label>
+            <div class="form-control form-control-sm bg-light small text-truncate" [title]="invoice_no">{{ invoice_no || '—' }}</div>
+          </div>
+          <div class="col-6 col-md-2 col-xl-1">
+            <label class="form-label small mb-1">Return Qty <span class="text-danger">*</span></label>
+            <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="return_qty" (ngModelChange)="checkQty()" min="0" />
+          </div>
+          <div class="col-6 col-md-2 col-xl-2">
+            <label class="form-label small mb-1">Reason</label>
+            <select class="form-select form-select-sm" [(ngModel)]="reason">
+              @for (r of reasons; track r) { <option [value]="r">{{ r }}</option> }
+            </select>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">Taxable</label>
+            <div class="form-control form-control-sm bg-light text-end">{{ taxable | number: '1.2-2' }}</div>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">GST %</label>
+            <div class="form-control form-control-sm bg-light text-end">{{ gst_per }}</div>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">GST Amt</label>
+            <div class="form-control form-control-sm bg-light text-end">{{ tax | number: '1.2-2' }}</div>
+          </div>
+          <div class="col-4 col-md-1">
+            <label class="form-label small mb-1">Net</label>
+            <div class="form-control form-control-sm bg-light text-end fw-semibold">{{ netTotal | number: '1.2-2' }}</div>
+          </div>
+          <div class="col-8 col-md-2 col-xl-1">
+            <button type="button" class="btn btn-sm btn-pharma w-100" (click)="addLine()">
+              <i class="bi bi-plus-lg me-1"></i>Add
+            </button>
+          </div>
+        </div>
+        @if (batch_no && !suppliers().length && !loadingSuppliers()) {
+          <div class="small text-warning mt-2">No purchase history for this batch — distributor list empty. Return from a purchased batch, or enter purchase first.</div>
+        }
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th>Distributor</th><th class="text-end">Qty</th>
+              <th>Reason</th><th class="text-end">Taxable</th><th class="text-end">GST %</th>
+              <th class="text-end">GST Amt</th><th class="text-end">Net</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of returnProducts; track $index; let i = $index) {
+              <tr>
+                <td>{{ p.p_name }}</td>
+                <td>{{ p.batch_no }}</td>
+                <td>{{ p.distributor_name }}</td>
+                <td class="text-end">{{ p.return_qty }}</td>
+                <td>{{ p.reason }}</td>
+                <td class="text-end">{{ p.taxable | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.gst_per ?? 0 }}</td>
+                <td class="text-end">{{ p.tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.netTotal | number: '1.2-2' }}</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger" (click)="removeLine(i)"><i class="bi bi-trash"></i></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="text-center text-secondary py-3">No lines added yet.</td></tr>
+            }
+          </tbody>
+          @if (returnProducts.length) {
+            <tfoot>
+              <tr class="fw-semibold">
+                <td colspan="5" class="text-end">Total</td>
+                <td class="text-end">{{ lineTotals().taxable | number: '1.2-2' }}</td>
+                <td></td>
+                <td class="text-end">{{ lineTotals().tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ lineTotals().net | number: '1.2-2' }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">Cancel</button>
+        <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving() || !returnProducts.length" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          Save Return Note
+        </button>
+      </div>
+    </div>
+  }
+</div>

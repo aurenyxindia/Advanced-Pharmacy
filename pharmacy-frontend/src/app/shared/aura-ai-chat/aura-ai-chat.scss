@@ -1,0 +1,336 @@
+.aura-ai-floating-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 88px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-radius: 50%;
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 9998;
+  touch-action: none;
+  user-select: none;
+  // Semi-transparent at rest so fields / buttons underneath stay readable.
+  opacity: 0.55;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s, left 0.18s ease, top 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    transform: scale(1.06);
+    box-shadow: 0 8px 24px rgba(13, 148, 136, 0.55);
+  }
+
+  &.dragging {
+    opacity: 1;
+    cursor: grabbing;
+    transform: scale(1.1);
+    transition: none;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35);
+
+    .aura-ai-tooltip { opacity: 0 !important; }
+  }
+
+  &.on-left .aura-ai-tooltip {
+    right: auto;
+    left: 100%;
+    margin-right: 0;
+    margin-left: 12px;
+  }
+
+  .aura-ai-float-icon {
+    display: block;
+    width: 28px;
+    height: 28px;
+    pointer-events: none;
+  }
+
+  .aura-ai-tooltip {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 12px;
+    background: rgba(15, 23, 42, 0.92);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    font-size: 12px;
+    text-align: left;
+
+    .aura-ai-brand {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .aura-ai-label {
+      display: block;
+      font-size: 10px;
+      opacity: 0.9;
+    }
+  }
+
+  &:hover .aura-ai-tooltip {
+    opacity: 1;
+  }
+}
+
+.aura-ai-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: min(400px, calc(100vw - 24px));
+  height: min(520px, calc(100vh - 100px));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.2s ease;
+
+  &.hidden {
+    display: none;
+  }
+
+  &.minimized {
+    transform: scale(0.2);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &.maximized {
+    left: 12px !important;
+    top: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none;
+    border-radius: 12px;
+  }
+
+  &.dragging {
+    transition: none;
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.28);
+    user-select: none;
+  }
+}
+
+.aura-ai-header {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #fff;
+  padding: 10px 10px 10px 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.aura-ai-drag-handle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: grab;
+  touch-action: none;
+  padding: 4px 0;
+  border-radius: 8px;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  .aura-ai-header-icon {
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+  }
+
+  .aura-ai-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .aura-ai-brand {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .aura-ai-sub {
+    font-size: 0.72rem;
+    opacity: 0.9;
+  }
+
+  .aura-ai-grip {
+    flex-shrink: 0;
+    opacity: 0.65;
+    font-size: 1.1rem;
+    margin-right: 4px;
+  }
+}
+
+.aura-ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.aura-ai-header-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+}
+
+.aura-ai-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.aura-ai-config-warn {
+  font-size: 0.75rem;
+  color: #b45309;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 8px 12px;
+}
+
+.aura-ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.aura-ai-msg {
+  display: flex;
+
+  &.user {
+    justify-content: flex-end;
+
+    .aura-ai-msg-bubble {
+      background: #0d9488;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+  }
+
+  &.assistant .aura-ai-msg-bubble {
+    background: #fff;
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-bottom-left-radius: 4px;
+  }
+
+  &.error .aura-ai-msg-bubble {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+  }
+}
+
+.aura-ai-msg-bubble {
+  max-width: 88%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  &.loading {
+    display: flex;
+    align-items: center;
+    color: #64748b;
+  }
+}
+
+.aura-ai-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+.aura-ai-input {
+  flex: 1;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+
+  &:focus {
+    outline: none;
+    border-color: #0d9488;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+  }
+}
+
+.aura-ai-send {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: #0d9488;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #0f766e;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .aura-ai-floating-icon {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .aura-ai-widget {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    height: min(70vh, 520px);
+  }
+}

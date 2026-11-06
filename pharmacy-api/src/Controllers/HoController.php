@@ -9,6 +9,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Database\Connection;
 use App\Models\Branch;
+use App\Services\InventoryService;
 use App\Services\StockTransferService;
 
 /**
@@ -77,6 +78,44 @@ final class HoController extends Controller
         return $this->success($stmt->fetchAll(), 'Central portfolio.');
     }
 
+    /** Products with live stock for a branch (used by HO stock transfer picker). */
+    public function branchStock(Request $request): Response
+    {
+        $clientId = (int) $request->clientId();
+        $branchId = (int) $request->query('branch_id', 0);
+        if ($branchId <= 0) {
+            return $this->success([], 'Select a branch.');
+        }
+
+        $branch = (new Branch())->find($branchId);
+        if (!$branch || (int) $branch['client_id'] !== $clientId) {
+            throw \App\Core\HttpException::notFound('Branch not found.');
+        }
+
+        $q = trim((string) $request->query('q', ''));
+        $avail = InventoryService::availableQtyExpr('pb');
+        $sql = "SELECT pb.id AS binding_id, pb.master_product_id, pb.product_name,
+                       pb.manufacturer_short, pb.pack_size, pb.schedule_category,
+                       {$avail} AS available_qty
+                FROM product_bindings pb
+                WHERE pb.client_id = :c AND pb.branch_id = :b AND {$avail} > 0";
+        $bindings = ['c' => $clientId, 'b' => $branchId];
+
+        if ($q !== '') {
+            $sql .= ' AND (pb.product_name LIKE :q1 OR pb.manufacturer_short LIKE :q2 OR pb.pack_size LIKE :q3)';
+            $like = '%' . $q . '%';
+            $bindings['q1'] = $like;
+            $bindings['q2'] = $like;
+            $bindings['q3'] = $like;
+        }
+
+        $sql .= ' ORDER BY pb.product_name ASC LIMIT 300';
+        $stmt = Connection::ops()->prepare($sql);
+        $stmt->execute($bindings);
+
+        return $this->success($stmt->fetchAll(), 'Branch stock.');
+    }
+
     public function transfer(Request $request): Response
     {
         $result = (new StockTransferService())->transfer(
@@ -98,6 +137,31 @@ final class HoController extends Controller
         );
         $stmt->execute(['c' => $request->clientId()]);
         return $this->success($stmt->fetchAll(), 'Transfers.');
+    }
+
+    /** Single transfer log with line items. */
+    public function transferShow(Request $request): Response
+    {
+        $id = (int) $request->attribute('id');
+        $clientId = (int) $request->clientId();
+
+        $stmt = Connection::ops()->prepare(
+            'SELECT * FROM stock_transfers WHERE id = :id AND client_id = :c LIMIT 1'
+        );
+        $stmt->execute(['id' => $id, 'c' => $clientId]);
+        $transfer = $stmt->fetch();
+        if (!$transfer) {
+            throw \App\Core\HttpException::notFound('Transfer not found.');
+        }
+
+        $items = Connection::ops()->prepare(
+            'SELECT id, master_product_id, product_name, batch_no, quantity, cost_per_unit, line_value
+             FROM stock_transfer_items WHERE transfer_id = :tid ORDER BY id ASC'
+        );
+        $items->execute(['tid' => $id]);
+        $transfer['items'] = $items->fetchAll();
+
+        return $this->success($transfer, 'Transfer log.');
     }
 
     private function scalar(string $sql, int $clientId, int $branchId): float

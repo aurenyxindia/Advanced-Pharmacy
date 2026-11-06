@@ -1,0 +1,236 @@
+.agt-rx-floater {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10050;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(460px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+
+  &.is-collapsed {
+    max-height: none;
+  }
+}
+
+.agt-rx-floater__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #f0fdfa, #ecfeff);
+  border-bottom: 1px solid rgba(13, 148, 136, 0.2);
+  flex-shrink: 0;
+}
+
+.agt-rx-floater__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f766e;
+  min-width: 0;
+
+  i {
+    font-size: 1rem;
+  }
+}
+
+.agt-rx-floater__order {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0d9488;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.agt-rx-floater__head-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.agt-rx-floater__icon-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #ccfbf1;
+    color: #0f766e;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.35);
+  }
+}
+
+.agt-rx-floater__viewport {
+  flex: 1;
+  min-height: 180px;
+  max-height: 300px;
+  overflow: hidden;
+  background: #f1f5f9;
+  position: relative;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+
+  &.is-panning {
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}
+
+.agt-rx-floater__stage {
+  transform-origin: center center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  min-width: 100%;
+  padding: 12px;
+  will-change: transform;
+}
+
+.agt-rx-floater__img {
+  max-width: 100%;
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+.agt-rx-floater__hint {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-align: center;
+  padding: 4px 8px 0;
+  flex-shrink: 0;
+}
+
+.agt-rx-floater__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.agt-rx-floater__zoom-btn,
+.agt-rx-floater__action-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  color: #0f766e;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #f0fdfa;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.35);
+  }
+}
+
+.agt-rx-floater__action-btn {
+  font-size: 1rem;
+}
+
+.agt-rx-floater__pct {
+  min-width: 56px;
+  border: none;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.35);
+    border-radius: 6px;
+  }
+}
+
+.agt-rx-floater__toast {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.agt-rx-floater__pdf {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 0.88rem;
+
+  i {
+    font-size: 2rem;
+    color: #0d9488;
+    display: block;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 576px) {
+  .agt-rx-floater {
+    right: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+  }
+}

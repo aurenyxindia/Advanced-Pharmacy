@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OrderService } from '../../core/services/order.service';
@@ -15,10 +15,41 @@ export class Deliveries {
   private readonly orderSvc = inject(OrderService);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly rows = signal<Record<string, any>[]>([]);
+  readonly allRows = signal<Record<string, any>[]>([]);
   readonly loading = signal(false);
   readonly filter = signal('');
   readonly statuses = STATUSES;
+
+  /** Table rows for the active status filter. */
+  readonly rows = computed(() => {
+    const f = this.filter();
+    const all = this.allRows();
+    if (!f) return all;
+    return all.filter((r) => String(r['status']) === f);
+  });
+
+  /** KPIs from full order list (not affected by filter chips). */
+  readonly kpis = computed(() => {
+    const all = this.allRows();
+    let active = 0;
+    let outForDelivery = 0;
+    let delivered = 0;
+    let estimate = 0;
+    for (const r of all) {
+      const status = String(r['status'] ?? '');
+      estimate += Number(r['total_estimate']) || 0;
+      if (status === 'out_for_delivery') outForDelivery++;
+      if (status === 'delivered') delivered++;
+      if (status !== 'delivered' && status !== 'cancelled') active++;
+    }
+    return {
+      orders: all.length,
+      active,
+      outForDelivery,
+      delivered,
+      estimate: Math.round(estimate * 100) / 100,
+    };
+  });
 
   // detail drawer
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,15 +65,17 @@ export class Deliveries {
 
   load(): void {
     this.loading.set(true);
-    this.orderSvc.list({ status: this.filter() || undefined }).subscribe({
-      next: (res) => { this.rows.set(res.data); this.loading.set(false); },
+    this.orderSvc.list({ perPage: 500 }).subscribe({
+      next: (res) => {
+        this.allRows.set(res.data ?? []);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   setFilter(s: string): void {
     this.filter.set(this.filter() === s ? '' : s);
-    this.load();
   }
 
   open(id: number): void {
@@ -57,16 +90,33 @@ export class Deliveries {
   saveStatus(): void {
     const order = this.selected();
     if (!order) return;
+    if (this.newStatus() === 'cancelled' && String(order['status']) !== 'cancelled') {
+      if (!confirm('Cancel this order? Reserved stock will return to inventory.')) return;
+    }
     this.orderSvc.updateStatus(Number(order['id']), {
       status: this.newStatus(),
       assigned_to: this.assignedTo() || undefined,
       note: this.note() || undefined,
-    }).subscribe(() => {
-      this.toast.set('Order updated.');
-      setTimeout(() => this.toast.set(null), 2500);
-      this.selected.set(null);
-      this.load();
+    }).subscribe({
+      next: () => {
+        this.toast.set(this.newStatus() === 'cancelled' ? 'Order cancelled · stock returned.' : 'Order updated.');
+        setTimeout(() => this.toast.set(null), 2500);
+        this.selected.set(null);
+        this.load();
+      },
+      error: (err) => {
+        this.toast.set(err.error?.message ?? 'Could not update order.');
+        setTimeout(() => this.toast.set(null), 3500);
+      },
     });
+  }
+
+  cancelOrder(): void {
+    const order = this.selected();
+    if (!order) return;
+    this.newStatus.set('cancelled');
+    this.note.set(this.note() || 'Cancelled by pharmacy');
+    this.saveStatus();
   }
 
   label(status: string): string {

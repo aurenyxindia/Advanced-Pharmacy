@@ -22,12 +22,15 @@ export class Shop {
   private readonly publicSvc = inject(PublicService);
 
   readonly branches = signal<PublicBranch[]>([]);
+  readonly branchesLoading = signal(true);
   readonly selectedBranch = signal<number | null>(null);
   readonly products = signal<PublicProduct[]>([]);
+  readonly productsLoading = signal(false);
   readonly searchTerm = signal('');
   private searchTimer?: ReturnType<typeof setTimeout>;
 
   readonly cart = signal<CartItem[]>([]);
+  readonly cartOpen = signal(false);
   readonly checkout = signal({ customer_name: '', phone: '', address: '', pincode: '', email: '' });
   readonly placing = signal(false);
   readonly error = signal<string | null>(null);
@@ -36,15 +39,30 @@ export class Shop {
   readonly cartTotal = computed(() => this.cart().reduce((s, i) => s + i.mrp * i.quantity, 0));
   readonly cartCount = computed(() => this.cart().reduce((s, i) => s + i.quantity, 0));
 
+  readonly selectedBranchInfo = computed(() =>
+    this.branches().find((b) => b.id === this.selectedBranch()) ?? null
+  );
+
   constructor() {
-    this.publicSvc.branches().subscribe((b) => this.branches.set(b));
+    this.publicSvc.branches().subscribe({
+      next: (b) => { this.branches.set(b); this.branchesLoading.set(false); },
+      error: () => this.branchesLoading.set(false),
+    });
   }
 
   selectBranch(id: number): void {
     this.selectedBranch.set(id);
     this.products.set([]);
     this.searchTerm.set('');
+    this.cartOpen.set(false);
     this.loadCatalog('');
+  }
+
+  clearBranch(): void {
+    this.selectedBranch.set(null);
+    this.products.set([]);
+    this.searchTerm.set('');
+    this.cartOpen.set(false);
   }
 
   onSearch(value: string): void {
@@ -55,7 +73,11 @@ export class Shop {
 
   loadCatalog(q: string): void {
     if (!this.selectedBranch()) return;
-    this.publicSvc.catalog(this.selectedBranch()!, q).subscribe((p) => this.products.set(p));
+    this.productsLoading.set(true);
+    this.publicSvc.catalog(this.selectedBranch()!, q).subscribe({
+      next: (p) => { this.products.set(p); this.productsLoading.set(false); },
+      error: () => this.productsLoading.set(false),
+    });
   }
 
   addToCart(p: PublicProduct): void {
@@ -63,15 +85,19 @@ export class Shop {
     if (idx >= 0) {
       this.updateQty(idx, this.cart()[idx].quantity + 1);
     } else {
-      this.cart.update((c) => [...c, { binding_id: p.binding_id, product_name: p.product_name, mrp: Number(p.mrp), quantity: 1 }]);
+      this.cart.update((c) => [...c, { binding_id: p.binding_id, product_name: p.product_name, mrp: Number(p.mrp) || 0, quantity: 1 }]);
     }
+    this.cartOpen.set(true);
   }
+
   updateQty(i: number, qty: number): void {
     if (qty <= 0) { this.removeItem(i); return; }
     this.cart.update((c) => c.map((item, idx) => (idx === i ? { ...item, quantity: qty } : item)));
   }
+
   removeItem(i: number): void {
     this.cart.update((c) => c.filter((_, idx) => idx !== i));
+    if (this.cart().length === 0) this.cartOpen.set(false);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +128,7 @@ export class Shop {
           this.placing.set(false);
           this.confirmation.set(res.data);
           this.cart.set([]);
+          this.cartOpen.set(false);
         },
         error: (err: HttpErrorResponse) => {
           this.placing.set(false);
@@ -110,7 +137,15 @@ export class Shop {
       });
   }
 
-  branchName(): string {
-    return this.branches().find((b) => b.id === this.selectedBranch())?.name ?? '';
+  startNewOrder(): void {
+    this.confirmation.set(null);
+    this.clearBranch();
+  }
+
+  scheduleClass(code: string): string {
+    const c = (code || '').toUpperCase();
+    if (c === 'H1' || c === 'X' || c === 'RESTRICTED') return 'sch-alert';
+    if (c === 'H' || c === 'G') return 'sch-rx';
+    return 'sch-otc';
   }
 }

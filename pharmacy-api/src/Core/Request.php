@@ -13,12 +13,19 @@ final class Request
     private array $query;
     private array $headers;
     private array $attributes = [];
+    private string $rawBody = '';
 
     public function __construct()
     {
         $this->query   = $_GET;
         $this->headers = $this->parseHeaders();
         $this->body    = $this->parseBody();
+    }
+
+    /** Raw request body (needed for webhook HMAC verification). */
+    public function rawBody(): string
+    {
+        return $this->rawBody;
     }
 
     public function method(): string
@@ -78,6 +85,11 @@ final class Request
         return $_SERVER['HTTP_USER_AGENT'] ?? '';
     }
 
+    public function isAndroidApp(): bool
+    {
+        return str_contains(strtolower($this->userAgent()), 'advancedpharmacy-android');
+    }
+
     public function setAttribute(string $key, mixed $value): void
     {
         $this->attributes[$key] = $value;
@@ -115,6 +127,15 @@ final class Request
                 $headers[$name] = $value;
             }
         }
+        // CGI / some PHP SAPI setups expose Authorization only via REDIRECT_*.
+        if (!isset($headers['authorization'])) {
+            $auth = $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+                ?? $_SERVER['HTTP_AUTHORIZATION']
+                ?? null;
+            if (is_string($auth) && $auth !== '') {
+                $headers['authorization'] = $auth;
+            }
+        }
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = $_SERVER['CONTENT_TYPE'];
         }
@@ -125,9 +146,11 @@ final class Request
     {
         $contentType = $this->headers['content-type'] ?? '';
 
-        if (str_contains($contentType, 'application/json')) {
-            $raw = file_get_contents('php://input') ?: '';
-            $decoded = json_decode($raw, true);
+        if (str_contains($contentType, 'application/json')
+            || str_contains($contentType, '+json')
+            || str_contains(strtolower($contentType), 'application/json')) {
+            $this->rawBody = file_get_contents('php://input') ?: '';
+            $decoded = json_decode($this->rawBody, true);
             return is_array($decoded) ? $decoded : [];
         }
 

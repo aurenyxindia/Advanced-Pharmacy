@@ -1,0 +1,126 @@
+:host { display: block; }
+
+.sales-log-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+
+  @media (min-width: 992px) {
+    overflow-x: visible;
+  }
+}
+
+.sales-log-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  font-size: 0.78rem;
+
+  thead th {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 0.4rem 0.28rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+
+  td {
+    padding: 0.35rem 0.28rem;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .col-bill { width: 12%; }
+  .col-date { width: 7.5%; }
+  .col-customer { width: 14%; }
+  .col-contact { width: 9%; }
+  .col-pay { width: 6%; }
+  .col-amt { width: 7%; }
+  .col-act { width: 4%; }
+  .col-edit { width: 5%; }
+  .col-del { width: 4%; }
+  .col-print { width: 9.5%; }
+  .col-wa { width: 4%; }
+
+  .bill-no {
+    display: inline;
+  }
+
+  .bill-lock {
+    margin-left: 0.2rem;
+    font-size: 0.7rem;
+  }
+
+  .pay-badge {
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .log-btn {
+    padding: 0.15rem 0.32rem;
+    line-height: 1.1;
+  }
+}
+
+.tiny { font-size: 0.72rem; }
+
+/* Print + Dual + Dot Matrix share one column so the log stays compact. */
+.print-group {
+  flex-wrap: nowrap;
+
+  .btn {
+    padding: 0.15rem 0.28rem;
+    line-height: 1.1;
+  }
+}
+
+.modal-backdrop-custom {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1050;
+}
+.modal-custom {
+  position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 2rem 1rem; pointer-events: none; overflow-y: auto;
+}
+.modal-card {
+  width: 100%; pointer-events: auto; max-height: calc(100vh - 3rem); overflow: auto;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0;
+}
+.modal-body-custom { padding: 1.25rem; }
+
+@media (max-width: 1199.98px) {
+  .sales-log-table {
+    font-size: 0.72rem;
+
+    thead th {
+      font-size: 0.58rem;
+      padding: 0.32rem 0.18rem;
+    }
+
+    td { padding: 0.28rem 0.18rem; }
+
+    .col-customer { width: 12%; }
+    .col-contact { width: 8%; }
+    .col-print { width: 10%; }
+  }
+}
+
+@media (max-width: 991.98px) {
+  .sales-log-table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .modal-custom { padding: 0.5rem; }
+}

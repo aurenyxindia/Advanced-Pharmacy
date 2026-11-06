@@ -1,0 +1,32 @@
+.admin-page {
+  .nav-pills .nav-link {
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    font-size: 0.85rem;
+    padding: 0.35rem 0.85rem;
+    &.active {
+      background: #0d9488;
+      border-color: #0d9488;
+      color: #fff;
+    }
+  }
+  .admin-table {
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: #64748b;
+      background: #f8fafc;
+      white-space: nowrap;
+    }
+    td {
+      font-size: 0.875rem;
+    }
+    .form-check-input {
+      width: 2.4em;
+      height: 1.25em;
+      cursor: pointer;
+    }
+  }
+}

@@ -1,24 +1,65 @@
 <div class="daily-closing">
-  <!-- Header -->
   <div class="dc-header">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-calendar2-check-fill fs-4 text-pharma"></i>
-      <h4 class="fw-bold mb-0">Daily Closing</h4>
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-calendar2-check-fill fs-4 text-pharma"></i>
+        <h4 class="fw-bold mb-0">Daily Closing</h4>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">End-of-day cash reconcile (Retail parity)</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
-      @if (summary()?.closing) { <span class="badge text-bg-success"><i class="bi bi-lock-fill me-1"></i>Closed</span> }
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      @if (summary()?.closing) {
+        <span class="badge text-bg-success"><i class="bi bi-lock-fill me-1"></i>Closed</span>
+      }
+      <label class="small text-secondary mb-0">Closing date</label>
       <input type="date" class="form-control form-control-sm dc-date" [ngModel]="date()" (ngModelChange)="onDateChange($event)" />
     </div>
   </div>
 
   @if (loading()) {
     <div class="row g-3">
-      @for (i of [1,2,3,4]; track i) { <div class="col-12 col-md-6 col-xl-3"><div class="skeleton" style="height:230px"></div></div> }
+      @for (i of [1,2,3,4]; track i) {
+        <div class="col-12 col-md-6 col-xl-3"><div class="skeleton" style="height:230px"></div></div>
+      }
     </div>
   } @else if (summary(); as s) {
-    <!-- Cards -->
+    <!-- KPI strip -->
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-body">
+            <span class="kpi-label">Net Sales</span>
+            <b class="kpi-value">{{ netSales() | number:'1.2-2' }}</b>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-slate">
+          <div class="kpi-body">
+            <span class="kpi-label">Total Cash</span>
+            <b class="kpi-value">{{ expected() | number:'1.2-2' }}</b>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-body">
+            <span class="kpi-label">Today’s Customers</span>
+            <b class="kpi-value">{{ s.sales.customers }}</b>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card" [class.kpi-green]="difference() === 0" [class.kpi-rose]="difference() !== 0">
+          <div class="kpi-body">
+            <span class="kpi-label">Cash Difference</span>
+            <b class="kpi-value">{{ difference() | number:'1.2-2' }}</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="row g-3">
-      <!-- Sales -->
       <div class="col-12 col-md-6 col-xl-3">
         <div class="dc-card">
           <div class="dc-card-head"><i class="bi bi-cart-fill me-2"></i>Sales</div>
@@ -27,15 +68,16 @@
             <div class="dc-row"><span><i class="bi bi-phone me-2"></i>UPI</span><b>{{ s.sales.upi | number:'1.2-2' }}</b></div>
             <div class="dc-row"><span><i class="bi bi-credit-card me-2"></i>CARD</span><b>{{ s.sales.card | number:'1.2-2' }}</b></div>
             <div class="dc-row"><span><i class="bi bi-journal-text me-2"></i>CREDIT</span><b>{{ s.sales.credit | number:'1.2-2' }}</b></div>
+            <div class="dc-row"><span><i class="bi bi-arrow-return-left me-2"></i>RETURN</span><b>{{ s.sales.return | number:'1.2-2' }}</b></div>
           </div>
           <div class="dc-card-foot">
             <div class="d-flex justify-content-between"><span>TOTAL SALES</span><b>{{ s.sales.total | number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between"><span>NET SALES</span><b>{{ s.sales.net | number:'1.2-2' }}</b></div>
             <div class="d-flex justify-content-between"><span>TODAY CUSTOMERS</span><b>{{ s.sales.customers }}</b></div>
           </div>
         </div>
       </div>
 
-      <!-- Customer Payment -->
       <div class="col-12 col-md-6 col-xl-3">
         <div class="dc-card">
           <div class="dc-card-head"><i class="bi bi-people-fill me-2"></i>Customer Payment</div>
@@ -50,15 +92,17 @@
         </div>
       </div>
 
-      <!-- Cash Adjustment -->
       <div class="col-12 col-md-6 col-xl-3">
         <div class="dc-card">
           <div class="dc-card-head"><i class="bi bi-rulers me-2"></i>Cash Adjustment</div>
           <div class="dc-card-body">
-            <div class="dc-row"><span><i class="bi bi-cart me-2"></i>SALES (Cash)</span><b>{{ expected() | number:'1.2-2' }}</b></div>
+            <div class="dc-row"><span><i class="bi bi-cart me-2"></i>TOTAL CASH</span><b>{{ expected() | number:'1.2-2' }}</b></div>
             <div class="dc-input-wrap">
               <label>AVAILABLE CASH</label>
-              <input type="number" class="form-control form-control-sm" [ngModel]="availableCash()" (ngModelChange)="availableCash.set(+$event)" />
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                [ngModel]="availableCash()" (ngModelChange)="availableCash.set(+$event || 0)"
+                title="Count the cash drawer and enter the actual amount. Prefilled with system total cash." />
+              <small class="text-secondary">Prefilled with Total Cash — change only if drawer count differs</small>
             </div>
             <div class="dc-row"><span><i class="bi bi-grid me-2"></i>DIFFERENCE</span>
               <b [class.text-success]="difference() === 0" [class.text-danger]="difference() < 0" [class.text-warning]="difference() > 0">
@@ -69,7 +113,6 @@
         </div>
       </div>
 
-      <!-- Debited Payment -->
       <div class="col-12 col-md-6 col-xl-3">
         <div class="dc-card">
           <div class="dc-card-head"><i class="bi bi-arrow-down-circle-fill me-2"></i>Debited Payment</div>
@@ -85,16 +128,18 @@
       </div>
     </div>
 
-    <!-- Day End -->
-    <div class="d-flex justify-content-end mt-3">
+    <div class="d-flex flex-wrap justify-content-end align-items-center mt-3 gap-2">
+      <span class="small text-secondary me-auto">Completing day end sends WhatsApp template <b>daily_closing</b> to the profile phone and alternate phone (My Profile).</span>
+      <button type="button" class="btn btn-outline-success btn-sm" (click)="exportRow(date())">
+        <i class="bi bi-download me-1"></i> Export Today
+      </button>
       <button class="btn btn-day-end" (click)="dayEnd()" [disabled]="saving()">
         @if (saving()) { <span class="spinner-border spinner-border-sm me-2"></span> }
-        <i class="bi bi-check-circle me-1"></i> DAY END
+        <i class="bi bi-whatsapp me-1"></i> COMPLETE DAY END
       </button>
     </div>
   }
 
-  <!-- Report -->
   <div class="dc-report card-pharma mt-3">
     <div class="dc-report-head">
       <span><i class="bi bi-table me-2"></i>Daily Closing Report</span>
@@ -115,7 +160,9 @@
           </button>
         </div>
         <div class="col-auto">
-          <button class="btn btn-sm btn-success" (click)="exportExcel()"><i class="bi bi-file-earmark-spreadsheet me-1"></i> EXPORT EXCEL</button>
+          <button class="btn btn-sm btn-success" (click)="exportExcel()">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> EXPORT EXCEL
+          </button>
         </div>
       </div>
 
@@ -123,32 +170,50 @@
         <table class="table table-sm dc-table align-middle mb-0">
           <thead>
             <tr>
-              <th>Date</th><th class="text-end">Sales Cash</th><th class="text-end">UPI</th><th class="text-end">Sales Card</th>
-              <th class="text-end">Sales Credit</th><th class="text-end">Total Sales</th><th class="text-end">Customer Pmt</th>
-              <th class="text-end">Debit Pmt</th><th class="text-end">Customers</th><th class="text-end">Total Cash</th>
-              <th class="text-end">Available Cash</th><th class="text-end">Difference</th>
+              <th>Date</th>
+              <th class="text-end">Sales Cash</th>
+              <th class="text-end">UPI</th>
+              <th class="text-end">Card</th>
+              <th class="text-end">Credit</th>
+              <th class="text-end">Total</th>
+              <th class="text-end">Return</th>
+              <th class="text-end">Net</th>
+              <th class="text-end">Cust Pmt</th>
+              <th class="text-end">Debit</th>
+              <th class="text-end">Cust</th>
+              <th class="text-end">Total Cash</th>
+              <th class="text-end">Available</th>
+              <th class="text-end">Diff</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             @if (reportLoading()) {
-              <tr><td colspan="12" class="text-center py-4"><span class="spinner-border text-pharma"></span></td></tr>
+              <tr><td colspan="15" class="text-center py-4"><span class="spinner-border text-pharma"></span></td></tr>
             } @else if (reportRows().length === 0) {
-              <tr><td colspan="12" class="text-center py-4 text-secondary"><i class="bi bi-inbox me-1"></i> No closings in range. Click Load Report.</td></tr>
+              <tr><td colspan="15" class="text-center py-4 text-secondary"><i class="bi bi-inbox me-1"></i> No closings in range.</td></tr>
             } @else {
               @for (r of reportRows(); track r.closing_date) {
                 <tr>
-                  <td class="fw-semibold">{{ r.closing_date }}</td>
+                  <td class="fw-semibold">{{ r.closing_date | date: 'dd-MM-yyyy' }}</td>
                   <td class="text-end">{{ r.sales_cash | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.sales_upi | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.sales_card | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.sales_credit | number:'1.2-2' }}</td>
                   <td class="text-end fw-semibold">{{ r.total_sales | number:'1.2-2' }}</td>
+                  <td class="text-end">{{ (r.retail_return ?? 0) | number:'1.2-2' }}</td>
+                  <td class="text-end">{{ (r.net_sales ?? r.total_sales) | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.customer_payment | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.debit_payment | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.today_customers }}</td>
                   <td class="text-end">{{ r.expected_cash | number:'1.2-2' }}</td>
                   <td class="text-end">{{ r.available_cash | number:'1.2-2' }}</td>
                   <td class="text-end" [class.text-danger]="r.difference < 0" [class.text-warning]="r.difference > 0">{{ r.difference | number:'1.2-2' }}</td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-link py-0" (click)="exportRow(r.closing_date)" title="Download day Excel">
+                      <i class="bi bi-download"></i>
+                    </button>
+                  </td>
                 </tr>
               }
             }
@@ -159,6 +224,13 @@
   </div>
 
   @if (toast()) {
-    <div class="dc-toast shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div>
+    <div class="dc-toast shadow-pharma-lg" [class.dc-toast-error]="toastError()">
+      @if (toastError()) {
+        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+      } @else {
+        <i class="bi bi-check-circle-fill text-success me-2"></i>
+      }
+      {{ toast() }}
+    </div>
   }
 </div>

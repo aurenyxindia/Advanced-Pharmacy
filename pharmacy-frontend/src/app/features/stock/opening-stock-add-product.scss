@@ -1,0 +1,116 @@
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1050;
+}
+
+.modal-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1rem;
+  pointer-events: none;
+  overflow-y: auto;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 720px;
+  pointer-events: auto;
+}
+
+.modal-card-wide {
+  max-width: min(720px, 96vw);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-body-custom {
+  padding: 1.25rem 1.5rem;
+  max-height: calc(100vh - 8rem);
+  overflow-y: auto;
+
+  label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.2rem;
+  }
+}
+
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.os-add-product-modal .modal-body-custom {
+  overflow: visible;
+}
+
+.field-select-wrap {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+
+  &.open {
+    z-index: 80;
+  }
+
+  .field-drop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    max-height: 180px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+    z-index: 200;
+
+    li {
+      padding: 0.45rem 0.65rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0f172a;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      &:last-child { border-bottom: none; }
+      &:hover { background: #ecfdf5; color: #0f766e; }
+    }
+  }
+
+  .field-drop--up {
+    top: auto;
+    bottom: calc(100% + 2px);
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.18);
+  }
+
+  .field-drop--empty {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+}

@@ -41,6 +41,72 @@ export interface ExpiryBuckets {
   within_90: number;
 }
 
+export interface ExpiryLossPeriod {
+  batches: number;
+  qty: number;
+  purchase_value: number;
+  sale_value: number;
+  expiry_loss: number;
+  revenue_loss: number;
+  margin_loss: number;
+}
+
+export interface ExpiryLoss {
+  last_week: ExpiryLossPeriod;
+  last_month: ExpiryLossPeriod;
+  mtd: ExpiryLossPeriod;
+  all_expired: ExpiryLossPeriod;
+}
+
+export interface ProfitWindow {
+  sales: number;
+  profit: number;
+  discount_loss: number;
+  expected_profit: number;
+  missed_profit: number;
+}
+
+export interface ProfitBreakdownRow {
+  channel?: string;
+  category?: string;
+  revenue: number;
+  profit: number;
+  discount_loss: number;
+  expected_profit: number;
+}
+
+export interface ProfitMonthRow {
+  ym: string;
+  label: string;
+  profit: number;
+  discount_loss: number;
+  expected_profit: number;
+}
+
+export interface ProfitAnalytics {
+  month: ProfitWindow;
+  three_months: ProfitWindow;
+  by_channel: ProfitBreakdownRow[];
+  by_product_category: ProfitBreakdownRow[];
+  monthly: ProfitMonthRow[];
+}
+
+export interface StoreAnalyticsRow {
+  branch_id: number;
+  code: string;
+  name: string;
+  expired_batches: number;
+  expired_qty: number;
+  expiry_loss: number;
+  revenue_loss: number;
+  margin_loss: number;
+  month_profit: number;
+  discount_loss: number;
+  expected_profit: number;
+  missed_profit: number;
+  month_sales: number;
+}
+
 export interface RecentSale {
   invoice_no: string;
   invoice_date: string;
@@ -56,6 +122,9 @@ export interface DashboardSummary {
   top_products: TopProduct[];
   category_split: CategorySplit[];
   expiry_buckets: ExpiryBuckets;
+  expiry_loss?: ExpiryLoss;
+  profit_analytics?: ProfitAnalytics;
+  store_analytics?: StoreAnalyticsRow[];
   recent_sales: RecentSale[];
   generated_at: string;
   scope: 'ho' | 'branch';

@@ -1,63 +1,320 @@
 <div class="opening-stock">
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
-      <h4 class="fw-bold mb-0">Opening Stock</h4>
-      <p class="text-secondary mb-0 small">Add opening balances; movements post to the stock ledger / stock book.</p>
+      <h4 class="fw-bold mb-0"><i class="bi bi-box-seam me-2"></i>Opening Stock</h4>
+      <p class="text-secondary mb-0 small">
+        @if (activeTab() === 'opening') {
+          Retail parity — search product, add lines, save in one document. Taxable = Rate × Qty (no GST split).
+        } @else if (activeTab() === 'mitrigger') {
+          Set a minimum qty per product — low stock shows on the Dashboard and in Purchase Order Auto-Purchase.
+        } @else {
+          Physical count vs system stock — add or deduct automatically from the difference.
+        }
+      </p>
     </div>
-    <button class="btn btn-outline-danger" (click)="writeOff()"><i class="bi bi-trash3 me-1"></i> Write off Expired</button>
+    @if (activeTab() === 'opening') {
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadTemplate()">
+          <i class="bi bi-download me-1"></i> Download Template
+        </button>
+        <input #excelFileInput type="file" accept=".xlsx,.xls" hidden (change)="onExcelSelected($event)" />
+        <button type="button" class="btn btn-sm btn-pharma" (click)="triggerExcelUpload()" [disabled]="excelBusy()">
+          @if (excelBusy()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          <i class="bi bi-upload me-1"></i> Upload Excel
+        </button>
+        <button class="btn btn-sm btn-outline-danger" (click)="writeOff()"><i class="bi bi-trash3 me-1"></i> Write off Expired</button>
+      </div>
+    }
   </div>
 
+  <ul class="nav nav-pills os-tabs mb-3 flex-wrap gap-1">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'opening'" (click)="activeTab.set('opening')">
+        <i class="bi bi-clipboard-plus me-1"></i> Opening Stock
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'adjustment'" (click)="activeTab.set('adjustment')">
+        <i class="bi bi-sliders me-1"></i> Stock Adjustment
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'mitrigger'" (click)="activeTab.set('mitrigger')">
+        <i class="bi bi-bell me-1"></i> Minimum Inventory
+      </button>
+    </li>
+  </ul>
+
+  @if (activeTab() === 'adjustment') {
+    <app-stock-adjustment />
+  } @else if (activeTab() === 'mitrigger') {
+    <app-min-inventory />
+  } @else {
   @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
 
-  <div class="card-pharma p-3 mb-3">
+  <!-- Entry form (Retail 3-row layout) -->
+  <div class="card-pharma os-entry mb-3">
     <div class="row g-2">
-      <div class="col-md-4 position-relative">
-        <label>Product <span class="text-danger">*</span></label>
-        <input class="form-control form-control-sm" placeholder="Search product..."
-          [ngModel]="form().product_name" (ngModelChange)="onProductInput($event)" (blur)="showResults.set(false)" />
-        @if (form().master_product_id) { <span class="badge text-bg-success entry-badge">selected</span> }
-        @if (showResults() && searchResults().length) {
-          <div class="entry-dropdown shadow-pharma-lg">
-            @for (p of searchResults(); track p.id) {
-              <button type="button" class="entry-item" (mousedown)="selectProduct(p)">
-                {{ p.name }} <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }}</span>
-              </button>
+      <div class="col-6 col-md-1">
+        <label class="os-label">P.No</label>
+        <div class="os-readonly">{{ draft().p_no || '—' }}</div>
+      </div>
+      <div class="col-12 col-md-5 position-relative os-product-wrap" (click)="$event.stopPropagation()">
+        <label class="os-label">Product <span class="text-danger">*</span></label>
+        <input class="form-control form-control-sm" placeholder="Search product (min 2 chars)…"
+          [ngModel]="draft().productQuery" (ngModelChange)="onProductSearch($event)"
+          (keydown)="handleProductKeyDown($event)" autocomplete="off" />
+        @if (showProductDropdown()) {
+          <ul class="os-product-dropdown" (click)="$event.stopPropagation()">
+            @for (p of productResults(); track p.id; let i = $index) {
+              <li [class.active]="i === productHighlight()" (mousedown)="selectProduct(p)">{{ p.name }}</li>
             }
-          </div>
+            <li class="os-product-new" (mousedown)="goAddProductMaster($event)">
+              <i class="bi bi-plus-circle me-1"></i>
+              @if (draft().productQuery.trim()) {
+                Add “{{ draft().productQuery.trim() }}” in Product Master
+              } @else {
+                Add new product in Product Master
+              }
+            </li>
+          </ul>
         }
       </div>
-      <div class="col-6 col-md-2"><label>Batch <span class="text-danger">*</span></label><input class="form-control form-control-sm" [ngModel]="form().batch_no" (ngModelChange)="patch('batch_no', $event)" /></div>
-      <div class="col-6 col-md-2"><label>Expiry</label><input class="form-control form-control-sm" placeholder="MM/YYYY" [ngModel]="form().expiry_date" (ngModelChange)="patch('expiry_date', $event)" /></div>
-      <div class="col-6 col-md-2"><label>Shelf</label><input class="form-control form-control-sm" [ngModel]="form().shelf_location" (ngModelChange)="patch('shelf_location', $event)" /></div>
-      <div class="col-6 col-md-2"><label>Opening Date</label><input type="date" class="form-control form-control-sm" [ngModel]="form().opening_date" (ngModelChange)="patch('opening_date', $event)" /></div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Batch <span class="text-danger">*</span></label>
+        <input class="form-control form-control-sm" [ngModel]="draft().batch_no" (ngModelChange)="patchDraft('batch_no', $event)" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Expiry <span class="text-danger">*</span></label>
+        <input type="month" class="form-control form-control-sm" [min]="minExpiry" [max]="maxExpiry"
+          [ngModel]="draft().expiry_date" (ngModelChange)="patchDraft('expiry_date', $event)" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Qty <span class="text-danger">*</span></label>
+        <input type="number" step="0.01" class="form-control form-control-sm" [ngModel]="draft().qty" (ngModelChange)="patchDraft('qty', +$event)" />
+      </div>
     </div>
     <div class="row g-2 mt-1">
-      <div class="col-6 col-md-2"><label>Quantity (units) <span class="text-danger">*</span></label><input type="number" class="form-control form-control-sm" [ngModel]="form().quantity" (ngModelChange)="patch('quantity', +$event)" /></div>
-      <div class="col-6 col-md-2"><label>MRP (per unit)</label><input type="number" class="form-control form-control-sm" [ngModel]="form().mrp" (ngModelChange)="patch('mrp', +$event)" /></div>
-      <div class="col-6 col-md-2"><label>Net Rate (cost/unit)</label><input type="number" class="form-control form-control-sm" [ngModel]="form().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-pharma btn-sm" [disabled]="saving()" (click)="save()">
-          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } <i class="bi bi-plus-lg me-1"></i> Add Opening Stock
-        </button>
+      <div class="col-6 col-md-2">
+        <label class="os-label">MRP <span class="text-danger">*</span></label>
+        <input type="number" class="form-control form-control-sm" [ngModel]="draft().mrp" (ngModelChange)="patchDraft('mrp', +$event)" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Rate <span class="text-danger">*</span></label>
+        <input type="number" class="form-control form-control-sm" [ngModel]="draft().purchase_rate" (ngModelChange)="patchDraft('purchase_rate', +$event)" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">GST</label>
+        <select class="form-select form-select-sm" [ngModel]="draft().gst_rate" (ngModelChange)="patchDraft('gst_rate', +$event)">
+          @for (g of gstOptions; track g) { <option [ngValue]="g">{{ g }}%</option> }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="os-label">HSN</label>
+        <select class="form-select form-select-sm" [ngModel]="draft().hsn_code" (ngModelChange)="patchDraft('hsn_code', $event)">
+          <option value="">HSN</option>
+          @for (h of hsns(); track h.id) { <option [value]="h.code">{{ h.code }}</option> }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="os-label">Shelf</label>
+        <input class="form-control form-control-sm" list="os-shelf-list" [ngModel]="draft().shelf_location" (ngModelChange)="patchDraft('shelf_location', $event)" />
+        <datalist id="os-shelf-list">
+          @for (s of shelves(); track s) { <option [value]="s"></option> }
+        </datalist>
+      </div>
+    </div>
+    <div class="row g-2 mt-1 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="os-label">Taxable</label>
+        <div class="os-readonly os-num">{{ lineTaxable() | number: '1.2-2' }}</div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Amount</label>
+        <div class="os-readonly os-num">{{ lineTaxable() | number: '1.2-2' }}</div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Pack</label>
+        <div class="os-readonly">{{ draft().pack_size || '—' }}</div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="os-label">Mfr</label>
+        <div class="os-readonly">{{ draft().m_name || '—' }}</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <button type="button" class="btn btn-success w-100" (click)="addLine()"><i class="bi bi-plus-lg me-1"></i> ADD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line cart -->
+  <div class="card-pharma mb-3">
+    <div class="p-2 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="fw-semibold">Product List</span>
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-check-label small mb-0">
+          <input type="checkbox" class="form-check-input me-1" [ngModel]="showUnmatchedOnly()" (ngModelChange)="showUnmatchedOnly.set($event)" />
+          Unmatched only
+        </label>
+        @if (unmatchedCount() > 0) {
+          <span class="badge text-bg-warning">{{ unmatchedCount() }} unmatched</span>
+        }
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-dark-head align-middle mb-0 os-grid">
+        <thead>
+          <tr>
+            <th>Match</th><th>HSN</th><th>P.No</th><th>Product</th><th>Batch</th><th>Expiry</th><th>Shelf</th>
+            <th class="text-end">Qty</th><th class="text-end">MRP</th><th class="text-end">Rate</th><th>GST</th>
+            <th class="text-end">Taxable</th><th class="text-end">Amount</th><th>Pack</th><th>Mfr</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of displayLines(); track l._key) {
+            <tr [class.table-warning]="!l.product_matched">
+              <td>
+                @if (l.product_matched) {
+                  <span class="text-success"><i class="bi bi-check-lg"></i></span>
+                } @else {
+                  <button type="button" class="btn btn-sm btn-outline-warning py-0 px-1" (click)="openAddProductForLine(l)">Add</button>
+                  @if (l.matchedProducts?.length) {
+                    <select class="form-select form-select-sm mt-1" style="min-width:120px"
+                      [ngModel]="l.master_product_id" (ngModelChange)="onLineProductPick(l, +$event)">
+                      @for (m of l.matchedProducts; track m.id) {
+                        <option [ngValue]="m.id">{{ m.name }}</option>
+                      }
+                    </select>
+                  }
+                }
+              </td>
+              <td class="small">{{ l.hsn_code || '—' }}</td>
+              <td class="small">{{ l.p_no || '—' }}</td>
+              <td>{{ l.product_name }}</td>
+              <td>{{ l.batch_no }}</td>
+              <td class="small">{{ l.expiry_date | slice:0:7 }}</td>
+              <td>{{ l.shelf_location || '—' }}</td>
+              <td class="text-end">{{ l.qty }}</td>
+              <td class="text-end">{{ l.mrp | number: '1.2-2' }}</td>
+              <td class="text-end">{{ l.purchase_rate | number: '1.2-2' }}</td>
+              <td>{{ l.gst_rate }}%</td>
+              <td class="text-end">{{ l.taxable | number: '1.2-2' }}</td>
+              <td class="text-end fw-semibold">{{ l.amount | number: '1.2-2' }}</td>
+              <td class="small">{{ l.pack_size || '—' }}</td>
+              <td class="small">{{ l.m_name || '—' }}</td>
+              <td><button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeLine(l)"><i class="bi bi-x-lg"></i></button></td>
+            </tr>
+          } @empty {
+            <tr><td colspan="16" class="text-center text-secondary py-4">No lines yet — search a product and click ADD.</td></tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="12" class="text-end fw-semibold">Total lines: {{ lines().length }}</td>
+            <td colspan="4" class="text-end fw-bold text-pharma">Total Amount: {{ totalAmount() | number: '1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="p-3 border-top d-flex justify-content-end">
+      <button type="button" class="btn btn-pharma px-4" [disabled]="saving() || !lines().length" (click)="saveBulk()">
+        @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        <i class="bi bi-save me-1"></i> SAVE OPENING STOCK
+      </button>
+    </div>
+  </div>
+
+  <!-- KPIs + saved entries -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-clipboard-plus"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Saved batches</span><b class="kpi-value">{{ listLoading() ? '—' : kpis().entries }}</b></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="bi bi-boxes"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Total Qty</span><b class="kpi-value">{{ listLoading() ? '—' : (kpis().qty | number) }}</b></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Cost Value</span><b class="kpi-value">{{ listLoading() ? '—' : (kpis().costValue | number: '1.2-2') }}</b></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card" [class.kpi-amber]="kpis().expiring > 0">
+        <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="kpi-body"><span class="kpi-label">Expiring ≤90d</span><b class="kpi-value">{{ listLoading() ? '—' : kpis().expiring }}</b></div>
       </div>
     </div>
   </div>
 
   <div class="card-pharma">
-    <div class="p-3 border-bottom fw-semibold">Recent Opening Entries</div>
+    <div class="p-3 border-bottom fw-semibold">Saved Opening Stock (remaining qty)</div>
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Date</th><th>Product</th><th>Mfg</th><th class="text-end">Qty</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Date</th><th>Ref</th><th>Product</th><th>Mfg</th><th>Pack</th><th>Batch</th><th>Expiry</th>
+            <th class="text-end">Qty</th><th class="text-end">MRP</th><th class="text-end">Rate</th><th class="text-end">Actions</th>
+          </tr>
+        </thead>
         <tbody>
-          @for (r of rows(); track $index) {
-            <tr><td>{{ r.txn_date | date: 'dd MMM yyyy' }}</td><td>{{ r.product_name }}</td><td>{{ r.manufacturer_short || '-' }}</td><td class="text-end">{{ r.quantity }}</td></tr>
+          @for (r of rows(); track r.batch_id) {
+            <tr>
+              <td>{{ r.txn_date | date: 'dd-MM-yyyy' }}</td>
+              <td class="small font-monospace">{{ r.note || '—' }}</td>
+              <td>{{ r.product_name }}</td>
+              <td>{{ r.manufacturer_short || '—' }}</td>
+              <td class="small">{{ r.pack_size || '—' }}</td>
+              <td>{{ r.batch_no || '—' }}</td>
+              <td>{{ r.expiry_date ? (r.expiry_date | date: 'MM/yy') : '—' }}</td>
+              <td class="text-end">{{ r.quantity }}</td>
+              <td class="text-end">{{ r.mrp != null ? (r.mrp | number: '1.2-2') : '—' }}</td>
+              <td class="text-end">{{ r.net_rate != null ? (r.net_rate | number: '1.2-2') : '—' }}</td>
+              <td class="text-end text-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-primary me-1" title="Edit" (click)="startEdit(r)"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" (click)="remove(r)"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
           } @empty {
-            <tr><td colspan="4" class="text-center text-secondary py-4">No opening stock entries yet.</td></tr>
+            <tr><td colspan="11" class="text-center text-secondary py-4">No saved opening stock yet.</td></tr>
           }
         </tbody>
       </table>
     </div>
   </div>
 
+  @if (editOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeEdit()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold">Edit Opening Stock</h5>
+          <button type="button" class="btn-close" (click)="closeEdit()"></button>
+        </div>
+        <div class="modal-body-custom">
+          @if (editError()) { <div class="alert alert-danger py-2">{{ editError() }}</div> }
+          <div class="mb-2"><label>Product</label><input class="form-control form-control-sm" [value]="editForm().product_name" disabled /></div>
+          <div class="row g-2">
+            <div class="col-6"><label>Batch</label><input class="form-control form-control-sm" [ngModel]="editForm().batch_no" (ngModelChange)="patchEdit('batch_no', $event)" /></div>
+            <div class="col-6"><label>Expiry</label><input type="date" class="form-control form-control-sm" [ngModel]="editForm().expiry_date" (ngModelChange)="patchEdit('expiry_date', $event)" /></div>
+            <div class="col-4"><label>Qty</label><input type="number" class="form-control form-control-sm" [ngModel]="editForm().quantity" (ngModelChange)="patchEdit('quantity', +$event)" /></div>
+            <div class="col-4"><label>MRP</label><input type="number" class="form-control form-control-sm" [ngModel]="editForm().mrp" (ngModelChange)="patchEdit('mrp', +$event)" /></div>
+            <div class="col-4"><label>Rate</label><input type="number" class="form-control form-control-sm" [ngModel]="editForm().purchase_rate" (ngModelChange)="patchEdit('purchase_rate', +$event)" /></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeEdit()">Cancel</button>
+          <button type="button" class="btn btn-sm btn-pharma" [disabled]="editSaving()" (click)="saveEdit()">Save</button>
+        </div>
+      </div>
+    </div>
+  }
+
   @if (toast()) { <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div> }
+  }
 </div>

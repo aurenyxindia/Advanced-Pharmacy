@@ -1,0 +1,326 @@
+<div class="purchase-list">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Purchase Report</h4>
+      <p class="text-secondary mb-0 small">Supplier invoices and goods received</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (canImportBill()) {
+        <a routerLink="/app/purchase/import" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-upload me-1"></i> Import Bill / CSV
+        </a>
+      }
+      @if (canDispense()) {
+        <a routerLink="/app/purchase/dispensing" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-hospital me-1"></i> Dispensing
+        </a>
+      }
+      @if (canInwardStock()) {
+        <button type="button" class="btn btn-sm btn-inward-stock" (click)="onInwardStock()">
+          <i class="bi bi-box-arrow-in-down"></i>
+          <span>Inward Stock</span>
+        </button>
+      }
+      @if (canViewPurchase()) {
+        <a routerLink="/app/purchase/new" class="btn btn-pharma">
+          <i class="bi bi-plus-lg me-1"></i> New Purchase
+        </a>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  <div class="purchase-kpis mb-3">
+    <div class="kpi-card kpi-teal">
+      <div class="kpi-icon"><i class="bi bi-truck"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Purchases</span>
+        <b class="kpi-value">{{ loading() ? '—' : kpis().count }}</b>
+      </div>
+    </div>
+    <div class="kpi-card kpi-slate">
+      <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Net Total</span>
+        <b class="kpi-value">{{ loading() ? '—' : (kpis().net | number: '1.0-0') }}</b>
+      </div>
+    </div>
+    <div class="kpi-card kpi-amber">
+      <div class="kpi-icon"><i class="bi bi-tag"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Discount</span>
+        <b class="kpi-value">{{ loading() ? '—' : (kpis().discount | number: '1.2-2') }}</b>
+      </div>
+    </div>
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-icon"><i class="bi bi-percent"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Tax</span>
+        <b class="kpi-value">{{ loading() ? '—' : (kpis().tax | number: '1.2-2') }}</b>
+      </div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-icon"><i class="bi bi-wallet2"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Paid</span>
+        <b class="kpi-value">{{ loading() ? '—' : (kpis().paid | number: '1.0-0') }}</b>
+      </div>
+    </div>
+    <div class="kpi-card" [class.kpi-rose]="kpis().balance > 0" [class.kpi-green]="kpis().balance <= 0">
+      <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+      <div class="kpi-body">
+        <span class="kpi-label">Balance</span>
+        <b class="kpi-value">{{ loading() ? '—' : (kpis().balance | number: '1.0-0') }}</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma p-3 mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6 col-md-3 col-lg-2">
+        <label class="form-label small text-secondary mb-1">Month</label>
+        <input type="month" class="form-control form-control-sm"
+          [ngModel]="selectedMonth()" (ngModelChange)="onMonthChange($event)" />
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="clearMonth()" title="Show all months">
+          All
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm ms-1" (click)="thisMonth()">
+          This month
+        </button>
+      </div>
+      <div class="col-12 col-sm-6 col-md-5 col-lg-4">
+        <label class="form-label small text-secondary mb-1">Search</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input class="form-control" placeholder="Distributor, invoice, PO, product, batch…"
+            [ngModel]="search()" (ngModelChange)="search.set($event)" (keyup.enter)="applySearch()" />
+          <button class="btn btn-outline-secondary" type="button" (click)="applySearch()">Search</button>
+        </div>
+      </div>
+      <div class="col-12 col-md-4 col-lg-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" (click)="downloadExcel()" [disabled]="rows().length === 0">
+          <i class="bi bi-download me-1"></i> Download Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0 purchase-log-table">
+        <thead>
+          <tr>
+            <th>PO No</th>
+            <th>Invoice No</th>
+            <th>Invoice Date</th>
+            <th>Distributor</th>
+            <th>C / D</th>
+            <th class="text-end">Net Total</th>
+            <th class="text-end">Discount</th>
+            <th class="text-end">Tax</th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">Balance</th>
+            <th class="text-center">View</th>
+            <th class="text-center">Edit</th>
+            <th class="text-center">Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="13" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="13" class="text-center py-5 text-secondary">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              @if (selectedMonth()) {
+                No purchases for {{ selectedMonth() }}.
+                <div class="mt-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearMonth()">Show all months</button>
+                </div>
+              } @else {
+                No purchases found.
+              }
+            </td></tr>
+          } @else {
+            @for (r of rows(); track r['id']) {
+              <tr>
+                <td class="fw-semibold">{{ poNo(r) }}</td>
+                <td>{{ r['invoice_no'] }}</td>
+                <td>{{ $any(r['invoice_date']) | date: 'dd-MM-yyyy' }}</td>
+                <td>{{ r['supplier_name'] || '-' }}</td>
+                <td><span class="badge text-bg-light">{{ r['cash_credit'] || '-' }}</span></td>
+                <td class="text-end fw-semibold">{{ roundRupee(r['net_amount']) | number: '1.0-0' }}</td>
+                <td class="text-end">{{ +(r['discount_amount'] || 0) | number: '1.2-2' }}</td>
+                <td class="text-end">{{ +(r['gst_amount'] || 0) | number: '1.2-2' }}</td>
+                <td class="text-end">{{ roundRupee(r['paid']) | number: '1.0-0' }}</td>
+                <td class="text-end" [class.text-danger]="roundRupee(r['balance']) > 0">{{ roundRupee(r['balance']) | number: '1.0-0' }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-success" title="View" (click)="openView(+r['id'])">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </td>
+                <td class="text-center">
+                  @if (canEditPurchase()) {
+                    <button type="button" class="btn btn-sm btn-outline-primary" title="Edit" (click)="edit(+r['id'])">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  }
+                </td>
+                <td class="text-center">
+                  @if (canDeletePurchase()) {
+                    <button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
+                      [disabled]="deletingId() === +r['id']" (click)="remove(+r['id'])">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@if (viewOpen()) {
+  <div class="modal-backdrop-custom" (click)="closeView()"></div>
+  <div class="modal-custom">
+    <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0 fw-semibold">Purchase {{ poNo(viewRow()) }}</h5>
+          <span class="text-secondary small">Purchase report detail</span>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          @if (viewRow(); as p) {
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="barcodes(+p['id'])"
+              title="Print all barcodes on A4 sheet (office printer)"
+            >
+              <i class="bi bi-upc-scan me-1"></i> Print all Barcodes
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-label-barcode"
+              (click)="labelBarcodes(+p['id'])"
+              title="40×15 mm labels for TSC TE 210 / TE 244 thermal printer"
+            >
+              <i class="bi bi-tags me-1"></i> Label Barcodes
+            </button>
+          }
+          <button type="button" class="btn-close" (click)="closeView()"></button>
+        </div>
+      </div>
+      <div class="modal-body-custom">
+        @if (viewLoading()) {
+          <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+        } @else if (viewRow(); as p) {
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Invoice No</th>
+                  <th>Invoice Date</th>
+                  <th>Distributor</th>
+                  <th class="text-end">Total Disc.</th>
+                  <th class="text-end">Gross</th>
+                  <th class="text-end">GST</th>
+                  <th class="text-end">NET</th>
+                  <th>Payment</th>
+                  <th class="text-end">Paid</th>
+                  <th class="text-end">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ p['invoice_no'] }}</td>
+                  <td>{{ $any(p['invoice_date']) | date: 'dd-MM-yyyy' }}</td>
+                  <td>{{ p['supplier_name'] || '-' }}</td>
+                  <td class="text-end">{{ +(p['discount_amount'] || 0) | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ +(p['gross_amount'] || 0) | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ +(p['gst_amount'] || 0) | number: '1.2-2' }}</td>
+                  <td class="text-end fw-semibold">{{ roundRupee(p['net_amount']) | number: '1.0-0' }}</td>
+                  <td>{{ p['cash_credit'] || '-' }}</td>
+                  <td class="text-end">{{ roundRupee(p['paid']) | number: '1.0-0' }}</td>
+                  <td class="text-end" [class.text-danger]="roundRupee(p['balance']) > 0">{{ roundRupee(p['balance']) | number: '1.0-0' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>HSN</th>
+                  <th>Product</th>
+                  <th>Batch</th>
+                  <th>Expiry</th>
+                  <th class="text-end">P Qty</th>
+                  <th class="text-end">F Qty</th>
+                  <th class="text-end">T Qty</th>
+                  <th class="text-end">Rate</th>
+                  <th class="text-end">PTR</th>
+                  <th class="text-end">Disc%</th>
+                  <th class="text-end">GST%</th>
+                  <th class="text-end">MRP</th>
+                  <th>Pack</th>
+                  <th class="text-end">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of itemsOf(p); track $index) {
+                  <tr>
+                    <td class="small font-monospace">{{ it['hsn_code'] || '-' }}</td>
+                    <td class="fw-semibold">{{ it['product_name'] }}</td>
+                    <td>{{ it['batch_no'] || '-' }}</td>
+                    <td>{{ it['expiry_date'] ? ($any(it['expiry_date']) | date: 'MM/yy') : '-' }}</td>
+                    <td class="text-end">{{ it['quantity'] }}</td>
+                    <td class="text-end">{{ it['free_quantity'] || 0 }}</td>
+                    <td class="text-end">{{ totalQty(it) }}</td>
+                    <td class="text-end">{{ +(it['purchase_rate'] || 0) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ +(it['ptr'] || 0) | number: '1.2-2' }}</td>
+                    <td class="text-end">{{ it['discount_pct'] || 0 }}</td>
+                    <td class="text-end">{{ it['gst_rate'] || 0 }}</td>
+                    <td class="text-end">{{ +(it['mrp'] || 0) | number: '1.2-2' }}</td>
+                    <td>{{ it['pack_size'] || '-' }}</td>
+                    <td class="text-end fw-semibold">{{ +(it['line_total'] || 0) | number: '1.2-2' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="14" class="text-center text-secondary py-3">No line items.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+            <div class="small text-secondary">
+              @if (p['due_date']) { Due {{ $any(p['due_date']) | date: 'dd-MM-yyyy' }} · }
+              CD {{ +(p['cd_amount'] || 0) | number: '1.2-2' }}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              @if (canViewPurchase()) {
+                <button type="button" class="btn btn-sm btn-pharma" (click)="newPurchase()">
+                  <i class="bi bi-plus-lg me-1"></i> New Purchase
+                </button>
+              }
+              @if (canDeletePurchase()) {
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove(+p['id'])">
+                  <i class="bi bi-trash me-1"></i> Delete
+                </button>
+              }
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeView()">Close</button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -5,8 +5,20 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <i class="bi bi-capsule-pill brand-icon"></i>
-      <span class="brand-text">Pharmacy Suite</span>
+      <img
+        class="brand-logo brand-logo-full"
+        src="assets/paperless-pharmacy-logo.png"
+        alt="Paperless Pharmacy"
+        width="196"
+        height="44"
+      />
+      <img
+        class="brand-logo brand-logo-icon"
+        src="assets/paperless-pharmacy-icon.png"
+        alt="Paperless Pharmacy"
+        width="40"
+        height="40"
+      />
     </div>
 
     <nav class="sidebar-nav">
@@ -15,6 +27,7 @@
           <a
             [routerLink]="item.route"
             routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.route === '/app/purchase' }"
             class="nav-item"
             [title]="item.label"
             (click)="closeMobile()"
@@ -57,16 +70,37 @@
         <i class="bi bi-list"></i>
       </button>
 
-      <div class="topbar-title d-none d-md-block">
-        <span class="text-secondary small">Welcome back,</span>
-        <span class="fw-semibold ms-1">{{ user()?.name }}</span>
+      <div class="topbar-title d-none d-md-block" [title]="headerDisplayName()">
+        <span class="fw-semibold">{{ medicalName() || concernedPerson() }}</span>
+        @if (medicalName() && concernedPerson() && medicalName() !== concernedPerson()) {
+          <span class="text-secondary ms-1">({{ concernedPerson() }})</span>
+        }
       </div>
 
       <div class="topbar-actions">
+        <a class="support-chip" href="tel:+918181000550" title="Support: 8181000550" aria-label="Call support 8181000550">
+          <i class="bi bi-headset"></i>
+          <span class="support-chip__text d-none d-sm-inline-flex">
+            <span class="support-chip__label">Support</span>
+            <span class="support-chip__no">8181000550</span>
+          </span>
+        </a>
         @if (canSell()) {
           <button class="btn btn-pharma btn-sm new-sale-btn" (click)="pos.show()" title="Open Sales POS">
             <i class="bi bi-bag-plus me-1"></i> <span class="d-none d-sm-inline">New Sale</span>
           </button>
+        }
+        @if (canViewAuraAi()) {
+          <button type="button" class="btn btn-sm aura-ai-top-btn" (click)="openAuraAi()" title="AuraAI — drug info, dose, side effects, brands" aria-label="Open AuraAI">
+            <span class="aura-ai-top-btn__shine" aria-hidden="true"></span>
+            <img class="aura-ai-top-icon" src="assets/aura-ai-icon-teal.svg" width="20" height="20" alt="" />
+            <span class="aura-ai-top-label d-none d-md-inline">AuraAI</span>
+          </button>
+        }
+        @if (canViewProfile()) {
+          <a class="btn btn-outline-secondary btn-sm profile-top-btn" routerLink="/app/profile" routerLinkActive="active" title="My Profile">
+            <i class="bi bi-person-badge me-1"></i><span class="profile-top-label d-none d-sm-inline">My Profile</span>
+          </a>
         }
         <button class="btn btn-light btn-icon position-relative" title="Notifications">
           <i class="bi bi-bell"></i>
@@ -88,7 +122,9 @@
           <ul class="dropdown-menu dropdown-menu-end shadow-pharma">
             <li><span class="dropdown-item-text small text-secondary">{{ user()?.email }}</span></li>
             <li><hr class="dropdown-divider" /></li>
-            <li><button class="dropdown-item" disabled><i class="bi bi-person me-2"></i>Profile</button></li>
+            @if (canViewProfile()) {
+              <li><a class="dropdown-item" routerLink="/app/profile"><i class="bi bi-person me-2"></i>My Profile</a></li>
+            }
             <li><button class="dropdown-item text-danger" (click)="logout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</button></li>
           </ul>
         </div>
@@ -100,20 +136,40 @@
     </main>
   </div>
 
-  <!-- Global Sales POS popup (floats above the dashboard until closed) -->
+  <!-- Global Sales POS — full-screen billing (dashboard popup) -->
   @if (pos.open()) {
-    <div class="pos-overlay">
+    <div class="pos-overlay pos-overlay--fullscreen" role="dialog" aria-modal="true" aria-label="Sales point of sale">
       <div class="pos-dialog">
-        <div class="pos-dialog-head">
-          <span class="pos-title"><i class="bi bi-bag-check me-2"></i>Sales · Point of Sale</span>
-          <button class="pos-close" (click)="pos.hide()" title="Close (back to dashboard)">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
+        <header class="pos-dialog-head">
+          <div class="pos-head-brand">
+            <img
+              class="pos-brand-logo"
+              src="assets/paperless-pharmacy-logo.png"
+              alt="Paperless Pharmacy"
+              width="152"
+              height="34"
+            />
+            <div>
+              <div class="pos-title">Sales · Point of Sale</div>
+            </div>
+          </div>
+          <div class="pos-head-actions">
+            <button type="button" class="btn btn-sm pos-close-btn" (click)="pos.hide()" title="Close POS (Esc)">
+              <i class="bi bi-x-lg me-1"></i> Close
+            </button>
+          </div>
+        </header>
         <div class="pos-dialog-body">
-          <app-billing />
+          <app-billing [posOverlay]="true" />
         </div>
       </div>
     </div>
+  }
+
+  <app-agt-order-popup [notification]="agtOrderNotification()" />
+  <app-support-popup [notification]="supportNotification()" />
+
+  @if (canViewAuraAi()) {
+    <app-aura-ai-chat />
   }
 </div>

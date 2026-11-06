@@ -1,0 +1,1032 @@
+<div class="purchase-order">
+  @if (toast()) {
+    <div class="alert alert-success py-2 po-toast d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill"></i><span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- Shared searchable distributor dropdown (Customise + Auto + Sales). Address like Purchase form. -->
+  <ng-template #distCombo let-key="key" let-value="value" let-address="address" let-hint="hint" let-clearable="clearable">
+    <div class="combo" [class.open]="openCombo() === key">
+      <button
+        type="button"
+        class="combo-trigger form-control form-control-sm text-start"
+        [class.is-empty]="!value"
+        (click)="toggleDistCombo(key, $event)"
+      >
+        <i class="bi bi-truck combo-lead"></i>
+        <span class="combo-value" [class.placeholder]="!value">
+          @if (value) {
+            <span class="fw-semibold">{{ value }}</span>@if (distributorAddr(address); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+          } @else {
+            Select distributor…
+          }
+        </span>
+        <span class="combo-actions">
+          @if (value && clearable) {
+            <i
+              class="bi bi-x-circle combo-clear"
+              title="Clear"
+              (click)="clearDistCombo(key, $event)"
+            ></i>
+          }
+          <i class="bi bi-chevron-down combo-chevron"></i>
+        </span>
+      </button>
+      @if (hint && !value) {
+        <div class="combo-hint"><i class="bi bi-info-circle me-1"></i>Last purchased from “{{ hint }}” — not in Distributor Master</div>
+      }
+      @if (openCombo() === key) {
+        <div class="combo-panel po-dist-panel" (click)="$event.stopPropagation()">
+          <div class="combo-search">
+            <i class="bi bi-search"></i>
+            <input
+              id="po-dist-search"
+              class="form-control form-control-sm"
+              placeholder="Search distributor or address…"
+              autocomplete="off"
+              [ngModel]="distQuery()"
+              (ngModelChange)="onDistQuery($event)"
+              (keydown)="onDistKeydown(key, $event)"
+            />
+          </div>
+          <div class="combo-list">
+            @if (distributorsLoading()) {
+              <div class="combo-empty"><span class="spinner-border spinner-border-sm me-2"></span>Loading distributors…</div>
+            } @else {
+              @if (filteredDistributors().length) {
+                <div class="combo-meta">{{ filteredDistributors().length }} distributor(s)</div>
+              }
+              @for (d of filteredDistributors(); track d.id; let i = $index) {
+                <button
+                  type="button"
+                  class="combo-item"
+                  [class.active-item]="i === distActive()"
+                  (mouseenter)="distActive.set(i)"
+                  (click)="pickDistributor(key, d)"
+                >
+                  <span class="fw-semibold">{{ d.name }}</span>@if (distributorAddr(d.address); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+                </button>
+              } @empty {
+                <div class="combo-empty">
+                  @if (distQuery().trim()) {
+                    No distributors match “{{ distQuery().trim() }}”
+                  } @else {
+                    No distributors found — add one in Distributor Master
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <!-- ===================== LIST ===================== -->
+  @if (view() === 'list') {
+    <div class="po-header">
+      <div class="d-flex align-items-center gap-3">
+        <div class="po-icon"><i class="bi bi-clipboard-check"></i></div>
+        <div>
+          <h4 class="fw-bold mb-0">Purchase Order</h4>
+          <p class="text-secondary mb-0 small">
+            Order sheets for distributors — customise, auto from low stock, or build from previous sales days.
+          </p>
+        </div>
+      </div>
+      @if (canEdit()) {
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary" (click)="openSales()">
+            <i class="bi bi-calendar2-week me-1"></i> Sales-based PO
+          </button>
+          <button type="button" class="btn btn-outline-secondary" (click)="openAuto()">
+            <i class="bi bi-lightning-charge me-1"></i> Auto-Purchase
+          </button>
+          <button type="button" class="btn btn-pharma" (click)="openCustomise()">
+            <i class="bi bi-plus-lg me-1"></i> Customise PO
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-danger py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle"></i><span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="po-kpis mb-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-clipboard-check"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Purchase Orders</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().total }}</b>
+        </div>
+      </div>
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-pencil-square"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Customise</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().customise }}</b>
+        </div>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon"><i class="bi bi-lightning-charge"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Auto</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().auto }}</b>
+        </div>
+      </div>
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon"><i class="bi bi-calendar2-week"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Sales-based</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().sales }}</b>
+        </div>
+      </div>
+      <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Products Ordered</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().items }}</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-pharma p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label po-label">Search</label>
+          <div class="input-icon">
+            <i class="bi bi-search"></i>
+            <input
+              type="search"
+              class="form-control form-control-sm"
+              placeholder="PO no, distributor or product"
+              [(ngModel)]="search"
+              (input)="onSearchInput()"
+            />
+          </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label po-label">From</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate" (change)="reload()" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label po-label">To</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate" (change)="reload()" />
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label po-label">PO Type</label>
+          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div class="filter-pills">
+              <button type="button" class="pill" [class.active]="typeFilter() === ''" (click)="setType('')">All</button>
+              <button type="button" class="pill" [class.active]="typeFilter() === 'Customise'" (click)="setType('Customise')">Customise</button>
+              <button type="button" class="pill" [class.active]="typeFilter() === 'Auto'" (click)="setType('Auto')">Auto</button>
+              <button type="button" class="pill" [class.active]="typeFilter() === 'Sales'" (click)="setType('Sales')">Sales</button>
+            </div>
+            <button type="button" class="btn btn-sm btn-light border" (click)="clearFilters()">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-pharma">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 po-table">
+          <thead>
+            <tr>
+              <th>PO No</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Distributor</th>
+              <th class="text-end">Products</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr>
+                <td colspan="6" class="text-center py-5 text-secondary">
+                  <span class="spinner-border spinner-border-sm me-2"></span> Loading purchase orders…
+                </td>
+              </tr>
+            } @else if (!orders().length) {
+              <tr>
+                <td colspan="6" class="text-center py-5 text-secondary">
+                  <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+                  No purchase orders found.
+                  @if (canEdit()) {
+                    <div class="small mt-1">Use <b>Customise PO</b>, <b>Auto-Purchase</b> or <b>Sales-based PO</b> to create one.</div>
+                  }
+                </td>
+              </tr>
+            } @else {
+              @for (o of orders(); track o.id) {
+                <tr>
+                  <td class="fw-semibold text-nowrap">{{ o.po_no }}</td>
+                  <td class="text-nowrap">{{ o.order_date | date: 'dd-MM-yyyy' }}</td>
+                  <td><span class="type-badge" [class]="typeBadge(o.po_type)">{{ o.po_type }}</span></td>
+                  <td class="dist-cell">{{ o.distributor_name || '—' }}</td>
+                  <td class="text-end fw-semibold">{{ o.total_items }}</td>
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-1">
+                      <button type="button" class="btn btn-sm btn-light border" title="View" (click)="openDetail(o)">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      @if (canEdit()) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-light border text-primary"
+                          title="Edit — add products or change qty"
+                          [disabled]="editLoadingId() === o.id"
+                          (click)="openEdit(o)"
+                        >
+                          @if (editLoadingId() === o.id) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-pencil"></i>
+                          }
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-light border text-danger"
+                        title="PDF"
+                        [disabled]="pdfBusyId() === o.id"
+                        (click)="openPdf(o)"
+                      >
+                        @if (pdfBusyId() === o.id) {
+                          <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                          <i class="bi bi-file-earmark-pdf"></i>
+                        }
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ===================== CUSTOMISE PO ===================== -->
+  @if (view() === 'customise') {
+    <div class="po-header">
+      <div class="d-flex align-items-center gap-3">
+        <div class="po-icon"><i class="bi bi-pencil-square"></i></div>
+        <div>
+          @if (editing(); as e) {
+            <h4 class="fw-bold mb-0">Edit PO · {{ e.po_no }}</h4>
+            <p class="text-secondary mb-0 small">Add more products, change qty or remove lines, then update the order.</p>
+          } @else {
+            <h4 class="fw-bold mb-0">Customise PO</h4>
+            <p class="text-secondary mb-0 small">Select a distributor, add products with qty, then save the order.</p>
+          }
+        </div>
+      </div>
+      <button type="button" class="btn btn-light border" (click)="backToList()">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </button>
+    </div>
+
+    <div class="card-pharma po-overflow p-3 mb-3" [class.raise]="openCombo() === 'cust'">
+      <div class="po-section-title"><i class="bi bi-receipt"></i> Order details</div>
+      <div class="row g-3">
+        <div class="col-12 col-md-7 col-lg-5">
+          <label class="form-label po-label">Distributor <span class="text-danger">*</span></label>
+          <ng-container
+            [ngTemplateOutlet]="distCombo"
+            [ngTemplateOutletContext]="{ key: 'cust', value: custDist()?.name, address: custDist()?.address, clearable: true }"
+          />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label po-label">PO Date</label>
+          <div class="form-control form-control-sm bg-light">{{ (editing()?.order_date ?? today) | date: 'dd-MM-yyyy' }}</div>
+        </div>
+        <div class="col-6 col-md-2 col-lg-2">
+          <label class="form-label po-label">PO Type</label>
+          <div>
+            <span class="type-badge" [class]="typeBadge(editing()?.po_type ?? 'Customise')">{{ editing()?.po_type ?? 'Customise' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-pharma po-overflow p-3 mb-3" [class.raise]="productOpen()">
+      <div class="po-section-title"><i class="bi bi-capsule"></i> Add product</div>
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-7">
+          <label class="form-label po-label" for="po-cust-product">Product <span class="text-danger">*</span></label>
+          <div class="product-combo">
+            <div class="input-icon">
+              <i class="bi bi-search"></i>
+              <input
+                id="po-cust-product"
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Type at least 2 letters of the product name"
+                autocomplete="off"
+                [ngModel]="productQuery()"
+                (ngModelChange)="onProductInput($event)"
+                (focus)="onProductFocus()"
+                (keydown)="onProductKeydown($event)"
+                (blur)="closeProductResults()"
+              />
+              @if (productQuery()) {
+                <button type="button" class="input-clear" title="Clear" (mousedown)="$event.preventDefault()" (click)="clearProduct()">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              }
+            </div>
+            @if (productOpen()) {
+              <div class="combo-panel po-product-panel">
+                <div class="combo-list">
+                  @if (productSearching()) {
+                    <div class="combo-empty"><span class="spinner-border spinner-border-sm me-2"></span>Searching products…</div>
+                  } @else {
+                    @for (p of searchResults(); track p.id; let i = $index) {
+                      <button
+                        type="button"
+                        class="combo-item product-item"
+                        [class.active-item]="i === activeResult()"
+                        (mouseenter)="activeResult.set(i)"
+                        (mousedown)="$event.preventDefault(); pickProduct(p)"
+                      >
+                        <span class="d-flex justify-content-between gap-2 w-100">
+                          <span class="fw-semibold text-truncate">{{ p.name }}</span>
+                          @if (p.mrp) {
+                            <span class="text-nowrap small fw-semibold">₹{{ p.mrp | number: '1.2-2' }}</span>
+                          }
+                        </span>
+                        <span class="small text-secondary text-truncate w-100">
+                          {{ p.pack_size || '—' }}
+                          @if (p.manufacturer) { · {{ p.manufacturer }} }
+                          @if (p.product_category) { · {{ p.product_category }} }
+                        </span>
+                      </button>
+                    } @empty {
+                      <div class="combo-empty">No products match “{{ productQuery().trim() }}”</div>
+                    }
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label po-label" for="po-cust-qty">Qty <span class="text-danger">*</span></label>
+          <input
+            id="po-cust-qty"
+            type="number"
+            min="1"
+            class="form-control form-control-sm text-end"
+            placeholder="0"
+            [(ngModel)]="custQty"
+            (keydown.enter)="addCustomLine()"
+          />
+        </div>
+        <div class="col-6 col-lg-3">
+          <button type="button" class="btn btn-pharma btn-sm w-100" [disabled]="!selectedProduct()" (click)="addCustomLine()">
+            <i class="bi bi-plus-lg me-1"></i> Add to order
+          </button>
+        </div>
+      </div>
+
+      @if (selectedProduct(); as sp) {
+        <div class="product-facts">
+          <span><em>Category</em>{{ sp.product_category || '—' }}</span>
+          <span><em>Pack</em>{{ sp.pack_size || '—' }}</span>
+          <span><em>Dosage</em>{{ sp.dosage_form || '—' }}</span>
+          <span><em>MRP</em>{{ sp.mrp ? '₹' + (sp.mrp | number: '1.2-2') : '—' }}</span>
+          <span><em>HSN</em>{{ sp.hsn_code || '—' }}</span>
+          <span><em>Manufacturer</em>{{ sp.manufacturer || '—' }}</span>
+          <span class="wide"><em>Generic</em>{{ sp.generic_name || '—' }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="card-pharma mb-3">
+      <div class="po-card-head">
+        <span class="po-section-title mb-0"><i class="bi bi-list-check"></i> Order items</span>
+        <span class="small text-secondary">{{ custLines().length }} product(s) · Total qty <b>{{ custTotalQty() }}</b></span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 po-table">
+          <thead>
+            <tr>
+              <th class="col-sr">#</th>
+              <th>Product</th>
+              <th>Pack</th>
+              <th>Category</th>
+              <th class="text-end">MRP</th>
+              <th>HSN</th>
+              <th class="text-end col-qty">Qty</th>
+              <th class="text-end col-act"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of custLines(); track l.master_product_id ?? $index; let i = $index) {
+              <tr>
+                <td class="text-secondary">{{ i + 1 }}</td>
+                <td>
+                  <div class="fw-semibold">{{ l.product_name }}</div>
+                  @if (l.manufacturer || l.generic_name) {
+                    <div class="small text-secondary line-sub">
+                      {{ l.manufacturer || '' }}{{ l.manufacturer && l.generic_name ? ' · ' : '' }}{{ l.generic_name || '' }}
+                    </div>
+                  }
+                </td>
+                <td class="text-nowrap">{{ l.pack_size || '—' }}</td>
+                <td>{{ l.product_category || '—' }}</td>
+                <td class="text-end text-nowrap">{{ l.mrp ? (l.mrp | number: '1.2-2') : '—' }}</td>
+                <td>{{ l.hsn_code || '—' }}</td>
+                <td class="text-end">
+                  <input
+                    type="number"
+                    min="1"
+                    class="form-control form-control-sm text-end qty-input"
+                    [class.is-invalid]="!(l.qty > 0)"
+                    [ngModel]="l.qty"
+                    (ngModelChange)="setLineQty(i, $event)"
+                  />
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-light border text-danger" title="Remove" (click)="removeCustomLine(i)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="text-center py-5 text-secondary">
+                  <i class="bi bi-cart fs-2 d-block mb-2 opacity-50"></i>
+                  No products added yet. Search a product above and press <b>Enter</b> to add it.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    @if (custError()) {
+      <div class="alert alert-danger py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle"></i><span>{{ custError() }}</span>
+      </div>
+    }
+
+    <div class="po-action-bar">
+      <span class="small text-secondary">
+        @if (custDist(); as d) { <b class="text-dark">{{ d.name }}</b> · } {{ custLines().length }} product(s)
+      </span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-light border" (click)="backToList()">Cancel</button>
+        <button type="button" class="btn btn-pharma" [disabled]="custSaving() || !custLines().length" (click)="saveCustomise()">
+          @if (custSaving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          } @else {
+            <i class="bi bi-save me-1"></i>
+          }
+          {{ editing() ? 'Update PO' : 'Save PO' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ===================== AUTO-PURCHASE (SHORT BOOK) ===================== -->
+  @if (view() === 'auto') {
+    <div class="po-header">
+      <div class="d-flex align-items-center gap-3">
+        <div class="po-icon po-icon-amber"><i class="bi bi-lightning-charge"></i></div>
+        <div>
+          <h4 class="fw-bold mb-0">Auto-Purchase · Short Book</h4>
+          <p class="text-secondary mb-0 small">
+            Products at or below minimum stock, or out of stock but sold in the last 4 months. Quantities in packs.
+          </p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-light border" (click)="autoGroups() === null ? backToList() : backToShortBook()">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </button>
+    </div>
+
+    @if (shortError()) {
+      <div class="alert alert-danger py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle"></i><span>{{ shortError() }}</span>
+      </div>
+    }
+
+    @if (autoGroups() === null) {
+      <div class="card-pharma">
+        <div class="po-toolbar">
+          <div class="input-icon po-toolbar-search">
+            <i class="bi bi-search"></i>
+            <input
+              type="search"
+              class="form-control form-control-sm"
+              placeholder="Filter by product, manufacturer or distributor"
+              [ngModel]="shortFilter()"
+              (ngModelChange)="shortFilter.set($event)"
+            />
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <label class="small text-secondary mb-0 text-nowrap" for="po-days">Required qty for</label>
+            <select
+              id="po-days"
+              class="form-select form-select-sm po-days"
+              [ngModel]="reqDays()"
+              (ngModelChange)="applyDays(+$event)"
+            >
+              <option [ngValue]="0">Select days</option>
+              @for (d of dayOptions; track d) {
+                <option [ngValue]="d">{{ d }} days</option>
+              }
+            </select>
+          </div>
+          <span class="small text-secondary ms-lg-auto">
+            {{ visibleShortRows().length }} of {{ shortRows().length }} product(s) · <b class="text-dark">{{ checkedCount() }}</b> selected
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 po-table">
+            <thead>
+              <tr>
+                <th class="text-center col-check">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    title="Select all"
+                    [checked]="allChecked()"
+                    [disabled]="!visibleShortRows().length"
+                    (change)="toggleAll($any($event.target).checked)"
+                  />
+                </th>
+                <th>Product</th>
+                <th>Pack</th>
+                <th class="text-end">MRP</th>
+                <th>Category</th>
+                <th class="text-center">Last 4 Months Sales</th>
+                <th class="text-end">Sold</th>
+                <th class="text-end">Avl.</th>
+                <th>Last Distributor</th>
+                <th class="text-end col-req">Req. Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (shortLoading()) {
+                <tr>
+                  <td colspan="10" class="text-center py-5 text-secondary">
+                    <span class="spinner-border spinner-border-sm me-2"></span> Checking stock and sales…
+                  </td>
+                </tr>
+              } @else if (!visibleShortRows().length) {
+                <tr>
+                  <td colspan="10" class="text-center py-5 text-secondary">
+                    <i class="bi bi-check2-circle fs-2 d-block mb-2 opacity-50"></i>
+                    @if (shortRows().length) { No products match the filter. } @else { No low-stock products right now. }
+                  </td>
+                </tr>
+              } @else {
+                @for (r of visibleShortRows(); track r.product_binding_id) {
+                  <tr [class.row-checked]="r.checked">
+                    <td class="text-center">
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        [checked]="r.checked"
+                        (change)="toggleRow(r.product_binding_id, $any($event.target).checked)"
+                      />
+                    </td>
+                    <td>
+                      <div class="fw-semibold">{{ r.product_name }}</div>
+                      @if (r.manufacturer) { <div class="small text-secondary line-sub">{{ r.manufacturer }}</div> }
+                    </td>
+                    <td class="text-nowrap">{{ r.pack_size || '—' }}</td>
+                    <td class="text-end text-nowrap">{{ r.mrp | number: '1.2-2' }}</td>
+                    <td>{{ r.product_category || '—' }}</td>
+                    <td>
+                      <div class="month-grid">
+                        @for (m of shortMonths(); track m) {
+                          <div class="month-cell">
+                            <span class="month-name">{{ monthLabel(m) }}</span>
+                            <span class="month-qty">{{ r.sold_by_month[m] || 0 }}</span>
+                          </div>
+                        }
+                      </div>
+                    </td>
+                    <td class="text-end fw-semibold">{{ r.total_sold_qty }}</td>
+                    <td class="text-end">
+                      <span class="stock-pill" [class.stock-out]="r.available_qty <= 0">{{ r.available_qty }}</span>
+                    </td>
+                    <td class="small dist-cell">{{ r.distributor_name || '—' }}</td>
+                    <td class="text-end">
+                      <input
+                        type="number"
+                        min="0"
+                        class="form-control form-control-sm text-end qty-input"
+                        [ngModel]="r.req_qty"
+                        (ngModelChange)="setReqQty(r.product_binding_id, $event)"
+                      />
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="po-action-bar mt-3">
+        <span class="small text-secondary">Select products, set Req. Qty, then make one PO per distributor.</span>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-light border" (click)="backToList()">Cancel</button>
+          <button type="button" class="btn btn-pharma" [disabled]="!checkedCount()" (click)="makePo()">
+            <i class="bi bi-file-earmark-text me-1"></i> Make PO ({{ checkedCount() }})
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="alert alert-info py-2 small d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle"></i>
+        <span>One PO per distributor. Confirm the distributor for each group and save it.</span>
+      </div>
+      @for (g of autoGroups(); track g.key) {
+        <div class="card-pharma po-overflow mb-3" [class.raise]="openCombo() === g.key">
+          <div class="group-head">
+            <div class="group-dist">
+              <label class="form-label po-label">Distributor <span class="text-danger">*</span></label>
+              <ng-container
+                [ngTemplateOutlet]="distCombo"
+                [ngTemplateOutletContext]="{
+                  key: g.key,
+                  value: g.distributor_id ? g.distributor_name : '',
+                  address: distributorAddressById(g.distributor_id),
+                  hint: g.distributor_id ? '' : g.distributor_name,
+                  clearable: false
+                }"
+              />
+            </div>
+            <div class="group-meta small text-secondary">
+              {{ g.products.length }} product(s) · Total qty <b class="text-dark">{{ groupTotalQty(g) }}</b>
+            </div>
+            <button type="button" class="btn btn-pharma btn-sm" [disabled]="g.saving" (click)="saveGroup(g)">
+              @if (g.saving) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              } @else {
+                <i class="bi bi-save me-1"></i>
+              }
+              Save PO
+            </button>
+          </div>
+          @if (g.error) {
+            <div class="alert alert-danger py-2 mx-3 mt-3 mb-0">{{ g.error }}</div>
+          }
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 po-table">
+              <thead>
+                <tr>
+                  <th class="col-sr">#</th>
+                  <th>Product</th>
+                  <th>Pack</th>
+                  <th class="text-end">MRP</th>
+                  <th>Category</th>
+                  <th class="text-end">Req. Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of g.products; track p.product_binding_id; let i = $index) {
+                  <tr>
+                    <td class="text-secondary">{{ i + 1 }}</td>
+                    <td class="fw-semibold">{{ p.product_name }}</td>
+                    <td class="text-nowrap">{{ p.pack_size || '—' }}</td>
+                    <td class="text-end text-nowrap">{{ p.mrp | number: '1.2-2' }}</td>
+                    <td>{{ p.product_category || '—' }}</td>
+                    <td class="text-end fw-semibold">{{ p.req_qty }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <!-- ===================== SALES-BASED PO ===================== -->
+  @if (view() === 'sales') {
+    <div class="po-header">
+      <div class="d-flex align-items-center gap-3">
+        <div class="po-icon po-icon-indigo"><i class="bi bi-calendar2-week"></i></div>
+        <div>
+          <h4 class="fw-bold mb-0">Sales-based Purchase Order</h4>
+          <p class="text-secondary mb-0 small">
+            Enter previous sale days (or today), review sold vs available stock, set order qty.
+            Optionally pick one distributor for all products, or leave it blank and use / edit Last Distributor per product.
+            Quantities are in packs.
+          </p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-light border" (click)="backToList()">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </button>
+    </div>
+
+    @if (salesError()) {
+      <div class="alert alert-danger py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle"></i><span>{{ salesError() }}</span>
+      </div>
+    }
+
+    <div class="card-pharma po-overflow p-3 mb-3" [class.raise]="openCombo() === 'sales'">
+      <div class="po-section-title"><i class="bi bi-sliders"></i> Sale period &amp; distributor</div>
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label po-label">Previous sale days</label>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="filter-pills">
+              @for (d of salesDayOptions; track d) {
+                <button
+                  type="button"
+                  class="pill"
+                  [class.active]="salesDays() === d"
+                  (click)="setSalesDays(d)"
+                >
+                  {{ d === 1 ? 'Today' : d + ' days' }}
+                </button>
+              }
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                class="form-control form-control-sm po-days"
+                title="Custom days"
+                [ngModel]="salesDays()"
+                (ngModelChange)="setSalesDays(+$event)"
+              />
+              <span class="small text-secondary text-nowrap">day(s)</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <button type="button" class="btn btn-pharma btn-sm w-100" [disabled]="salesLoading()" (click)="loadSalesRange()">
+            @if (salesLoading()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            } @else {
+              <i class="bi bi-search me-1"></i>
+            }
+            Show sold products
+          </button>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label po-label">
+            Distributor
+            <span class="text-secondary fw-normal">(optional — all products)</span>
+          </label>
+          <ng-container
+            [ngTemplateOutlet]="distCombo"
+            [ngTemplateOutletContext]="{ key: 'sales', value: salesDist()?.name, address: salesDist()?.address, clearable: true }"
+          />
+          <div class="small text-secondary mt-1">
+            If set, this distributor is used for every selected product. If blank, each product uses its Last Distributor.
+          </div>
+        </div>
+        @if (salesLoaded() && salesFrom()) {
+          <div class="col-12">
+            <div class="small text-secondary">
+              Sale range:
+              <b class="text-dark">{{ salesFrom() | date: 'dd-MM-yyyy' }}</b>
+              –
+              <b class="text-dark">{{ salesTo() | date: 'dd-MM-yyyy' }}</b>
+              · {{ salesRows().length }} product(s) sold
+              · <b class="text-dark">{{ salesCheckedCount() }}</b> selected
+              · Order qty <b class="text-dark">{{ salesOrderTotal() }}</b>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card-pharma po-overflow mb-3" [class.raise]="isSalesRowComboOpen()">
+      <div class="po-toolbar">
+        <div class="input-icon po-toolbar-search">
+          <i class="bi bi-search"></i>
+          <input
+            type="search"
+            class="form-control form-control-sm"
+            placeholder="Filter by product, manufacturer or last distributor"
+            [ngModel]="salesFilter()"
+            (ngModelChange)="salesFilter.set($event)"
+            [disabled]="!salesLoaded()"
+          />
+        </div>
+        <span class="small text-secondary ms-lg-auto">
+          Tick products · edit Order Qty / Last Distributor · then Save PO &amp; PDF
+        </span>
+      </div>
+      <div
+        class="table-responsive"
+        [class.combo-open]="isSalesRowComboOpen()"
+      >
+        <table class="table table-hover align-middle mb-0 po-table">
+          <thead>
+            <tr>
+              <th class="text-center col-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  title="Select all"
+                  [checked]="salesAllChecked()"
+                  [disabled]="!visibleSalesRows().length"
+                  (change)="toggleSalesAll($any($event.target).checked)"
+                />
+              </th>
+              <th>Product</th>
+              <th>Pack</th>
+              <th class="text-end">Sold Qty</th>
+              <th class="text-end">Available</th>
+              <th class="col-sales-dist">Last Distributor</th>
+              <th class="text-end col-req">Order Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (salesLoading()) {
+              <tr>
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <span class="spinner-border spinner-border-sm me-2"></span> Loading sold products…
+                </td>
+              </tr>
+            } @else if (!salesLoaded()) {
+              <tr>
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <i class="bi bi-calendar2-week fs-2 d-block mb-2 opacity-50"></i>
+                  Choose sale days above and click <b>Show sold products</b>.
+                </td>
+              </tr>
+            } @else if (!visibleSalesRows().length) {
+              <tr>
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+                  @if (salesRows().length) {
+                    No products match the filter.
+                  } @else {
+                    No products were sold in this period.
+                  }
+                </td>
+              </tr>
+            } @else {
+              @for (r of visibleSalesRows(); track r.product_binding_id) {
+                <tr [class.row-checked]="r.checked">
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      [checked]="r.checked"
+                      (change)="toggleSalesRow(r.product_binding_id, $any($event.target).checked)"
+                    />
+                  </td>
+                  <td>
+                    <div class="fw-semibold">{{ r.product_name }}</div>
+                    @if (r.manufacturer) {
+                      <div class="small text-secondary line-sub">{{ r.manufacturer }}</div>
+                    }
+                  </td>
+                  <td class="text-nowrap">{{ r.pack_size || '—' }}</td>
+                  <td class="text-end fw-semibold">{{ r.sold_qty }}</td>
+                  <td class="text-end">
+                    <span class="stock-pill" [class.stock-out]="r.available_qty <= 0">{{ r.available_qty }}</span>
+                  </td>
+                  <td class="sales-dist-cell" [class.raise-cell]="openCombo() === salesRowDistKey(r.product_binding_id)">
+                    <ng-container
+                      [ngTemplateOutlet]="distCombo"
+                      [ngTemplateOutletContext]="{
+                        key: salesRowDistKey(r.product_binding_id),
+                        value: r.distributor_id ? r.distributor_name : '',
+                        address: distributorAddressById(r.distributor_id),
+                        hint: r.distributor_id ? '' : r.distributor_name,
+                        clearable: true
+                      }"
+                    />
+                  </td>
+                  <td class="text-end">
+                    <input
+                      type="number"
+                      min="0"
+                      class="form-control form-control-sm text-end qty-input"
+                      [ngModel]="r.order_qty"
+                      (ngModelChange)="setSalesOrderQty(r.product_binding_id, $event)"
+                    />
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="po-action-bar">
+      <span class="small text-secondary">
+        @if (salesDist(); as d) {
+          All → <b class="text-dark">{{ d.name }}</b> ·
+        } @else {
+          By last distributor ·
+        }
+        {{ salesCheckedCount() }} product(s) · Total order qty <b class="text-dark">{{ salesOrderTotal() }}</b>
+      </span>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-light border" (click)="backToList()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-pharma"
+          [disabled]="salesSaving() || !salesCheckedCount()"
+          (click)="saveSalesPo()"
+        >
+          @if (salesSaving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          } @else {
+            <i class="bi bi-file-earmark-pdf me-1"></i>
+          }
+          Save PO &amp; PDF ({{ salesCheckedCount() }})
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- ===================== VIEW MODAL ===================== -->
+@if (detailOpen()) {
+  <div class="modal-backdrop-custom" (click)="closeDetail()"></div>
+  <div class="modal-custom" (click)="closeDetail()">
+    <div class="modal-card card-pharma" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h5 class="mb-0 fw-bold">Purchase Order</h5>
+          @if (detail(); as d) {
+            <div class="small text-secondary">{{ d.po_no }} · {{ d.po_type }}</div>
+          }
+        </div>
+        <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      </div>
+      <div class="modal-body-custom">
+        @if (detailLoading()) {
+          <div class="text-center py-4 text-secondary">
+            <span class="spinner-border spinner-border-sm me-2"></span> Loading…
+          </div>
+        } @else if (detail(); as d) {
+          <div class="detail-grid mb-3">
+            <div><span>PO No</span><b>{{ d.po_no }}</b></div>
+            <div><span>PO Date</span><b>{{ d.order_date | date: 'dd-MM-yyyy' }}</b></div>
+            <div><span>Type</span><b><span class="type-badge" [class]="typeBadge(d.po_type)">{{ d.po_type }}</span></b></div>
+            <div class="wide"><span>Distributor</span><b>{{ d.distributor_name || '—' }}</b></div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 po-table">
+              <thead>
+                <tr>
+                  <th class="col-sr">#</th>
+                  <th>Product</th>
+                  <th>Pack Size</th>
+                  <th>Category</th>
+                  <th class="text-end">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of d.items ?? []; track it.product_name + $index; let i = $index) {
+                  <tr>
+                    <td class="text-secondary">{{ i + 1 }}</td>
+                    <td class="fw-semibold">{{ it.product_name }}</td>
+                    <td>{{ it.pack_size || '—' }}</td>
+                    <td>{{ it.product_category || '—' }}</td>
+                    <td class="text-end fw-semibold">{{ it.qty }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+      @if (detail(); as d) {
+        <div class="modal-foot">
+          <button type="button" class="btn btn-light border" (click)="closeDetail()">Close</button>
+          @if (canEdit()) {
+            <button type="button" class="btn btn-outline-primary" (click)="openEdit(d)">
+              <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+          }
+          <button type="button" class="btn btn-pharma" [disabled]="pdfBusyId() === d.id" (click)="openPdf(d)">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

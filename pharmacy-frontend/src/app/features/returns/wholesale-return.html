@@ -1,0 +1,262 @@
+<div class="wholesale-return-page">
+  <app-return-tabs />
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="fw-bold mb-0">
+        @if (mode() === 'list') { Wholesale Sales Return (Credit Note) }
+        @else if (mode() === 'create') { New Credit Note }
+        @else if (mode() === 'edit') { Edit Credit Note }
+        @else { View Credit Note }
+      </h4>
+      <p class="text-secondary small mb-0">Wholesale customer return → Open credit note → deduct on next bill</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      @if (mode() !== 'list') {
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">Back</button>
+      } @else {
+        <button type="button" class="btn btn-sm btn-pharma" (click)="openCreate()">
+          <i class="bi bi-plus-lg me-1"></i>New Credit Note
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
+  @if (toast()) { <div class="alert alert-success py-2">{{ toast() }}</div> }
+
+  @if (mode() === 'list') {
+    <div class="card-pharma p-3">
+      <div class="mb-3" style="max-width:320px">
+        <input class="form-control form-control-sm" placeholder="Search note / customer…"
+          [(ngModel)]="search" (ngModelChange)="reload()" />
+      </div>
+      @if (loading()) {
+        <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Customer</th><th>Contact</th><th>Note No</th><th>Date</th>
+                <th class="text-end">Taxable</th><th class="text-end">Tax</th><th class="text-end">Net</th>
+                <th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (n of notes(); track n.id) {
+                <tr>
+                  <td>{{ n.customer_name || n.party_name }}</td>
+                  <td>{{ n.d_cont || '—' }}</td>
+                  <td class="fw-semibold">{{ n.note_no }}</td>
+                  <td>{{ n.note_date | date: 'dd-MM-yyyy' }}</td>
+                  <td class="text-end">{{ n.taxable | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ n.tax || n.gst_amount | number: '1.2-2' }}</td>
+                  <td class="text-end">{{ n.netTotal || n.amount | number: '1.2-2' }}</td>
+                  <td>
+                    <span class="badge" [class.text-bg-success]="statusOf(n)==='Open'" [class.text-bg-secondary]="statusOf(n)==='Cleared'">{{ statusOf(n) }}</span>
+                    @if (n.applied_sale_no) { <div class="small text-secondary">Bill: {{ n.applied_sale_no }}</div> }
+                  </td>
+                  <td class="text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary me-1" (click)="viewNote(n)">View</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Print" (click)="printNote(n.id)">
+                      <i class="bi bi-printer"></i>
+                    </button>
+                    @if (statusOf(n)==='Open') {
+                      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openEdit(n)">Edit</button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="9" class="text-center text-secondary py-4">No credit notes yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  @if (mode() === 'view' && selected) {
+    <div class="card-pharma p-3">
+      <div class="row g-2 mb-3 small">
+        <div class="col-md-3"><span class="text-secondary">Customer</span><div class="fw-semibold">{{ selected.customer_name || selected.party_name }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Contact</span><div>{{ selected.d_cont || '—' }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Note</span><div>{{ selected.note_no }}</div></div>
+        <div class="col-md-2"><span class="text-secondary">Status</span>
+          <div><span class="badge" [class.text-bg-success]="statusOf(selected)==='Open'" [class.text-bg-secondary]="statusOf(selected)==='Cleared'">{{ statusOf(selected) }}</span></div>
+        </div>
+        <div class="col-md-3"><span class="text-secondary">Net</span><div class="fw-semibold">{{ selected.netTotal || selected.amount | number: '1.2-2' }}</div></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th class="text-end">Sale Qty</th><th class="text-end">Rate</th>
+              <th class="text-end">Ded %</th><th class="text-end">Return</th><th>Reason</th>
+              <th class="text-end">Taxable</th><th class="text-end">GST %</th>
+              <th class="text-end">GST Amt</th><th class="text-end">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of selected.products || []; track $index) {
+              <tr>
+                <td>{{ p.p_name }}</td>
+                <td>{{ p.batch_no }}</td>
+                <td class="text-end">{{ p.saleQty }}</td>
+                <td class="text-end">{{ p.sale_rate | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.diduction || p.deduction_pct }}</td>
+                <td class="text-end">{{ p.return_qty }}</td>
+                <td>{{ p.reason }}</td>
+                <td class="text-end">{{ p.taxable | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.gst_per ?? p.gst ?? 0 }}</td>
+                <td class="text-end">{{ p.tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.netTotal | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (statusOf(selected)==='Open') {
+        <div class="mt-3 d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-pharma" (click)="openEdit(selected)">Edit</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printNote(selected.id)">
+            <i class="bi bi-printer me-1"></i>Print
+          </button>
+        </div>
+      } @else {
+        <div class="mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printNote(selected.id)">
+            <i class="bi bi-printer me-1"></i>Print
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (mode() === 'create' || mode() === 'edit') {
+    <div class="card-pharma p-3 mb-3 wr-entry-card" [class.menu-open]="showCustMenu() || showProdMenu()">
+      @if (mode() === 'edit') {
+        <div class="alert alert-light border py-2 small mb-3">Editing <b>{{ editNoteNo }}</b> — stock will be re-synced on save.</div>
+      }
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label small mb-1">Customer <span class="text-danger">*</span></label>
+          <div class="wr-combo" [class.open]="showCustMenu()" (click)="$event.stopPropagation()">
+            <input class="form-control form-control-sm" placeholder="Search customer…"
+              [ngModel]="custQuery()" (ngModelChange)="custQuery.set($event); showCustMenu.set(true)"
+              (focus)="showCustMenu.set(true)" />
+            @if (showCustMenu()) {
+              <div class="wr-combo-menu">
+                @for (c of filteredCustomers(); track c.value) {
+                  <button type="button" class="wr-combo-item" (mousedown)="$event.preventDefault(); pickCustomer(c)">{{ c.label }}</button>
+                } @empty {
+                  <div class="wr-combo-empty">No wholesale customers with sales</div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-1">Contact</label><div class="form-control form-control-sm bg-light">{{ c_cont || '—' }}</div></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-1">GSTIN</label><div class="form-control form-control-sm bg-light">{{ gst_no || '—' }}</div></div>
+        <div class="col-12 col-md-4"><label class="form-label small mb-1">Address</label><div class="form-control form-control-sm bg-light text-truncate">{{ c_add || '—' }}</div></div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label small mb-1">Product <span class="text-danger">*</span></label>
+          <div class="wr-combo" [class.open]="showProdMenu()" (click)="$event.stopPropagation()">
+            <input class="form-control form-control-sm" placeholder="Search product…"
+              [ngModel]="productQuery()" (ngModelChange)="productQuery.set($event); showProdMenu.set(true)"
+              (focus)="showProdMenu.set(true)" [disabled]="!customer_name" />
+            @if (showProdMenu()) {
+              <div class="wr-combo-menu">
+                @for (p of filteredProducts(); track p.value) {
+                  <button type="button" class="wr-combo-item" (mousedown)="$event.preventDefault(); pickProduct(p.value)">{{ p.label }}</button>
+                } @empty {
+                  <div class="wr-combo-empty">No products</div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-1">Batch</label>
+          <select class="form-select form-select-sm" [(ngModel)]="batch_no" (ngModelChange)="onBatchChange()" [disabled]="!batches().length">
+            <option value="">—</option>
+            @for (b of batches(); track b.sale_item_id) {
+              <option [value]="b.batch_no">{{ b.batch_no }} ({{ b.saleQty || b.sale_qty }})</option>
+            }
+          </select>
+        </div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Avail</label><div class="form-control form-control-sm bg-light text-end">{{ saleQty }}</div></div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Rate</label><div class="form-control form-control-sm bg-light text-end">{{ sale_rate | number: '1.2-2' }}</div></div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Ded %</label>
+          <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="diduction" (ngModelChange)="recalc()" />
+        </div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Return Qty</label>
+          <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="return_qty" (ngModelChange)="checkQty()" min="0" />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-1">Reason</label>
+          <select class="form-select form-select-sm" [(ngModel)]="reason">
+            @for (r of reasons; track r) { <option [value]="r">{{ r }}</option> }
+          </select>
+        </div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Taxable</label><div class="form-control form-control-sm bg-light text-end">{{ taxable | number: '1.2-2' }}</div></div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">GST %</label><div class="form-control form-control-sm bg-light text-end">{{ gst_per }}</div></div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">GST Amt</label><div class="form-control form-control-sm bg-light text-end">{{ tax | number: '1.2-2' }}</div></div>
+        <div class="col-3 col-md-1"><label class="form-label small mb-1">Net</label><div class="form-control form-control-sm bg-light text-end fw-semibold">{{ netTotal | number: '1.2-2' }}</div></div>
+        <div class="col-3 col-md-1">
+          <button type="button" class="btn btn-sm btn-pharma w-100" (click)="addLine()"><i class="bi bi-plus-lg"></i> Add</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Product</th><th>Batch</th><th class="text-end">Qty</th><th class="text-end">Ded %</th>
+              <th>Reason</th><th class="text-end">Taxable</th><th class="text-end">GST %</th>
+              <th class="text-end">GST Amt</th><th class="text-end">Net</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of returnProducts; track $index; let i = $index) {
+              <tr>
+                <td>{{ p.p_name }}</td>
+                <td>{{ p.batch_no }}</td>
+                <td class="text-end">{{ p.return_qty }}</td>
+                <td class="text-end">{{ p.diduction }}</td>
+                <td>{{ p.reason }}</td>
+                <td class="text-end">{{ p.taxable | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.gst_per ?? p.gst ?? 0 }}</td>
+                <td class="text-end">{{ p.tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ p.netTotal | number: '1.2-2' }}</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger" (click)="removeLine(i)"><i class="bi bi-trash"></i></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="text-center text-secondary py-3">No lines yet.</td></tr>
+            }
+          </tbody>
+          @if (returnProducts.length) {
+            <tfoot>
+              <tr class="fw-semibold">
+                <td colspan="5" class="text-end">Total</td>
+                <td class="text-end">{{ lineTotals().taxable | number: '1.2-2' }}</td>
+                <td></td>
+                <td class="text-end">{{ lineTotals().tax | number: '1.2-2' }}</td>
+                <td class="text-end">{{ lineTotals().net | number: '1.2-2' }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToList()">Cancel</button>
+        <button type="button" class="btn btn-sm btn-pharma" [disabled]="saving() || !returnProducts.length" (click)="save()">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          Save Credit Note
+        </button>
+      </div>
+    </div>
+  }
+</div>

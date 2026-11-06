@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/auth.models';
@@ -24,6 +24,16 @@ export interface PortfolioItem {
   total_stock: number;
 }
 
+export interface BranchStockItem {
+  binding_id: number;
+  master_product_id: number;
+  product_name: string;
+  manufacturer_short: string | null;
+  pack_size: string | null;
+  schedule_category: string;
+  available_qty: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class HoService {
   private readonly http = inject(HttpClient);
@@ -39,8 +49,23 @@ export class HoService {
     return this.http.get<ApiResponse<PortfolioItem[]>>(`${this.base}/ho/portfolio`).pipe(map((r) => r.data));
   }
 
+  /** Products with stock &gt; 0 at the given branch (for transfer picker). */
+  branchStock(branchId: number, q = ''): Observable<BranchStockItem[]> {
+    let params = new HttpParams().set('branch_id', String(branchId));
+    if (q.trim()) params = params.set('q', q.trim());
+    return this.http
+      .get<ApiResponse<BranchStockItem[]>>(`${this.base}/ho/branch-stock`, { params })
+      .pipe(map((r) => r.data ?? []));
+  }
+
   transfers(): Observable<Record<string, unknown>[]> {
     return this.http.get<ApiResponse<Record<string, unknown>[]>>(`${this.base}/ho/transfers`).pipe(map((r) => r.data));
+  }
+
+  transferLog(id: number): Observable<Record<string, unknown>> {
+    return this.http
+      .get<ApiResponse<Record<string, unknown>>>(`${this.base}/ho/transfers/${id}`)
+      .pipe(map((r) => r.data));
   }
 
   transfer(payload: unknown): Observable<ApiResponse<unknown>> {

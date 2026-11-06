@@ -1,0 +1,123 @@
+<div
+  class="splash"
+  [class.splash--exit]="exiting()"
+  [class.splash--p1]="phase() >= 1"
+  [class.splash--p2]="phase() >= 2"
+  [class.splash--p3]="phase() >= 3"
+  [class.splash--p4]="phase() >= 4"
+  [class.splash--p5]="phase() >= 5"
+  [attr.data-organ]="organ()"
+  (click)="skip()"
+  role="dialog"
+  aria-label="Welcome introduction"
+>
+  <div class="splash-bg" aria-hidden="true">
+    <div class="splash-orb splash-orb-a"></div>
+    <div class="splash-orb splash-orb-b"></div>
+    <div class="splash-grid"></div>
+    <div class="dust">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+        <span [class]="'dust-bit dust-bit-' + i"></span>
+      }
+    </div>
+  </div>
+
+  <div class="splash-stage" aria-hidden="true">
+    <div class="anatomy-wrap">
+      <div class="anatomy-aura"></div>
+      <div class="holo-ring holo-ring-a"></div>
+      <div class="holo-ring holo-ring-b"></div>
+
+      <img
+        class="anatomy-img"
+        src="assets/splash-pharma-anatomy.png"
+        alt=""
+        width="420"
+        height="746"
+      />
+
+      <div class="body-scan"></div>
+      <div class="breath-veil"></div>
+
+      <div class="hotspot hotspot-heart">
+        <span class="hotspot-core"></span>
+        <span class="hotspot-ring"></span>
+        <span class="hotspot-label">Heart</span>
+      </div>
+      <div class="hotspot hotspot-lungs">
+        <span class="hotspot-core"></span>
+        <span class="hotspot-ring"></span>
+        <span class="hotspot-label">Lungs</span>
+      </div>
+      <div class="hotspot hotspot-liver">
+        <span class="hotspot-core"></span>
+        <span class="hotspot-ring"></span>
+        <span class="hotspot-label">Metabolism</span>
+      </div>
+
+      <span class="capsule cap-1"><i class="bi bi-capsule"></i></span>
+      <span class="capsule cap-2"><i class="bi bi-capsule-pill"></i></span>
+      <span class="capsule cap-3"><i class="bi bi-droplet-half"></i></span>
+
+      <svg class="flow-path" viewBox="0 0 200 360" preserveAspectRatio="none">
+        <path class="flow-line" d="M100 40 C 120 90, 80 130, 105 180 S 70 250, 100 320" />
+        <circle class="flow-dot flow-dot-a" r="3.5" cx="0" cy="0">
+          <animateMotion dur="3.2s" repeatCount="indefinite" path="M100 40 C 120 90, 80 130, 105 180 S 70 250, 100 320" />
+        </circle>
+        <circle class="flow-dot flow-dot-b" r="2.5" cx="0" cy="0">
+          <animateMotion dur="4s" begin="0.8s" repeatCount="indefinite" path="M100 40 C 120 90, 80 130, 105 180 S 70 250, 100 320" />
+        </circle>
+      </svg>
+    </div>
+
+    <div class="vitals">
+      <div class="vital">
+        <span class="vital-k">BPM</span>
+        <span class="vital-v">{{ bpm() || '--' }}</span>
+      </div>
+      <div class="vital">
+        <span class="vital-k">SpO₂</span>
+        <span class="vital-v">{{ spo2() ? spo2() + '%' : '--' }}</span>
+      </div>
+      <div class="vital">
+        <span class="vital-k">TEMP</span>
+        <span class="vital-v">{{ temp() ? temp() + '°' : '--' }}</span>
+      </div>
+    </div>
+
+    <svg class="ecg" viewBox="0 0 320 48" preserveAspectRatio="none">
+      <path
+        class="ecg-path"
+        d="M0 24 H40 L48 24 L56 8 L64 40 L72 18 L80 24 H140 L148 24 L156 6 L164 42 L172 16 L180 24 H240 L248 24 L256 10 L264 38 L272 20 L280 24 H320"
+      />
+    </svg>
+  </div>
+
+  <div class="splash-copy">
+    <div class="splash-logo">
+      <i class="bi bi-capsule-pill"></i>
+    </div>
+    <p class="splash-eyebrow">Pharmacy Care Systems</p>
+    <h1 class="splash-title">Advanced Pharmacy Suite</h1>
+    <p class="splash-line line-a">Intelligent care for every human body</p>
+    <p class="splash-line line-b">Inventory · Billing · Compliance · Insights</p>
+
+    <div class="activity">
+      <span class="activity-dot"></span>
+      <span class="activity-text">{{ status() }}</span>
+    </div>
+
+    <ul class="checklist">
+      <li [class.on]="phase() >= 3">Circulatory map</li>
+      <li [class.on]="phase() >= 4">Respiratory sync</li>
+      <li [class.on]="phase() >= 5">Dosage pathways</li>
+    </ul>
+  </div>
+
+  <div class="splash-foot">
+    <div class="splash-progress"><span></span></div>
+    <button type="button" class="splash-skip" (click)="skip(); $event.stopPropagation()">
+      Skip intro
+    </button>
+  </div>
+</div>

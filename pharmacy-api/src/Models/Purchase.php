@@ -18,7 +18,11 @@ final class Purchase extends Model
             return null;
         }
         $purchase['items'] = $this->rawAll(
-            'SELECT * FROM purchase_items WHERE purchase_id = :id ORDER BY id ASC',
+            'SELECT pi.*, pb.pack_size AS pack_size
+             FROM purchase_items pi
+             LEFT JOIN product_bindings pb ON pb.id = pi.product_binding_id
+             WHERE pi.purchase_id = :id
+             ORDER BY pi.id ASC',
             ['id' => $id]
         );
         return $purchase;

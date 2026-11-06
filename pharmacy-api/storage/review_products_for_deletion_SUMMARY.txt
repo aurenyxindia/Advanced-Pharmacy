@@ -1,0 +1,40 @@
+PRODUCT DELETION REVIEW (gmpserver — NO deletes done yet)
+Generated: 2026-09-18
+Database: gmpserver_advancedMaster.products
+
+Full list CSV:
+  pharmacy-api/storage/review_products_for_deletion.csv
+
+TOTAL PROPOSED DELETIONS: 1777
+
+By category:
+  dummy_corrupt      133  — names with 4+ consecutive "?" (import/encoding garbage)
+  similar_duplicate 1367  — same normalized name + pack + form (& vs AND, spacing, etc.)
+  sim_brand_strength  277  — same brand + parsed strength + form + pack (review carefully)
+
+Rules for dummy_corrupt (ONLY these are flagged):
+  - 4 or more consecutive question marks in the name, OR
+  - 3+ consecutive "?" AND 5+ total "?" in the name
+  Legitimate special chars kept: %  &  +  -  /  .  ( )  etc. when not part of ? runs
+  Examples NOT flagged: BUTOX 1.25%  |  CHESTON COLD & FLU (handled as duplicate, not dummy)
+
+Example — CHESTON (your screenshot):
+  DELETE  id=33281  CHESTON COLD & FLU   1x10  UNKNOWN
+  KEEP    id=45137  CHESTON COLD AND FLU 1x10  CIPLA
+  Reason: same product after normalizing "&" → "AND"
+
+Example — dummy corrupt:
+  DELETE id=25465  AZIVET ORAL??????????500ML
+  DELETE id=25155  BHC LIV LIQ??????????
+  DELETE id=25635  LORNITAS?????????? ... (long ? run)
+
+How to review:
+  1. Open review_products_for_deletion.csv in Excel
+  2. Filter by category column
+  3. For similar_duplicate / sim_brand_strength, check keep_id vs delete_id columns
+  4. Tell me which categories to apply (all, dummy only, or selected ids)
+
+Regenerate list anytime:
+  powershell -File tools/run-gmpserver-product-review.ps1
+
+Nothing will be deleted until you approve.

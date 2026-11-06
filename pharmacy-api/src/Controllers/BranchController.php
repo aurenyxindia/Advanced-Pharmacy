@@ -29,12 +29,12 @@ final class BranchController extends ResourceController
             'name'            => 'required|string|min:2|max:150',
             'is_head_office'  => 'integer|in:0,1',
             'drug_license_no' => 'string|max:60',
-            'gstin'           => 'string|max:20',
+            'gstin'           => 'required|string|regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/',
             'address'         => 'string|max:255',
             'city'            => 'string|max:80',
             'state'           => 'string|max:80',
-            'pincode'         => 'string|max:12',
-            'phone'           => 'string|max:20',
+            'pincode'         => 'string|regex:/^[1-9][0-9]{5}$/',
+            'phone'           => 'string|regex:/^[6-9]\d{9}$/',
             'status'          => 'in:active,inactive',
         ];
     }

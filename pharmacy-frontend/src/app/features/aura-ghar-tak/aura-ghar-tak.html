@@ -1,0 +1,350 @@
+<div class="agt-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h1 class="page-title mb-1"><i class="bi bi-house-heart me-2"></i>AuraGharTak</h1>
+      <p class="text-muted small mb-0">Share live stock with patients, fulfil home-delivery orders, WhatsApp bill on dispatch.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <div class="card-pharma kpi-card px-3 py-2 text-center">
+        <div class="fw-bold fs-5">{{ counts()['Placed'] || 0 }}</div>
+        <div class="small text-muted">New orders</div>
+      </div>
+      <div class="card-pharma kpi-card px-3 py-2 text-center">
+        <div class="fw-bold fs-5">{{ counts()['Ready'] || 0 }}</div>
+        <div class="small text-muted">Ready</div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills gap-2 mb-3 flex-wrap">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'orders'" (click)="setTab('orders')">
+        Orders
+        @if (counts()['Placed']) {
+          <span class="badge text-bg-danger ms-1">{{ counts()['Placed'] }}</span>
+        }
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'send'" (click)="setTab('send')">
+        Share stock catalogue
+      </button>
+    </li>
+  </ul>
+
+  @if (message()) {
+    <div class="alert alert-success py-2">{{ message() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  @if (tab() === 'send') {
+    <div class="card card-pharma">
+      <div class="card-body">
+        <h2 class="h5">Send WhatsApp stock link</h2>
+        <p class="small text-muted">Search Customer Master or enter a new patient mobile (10 digits).</p>
+
+        <div class="btn-group mb-3 flex-wrap">
+          <button type="button" class="btn btn-sm" [class.btn-pharma]="sharePatientMode() === 'existing'"
+            [class.btn-outline-secondary]="sharePatientMode() !== 'existing'" (click)="setShareMode('existing')">
+            Existing patient
+          </button>
+          <button type="button" class="btn btn-sm" [class.btn-pharma]="sharePatientMode() === 'new'"
+            [class.btn-outline-secondary]="sharePatientMode() !== 'new'" (click)="setShareMode('new')">
+            New customer
+          </button>
+        </div>
+
+        @if (sharePatientMode() === 'existing') {
+          <div class="row g-2 align-items-start mb-3">
+            <div class="col-12 col-md-8 position-relative">
+              <input type="text" class="form-control" [(ngModel)]="customerQ" (ngModelChange)="onCustomerQChange()"
+                placeholder="Type name or mobile (min 2 chars)" data-no-barcode="1" />
+              @if (searchingCustomers()) {
+                <div class="small text-muted mt-1">Searching…</div>
+              }
+              @if (!searchingCustomers() && customers().length) {
+                <ul class="list-group agt-suggest mt-1">
+                  @for (c of customers(); track c.c_no) {
+                    <li class="list-group-item list-group-item-action" (mousedown)="pickCustomer(c)">
+                      <strong>{{ c.c_name }}</strong>
+                      <span class="text-muted ms-2">{{ c.c_cont }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="button" class="btn btn-outline-secondary w-100" (click)="searchCustomers()">Search</button>
+            </div>
+          </div>
+        } @else {
+          <div class="row g-2 mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label small">Name</label>
+              <input class="form-control" [(ngModel)]="newPatientName" data-no-barcode="1" />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small">Mobile</label>
+              <input class="form-control" [(ngModel)]="newPatientContact" data-no-barcode="1" />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small">Address</label>
+              <input class="form-control" [(ngModel)]="newPatientAddress" data-no-barcode="1" />
+            </div>
+          </div>
+        }
+
+        @if (sharePatientMode() === 'existing' && selectedCustomer(); as c) {
+          <div class="agt-selected-patient mb-3">
+            <span class="agt-selected-patient__avatar">{{ (c.c_name || 'P').charAt(0) }}</span>
+            <div>
+              <strong>{{ c.c_name }}</strong>
+              @if (c.c_cont) { <span class="text-muted"> · {{ c.c_cont }}</span> }
+              @if (c.c_add) { <div class="small text-muted">{{ c.c_add }}</div> }
+            </div>
+          </div>
+        }
+
+        <div class="d-flex flex-wrap gap-2">
+          @if (canEditAgt()) {
+            <button type="button" class="btn btn-pharma" [disabled]="sending()" (click)="sendStockLink()">
+              @if (sending()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Send on WhatsApp
+            </button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="sending()" (click)="createLinkOnly()">
+              Link only
+            </button>
+          }
+          <button type="button" class="btn btn-outline-secondary" [disabled]="!lastShopUrl()" (click)="copyShopLink()">
+            <i class="bi bi-clipboard me-1"></i>{{ copyDone() ? 'Copied!' : 'Copy link' }}
+          </button>
+        </div>
+        @if (!canEditAgt() && canViewAgt()) {
+          <p class="small text-muted mt-2 mb-0">View only — enable Edit on AuraGharTak in User Rights to share links or update orders.</p>
+        }
+      </div>
+    </div>
+  }
+
+  @if (tab() === 'orders') {
+    <div class="card card-pharma agt-policy-card mb-3">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="agt-policy-card__text">
+            <span class="fw-semibold small"><i class="bi bi-sliders me-1"></i>Customer order cancellation</span>
+            <p class="small text-muted mb-0">
+              One setting for your shop — not per product. When enabled, patients see they can cancel a <strong>new</strong> order from their shop link before you bill it.
+            </p>
+          </div>
+          @if (canEditAgt()) {
+            <div class="btn-group btn-group-sm agt-policy-card__toggle" role="group">
+              <button type="button" class="btn"
+                [class.btn-pharma]="!allowCustomerCancel()"
+                [class.btn-outline-secondary]="allowCustomerCancel()"
+                [disabled]="settingsLoading() || settingsSaving()"
+                (click)="saveCustomerCancelPolicy(false)">No</button>
+              <button type="button" class="btn"
+                [class.btn-pharma]="allowCustomerCancel()"
+                [class.btn-outline-secondary]="!allowCustomerCancel()"
+                [disabled]="settingsLoading() || settingsSaving()"
+                (click)="saveCustomerCancelPolicy(true)">Yes</button>
+            </div>
+          } @else {
+            <span class="badge" [class.text-bg-success]="allowCustomerCancel()" [class.text-bg-secondary]="!allowCustomerCancel()">
+              {{ allowCustomerCancel() ? 'Yes — patients can cancel new orders' : 'No — call pharmacy only' }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-1 mb-2 align-items-center">
+      @for (st of statusTabs; track st) {
+        <button type="button" class="btn btn-sm" [class.btn-pharma]="statusFilter() === st"
+          [class.btn-outline-secondary]="statusFilter() !== st"
+          (click)="statusFilter.set(st); loadOrders()">{{ st }}</button>
+      }
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" (click)="loadOrders()" title="Refresh">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+
+    <div class="card card-pharma">
+      <div class="table-responsive">
+        @if (loadingOrders()) {
+          <div class="p-4 text-center text-muted"><span class="spinner-border spinner-border-sm"></span> Loading…</div>
+        } @else if (!orders().length) {
+          <div class="p-4 text-center text-muted">No orders in this status.</div>
+        } @else {
+          <table class="table table-hover mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Patient</th>
+                <th>Status</th>
+                <th class="text-end">Est.</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of orders(); track o.id) {
+                <tr role="button" (click)="openOrder(o)">
+                  <td class="fw-semibold">
+                    {{ o.order_no }}
+                    @if (o.sale_invoice_no) {
+                      <div class="small text-muted fw-normal">Bill: {{ o.sale_invoice_no }}
+                        @if (o.sale_net != null) { · ₹{{ o.sale_net | number:'1.2-2' }} }
+                      </div>
+                    }
+                  </td>
+                  <td>{{ o.patient_name }}<br /><span class="small text-muted">{{ o.patient_contact }}</span></td>
+                  <td><span class="badge" [ngClass]="statusClass(o.status)">{{ o.status }}</span></td>
+                  <td class="text-end">
+                    ₹{{ o.estimated_total | number:'1.2-2' }}
+                    @if (o.item_count) {
+                      <div class="small text-muted">{{ o.item_count }} item(s)</div>
+                    }
+                  </td>
+                  <td class="small text-muted">{{ o.entry_date }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </div>
+  }
+
+  @if (selectedOrder(); as o) {
+    <div class="agt-drawer-backdrop" (click)="closeOrder()"></div>
+    <div class="agt-drawer card-pharma">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <h2 class="h5 mb-0">{{ o.order_no }}</h2>
+          <span class="badge" [ngClass]="statusClass(o.status)">{{ o.status }}</span>
+        </div>
+        <button type="button" class="btn-close" (click)="closeOrder()"></button>
+      </div>
+      <p class="small mb-1"><strong>{{ o.patient_name }}</strong> · {{ o.patient_contact }}</p>
+      @if (o.patient_address) {
+        <p class="small text-muted">{{ o.patient_address }}</p>
+      }
+      @if (o.patient_note) {
+        <p class="small">Note: {{ o.patient_note }}</p>
+      }
+      @if (o.prescription_url) {
+        <div class="agt-drawer-rx mb-3">
+          <div class="small fw-bold text-uppercase text-muted mb-1">Patient prescription</div>
+          <a [href]="o.prescription_url" target="_blank" rel="noopener">
+            @if (isPrescriptionPdf(o.prescription_url)) {
+              <span class="agt-drawer-rx__pdf"><i class="bi bi-file-earmark-pdf"></i> Open PDF prescription</span>
+            } @else {
+              <img [src]="o.prescription_url" alt="Prescription" class="agt-drawer-rx__img" />
+            }
+          </a>
+        </div>
+      }
+
+      <div class="table-responsive mb-3">
+        <table class="table table-sm">
+          <thead><tr><th>Product</th><th>Batch</th><th class="text-end">Qty</th><th class="text-end">MRP</th><th class="text-end">Total</th></tr></thead>
+          <tbody>
+            @for (it of o.items ?? []; track it.id) {
+              <tr>
+                <td>{{ it.product_name || it.p_name }}</td>
+                <td>{{ it.batch_no }}</td>
+                <td class="text-end">{{ it.qty }}</td>
+                <td class="text-end">{{ it.unit_mrp | number:'1.2-2' }}</td>
+                <td class="text-end">{{ it.line_total | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="fw-bold mb-3">Estimated ₹{{ o.estimated_total | number:'1.2-2' }}</p>
+
+      <div class="agt-rider-box mb-3">
+        <div class="small fw-bold text-uppercase text-muted mb-1">
+          <i class="bi bi-bicycle me-1"></i>Delivery rider
+          @if (o.tracking_active) {
+            <span class="badge text-bg-success ms-1"><i class="bi bi-broadcast me-1"></i>Live</span>
+          }
+        </div>
+        @if (o.rider_name) {
+          <p class="small mb-2">{{ o.rider_name }}@if (o.rider_phone) { · {{ o.rider_phone }} }</p>
+        } @else {
+          <p class="small text-muted mb-2">Not assigned.</p>
+        }
+        @if (canAssignRider(o)) {
+          @if (riders().length) {
+            <div class="d-flex flex-wrap gap-2">
+              <select class="form-select form-select-sm agt-rider-select" [(ngModel)]="riderChoice">
+                <option [ngValue]="0">— No rider —</option>
+                @for (r of riders(); track r.id) {
+                  <option [ngValue]="r.id">{{ r.name }}@if (r.phone) { ({{ r.phone }}) }</option>
+                }
+              </select>
+              <button type="button" class="btn btn-sm btn-pharma" [disabled]="assigningRider()" (click)="saveRider()">
+                @if (assigningRider()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                Save rider
+              </button>
+            </div>
+          } @else {
+            <p class="small text-muted mb-0">
+              No delivery staff yet. Add a user with role <strong>Delivery staff</strong> in My Profile → User Rights.
+            </p>
+          }
+        }
+      </div>
+      @if (o.status === 'Placed') {
+        <p class="small text-muted mb-2">Click <strong>Do Sale</strong> to open Sales with this patient and order ready to add.</p>
+      }
+
+      @if (canEditAgt()) {
+        <div class="d-flex flex-wrap gap-2">
+          @if (o.status === 'Placed') {
+            <button type="button" class="btn btn-pharma" (click)="doSale()"><i class="bi bi-cart3 me-1"></i>Do sale</button>
+          }
+          @if (o.status === 'Ready') {
+            <button type="button" class="btn btn-pharma" (click)="updateStatus('Out for Delivery')">
+              <i class="bi bi-whatsapp me-1"></i>Out for delivery
+            </button>
+            <button type="button" class="btn btn-outline-primary" (click)="updateStatus('Out for Delivery', false)">
+              <i class="bi bi-truck me-1"></i>Out for delivery (no WhatsApp)
+            </button>
+          }
+          @if (o.status === 'Out for Delivery' || o.status === 'Ready') {
+            <button type="button" class="btn btn-outline-success" (click)="updateStatus('Delivered')">Mark delivered</button>
+          }
+          @if (o.status === 'Placed') {
+            <button type="button" class="btn btn-outline-danger" (click)="updateStatus('Cancelled')">Cancel</button>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @if (showSharePopup()) {
+    <div class="agt-drawer-backdrop" (click)="closeSharePopup()"></div>
+    <div class="agt-modal card-pharma p-3">
+      <h3 class="h6">Link for {{ sharePopupPatient() }}</h3>
+      @if (whatsappSent()) {
+        <p class="small text-success">
+          Link shared with {{ sharePopupPatient() }}
+          @if (lastContact()) { on WhatsApp ({{ lastContact() }}). }
+        </p>
+      } @else {
+        <p class="small text-warning">
+          Link created for {{ sharePopupPatient() }} — WhatsApp was not sent. Copy and share manually.
+        </p>
+      }
+      <input class="form-control form-control-sm mb-2" readonly [value]="lastShopUrl()" />
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-pharma" (click)="copyShopLink()">Copy link</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeSharePopup()">Close</button>
+      </div>
+    </div>
+  }
+</div>

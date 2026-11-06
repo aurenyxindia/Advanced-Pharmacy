@@ -53,7 +53,7 @@
                 <td>{{ row.phone || '-' }}</td>
                 <td>{{ row.product_name || '-' }}</td>
                 <td>
-                  {{ row.refill_date | date: 'dd MMM yyyy' }}
+                  {{ row.refill_date | date: 'dd-MM-yyyy' }}
                   @if (isOverdue(row)) { <span class="badge text-bg-danger ms-1">overdue</span> }
                 </td>
                 <td><span class="badge" [ngClass]="statusClass(row.status)">{{ row.status }}</span></td>
@@ -76,7 +76,7 @@
   @if (modalOpen()) {
     <div class="modal-backdrop-custom" (click)="modalOpen.set(false)"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border">
         <div class="modal-head">
           <h5 class="mb-0 fw-semibold">New Refill Reminder</h5>
           <button class="btn-close" (click)="modalOpen.set(false)"></button>

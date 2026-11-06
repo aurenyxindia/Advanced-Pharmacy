@@ -1,0 +1,83 @@
+:host {
+  display: block;
+
+  .card-pharma,
+  .rn-entry-card,
+  .rn-entry-form,
+  .row,
+  [class^='col-'] {
+    overflow: visible !important;
+  }
+}
+
+.return-note-page {
+  .rn-search {
+    position: relative;
+    max-width: 320px;
+    i {
+      position: absolute;
+      left: 0.65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+    input { padding-left: 2rem; }
+  }
+}
+
+.rn-entry-card {
+  position: relative;
+  &.rn-menu-open {
+    z-index: 40;
+  }
+}
+
+.rn-entry-form {
+  position: relative;
+  z-index: 5;
+}
+
+.rn-combo {
+  position: relative;
+  z-index: 1;
+  &.open { z-index: 50; }
+}
+
+.rn-combo-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  z-index: 60;
+  min-width: 16rem;
+  max-height: 240px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.45rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.rn-combo-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.8rem;
+  &:hover { background: #f0fdfa; color: #0f766e; }
+}
+
+.rn-combo-empty {
+  padding: 0.65rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .rn-search { max-width: none; width: 100%; }
+  .rn-combo-menu { min-width: 100%; }
+}

@@ -73,34 +73,71 @@
     @if (transferError()) { <div class="alert alert-danger py-2">{{ transferError() }}</div> }
     <div class="row g-3">
       <div class="col-lg-7">
-        <div class="card-pharma p-3 mb-3">
+        <div class="card-pharma transfer-card p-3 mb-3">
           <div class="row g-2 mb-3">
             <div class="col-md-6">
               <label class="form-label small">From Branch</label>
-              <select class="form-select" [ngModel]="fromBranch()" (ngModelChange)="fromBranch.set(+$event)">
+              <select class="form-select" [ngModel]="fromBranch()" (ngModelChange)="onFromBranchChange(+$event || null)">
                 <option [ngValue]="null">-- Select --</option>
                 @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
               </select>
             </div>
             <div class="col-md-6">
               <label class="form-label small">To Branch</label>
-              <select class="form-select" [ngModel]="toBranch()" (ngModelChange)="toBranch.set(+$event)">
+              <select class="form-select" [ngModel]="toBranch()" (ngModelChange)="toBranch.set(+$event || null)">
                 <option [ngValue]="null">-- Select --</option>
                 @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
               </select>
             </div>
           </div>
 
-          <label class="form-label small">Add Product</label>
-          <div class="position-relative mb-2">
-            <input class="form-control" placeholder="Search products..." [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" />
-            @if (searchResults().length) {
-              <div class="search-dropdown shadow-pharma-lg">
-                @for (p of searchResults(); track p.binding_id) {
-                  <button type="button" class="search-item" (click)="addLine(p)">
-                    {{ p.product_name }} <span class="text-secondary small">(stock {{ p.available_qty }})</span>
-                  </button>
+          <label class="form-label small">Add Product <span class="text-secondary fw-normal">(stock from From Branch)</span></label>
+          <div class="combo product-combo mb-2" [class.open]="showProductDropdown()">
+            <button type="button" class="combo-trigger form-control text-start"
+              (mousedown)="$event.stopPropagation()"
+              (click)="openProductDropdown($event)"
+              [disabled]="!fromBranch()">
+              <span class="combo-value" [class.placeholder]="true">
+                @if (!fromBranch()) {
+                  Select From Branch first…
+                } @else if (stockLoading()) {
+                  Loading stock…
+                } @else {
+                  Select product with stock…
                 }
+              </span>
+              <span class="combo-actions"><i class="bi bi-chevron-down"></i></span>
+            </button>
+            @if (showProductDropdown() && fromBranch()) {
+              <div class="combo-panel shadow-pharma-lg" (click)="$event.stopPropagation()">
+                <div class="combo-search">
+                  <i class="bi bi-search"></i>
+                  <input class="form-control form-control-sm" placeholder="Search product…"
+                    [ngModel]="productQuery()" (ngModelChange)="onProductQuery($event)"
+                    (click)="$event.stopPropagation()" autofocus />
+                </div>
+                <div class="combo-list">
+                  @for (p of filteredFromStock(); track p.binding_id) {
+                    <button type="button" class="combo-item" (mousedown)="addLine(p)">
+                      <span class="fw-semibold">{{ p.product_name }}</span>
+                      <span class="text-secondary small">
+                        @if (p.manufacturer_short) { {{ p.manufacturer_short }} · }
+                        @if (p.pack_size) { {{ p.pack_size }} · }
+                        Stock <b>{{ p.available_qty }}</b>
+                      </span>
+                    </button>
+                  } @empty {
+                    <div class="combo-empty">
+                      @if (stockLoading()) {
+                        Loading…
+                      } @else if (productQuery().trim()) {
+                        No products match
+                      } @else {
+                        No stock available in this branch
+                      }
+                    </div>
+                  }
+                </div>
               </div>
             }
           </div>
@@ -132,21 +169,86 @@
           <div class="p-3 border-bottom fw-semibold">Recent Transfers</div>
           <div class="table-responsive">
             <table class="table table-sm mb-0">
-              <thead><tr><th>No</th><th>Date</th><th class="text-end">Items</th><th class="text-end">Value</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>No</th><th>Date</th>
+                  <th class="text-end">Items</th><th class="text-end">Value</th>
+                  <th class="text-center">Log</th>
+                </tr>
+              </thead>
               <tbody>
                 @for (t of transfers(); track t['id']) {
                   <tr>
                     <td>{{ t['transfer_no'] }}</td>
-                    <td>{{ t['transfer_date'] }}</td>
+                    <td>{{ $any(t['transfer_date']) | date: 'dd-MM-yyyy' }}</td>
                     <td class="text-end">{{ t['item_count'] }}</td>
-                    <td class="text-end">{{ +(t['total_value'] || 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                    <td class="text-end">{{ asNum(t['total_value']) | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                    <td class="text-center text-nowrap">
+                      <button type="button" class="btn btn-sm btn-outline-success" title="View transfer log"
+                        (click)="openTransferLog(asNum(t['id']))">
+                        <i class="bi bi-eye"></i> View
+                      </button>
+                    </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="4" class="text-center text-secondary py-4">No transfers yet.</td></tr>
+                  <tr><td colspan="5" class="text-center text-secondary py-4">No transfers yet.</td></tr>
                 }
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (logOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeTransferLog()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold">Transfer Log</h5>
+          <button type="button" class="btn-close" (click)="closeTransferLog()"></button>
+        </div>
+        <div class="modal-body-custom">
+          @if (logLoading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          } @else if (logRow(); as t) {
+            <div class="row g-2 mb-3 small">
+              <div class="col-md-4"><span class="text-secondary">Transfer No</span><div class="fw-semibold">{{ t['transfer_no'] }}</div></div>
+              <div class="col-md-4"><span class="text-secondary">Date</span><div class="fw-semibold">{{ $any(t['transfer_date']) | date: 'dd-MM-yyyy' }}</div></div>
+              <div class="col-md-4"><span class="text-secondary">Value</span><div class="fw-semibold">{{ +(t['total_value'] || 0) | currency: 'INR' : 'symbol' : '1.2-2' }}</div></div>
+              <div class="col-md-6"><span class="text-secondary">From</span><div class="fw-semibold">{{ branchLabel(t['from_branch_id']) }}</div></div>
+              <div class="col-md-6"><span class="text-secondary">To</span><div class="fw-semibold">{{ branchLabel(t['to_branch_id']) }}</div></div>
+              @if (t['notes']) {
+                <div class="col-12"><span class="text-secondary">Notes</span><div>{{ t['notes'] }}</div></div>
+              }
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Product</th><th>Batch</th>
+                    <th class="text-end">Qty</th>
+                    <th class="text-end">Cost/Unit</th>
+                    <th class="text-end">Line Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (it of logItems(t); track it['id']) {
+                    <tr>
+                      <td class="fw-semibold">{{ it['product_name'] }}</td>
+                      <td>{{ it['batch_no'] || '-' }}</td>
+                      <td class="text-end">{{ it['quantity'] }}</td>
+                      <td class="text-end">{{ +(it['cost_per_unit'] || 0) | number: '1.2-4' }}</td>
+                      <td class="text-end fw-semibold">{{ +(it['line_value'] || 0) | number: '1.2-2' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="5" class="text-center text-secondary py-3">No line items.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
         </div>
       </div>
     </div>

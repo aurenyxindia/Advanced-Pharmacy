@@ -1,0 +1,298 @@
+<div class="sale-bill-edit">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Edit sale bill</h4>
+      <p class="text-secondary mb-0 small">
+        Change payment mode, quantities and line discounts
+        @if (isWholesale()) {
+          (Wholesale — GST exclusive)
+        } @else {
+          (Retail — GST inclusive)
+        }
+      </p>
+    </div>
+    <a routerLink="/app/sales" class="btn btn-outline-secondary btn-sm">Back to sales log</a>
+  </div>
+
+    @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="card-pharma p-4 text-center">
+      <span class="spinner-border text-pharma"></span>
+      <p class="text-secondary mt-2 mb-0">Loading bill…</p>
+    </div>
+  } @else if (header(); as h) {
+    @if (h['bill_mode'] === 'retail' || h['bill_mode'] === 'wholesale') {
+    <div class="card-pharma mb-3">
+      <div class="card-body p-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Add product</label>
+        <div class="row g-2 align-items-start">
+          <div class="col-12 col-lg-8">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Search product name or molecule…"
+                [ngModel]="searchTerm()"
+                (ngModelChange)="onSearchInput($event)"
+              />
+            </div>
+            @if (searching()) {
+              <div class="small text-secondary mt-1">Searching…</div>
+            }
+            @if (searchResults().length) {
+              <ul class="list-group list-group-flush search-hits mt-1">
+                @for (p of searchResults(); track p.binding_id) {
+                  <li class="list-group-item list-group-item-action py-2 small" (click)="pickProduct(p)">
+                    <span class="fw-semibold">{{ p.product_name }}</span>
+                    @if (p.manufacturer_short) {
+                      <span class="text-secondary"> · {{ p.manufacturer_short }}</span>
+                    }
+                    <span class="text-secondary"> · Stock {{ p.available_qty }}</span>
+                  </li>
+                }
+              </ul>
+            }
+            @if (batchPick(); as bp) {
+              <div class="batch-pick mt-2 p-2 border rounded">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="small fw-semibold">Select batch for {{ bp.product.product_name }}</span>
+                  <button type="button" class="btn btn-sm btn-link text-secondary py-0" (click)="cancelBatchPick()">Cancel</button>
+                </div>
+                <ul class="list-group list-group-flush search-hits mb-0">
+                  @for (b of bp.batches; track b.batch_id) {
+                    <li
+                      class="list-group-item list-group-item-action py-2 small"
+                      [class.disabled]="batchPickAvail(b) <= 0"
+                      (click)="batchPickAvail(b) > 0 && pickBatch(b)"
+                    >
+                      <span class="fw-semibold">{{ b.batch_no }}</span>
+                      <span class="text-secondary"> · Exp {{ expLabel(b.expiry_date) }}</span>
+                      <span class="text-secondary"> · MRP {{ b.pack_mrp || b.unit_mrp | number: '1.2-2' }}</span>
+                      <span class="text-secondary"> · Avail {{ batchPickAvail(b) | number: '1.0-2' }}</span>
+                      @if (lines().some(l => l.batch_id === b.batch_id)) {
+                        <span class="badge text-bg-secondary ms-1">On bill · +1 qty</span>
+                      } @else {
+                        <span class="badge text-bg-success ms-1">New line</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+      <div class="card-pharma mb-3 overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0 bill-meta-table">
+            <thead class="table-light">
+              <tr>
+                <th>Bill no</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Doctor</th>
+                <th>Pay mode</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ h['invoice_no'] }}</td>
+                <td>{{ $any(h['invoice_date']) | date: 'dd-MM-yyyy' }}</td>
+                <td>{{ h['patient_name'] || h['customer_name'] || '—' }}</td>
+                <td>{{ h['contact_no'] || '—' }}</td>
+                <td>{{ h['email'] || '—' }}</td>
+                <td>{{ h['doctor_name'] || '—' }}</td>
+                <td class="pay-mode-cell">
+                  <select
+                    class="form-select form-select-sm"
+                    [ngModel]="paymentMode()"
+                    (ngModelChange)="onPaymentModeChange($event)"
+                  >
+                    @for (m of paymentModes; track m) {
+                      <option [value]="m">{{ m }}</option>
+                    }
+                  </select>
+                  @if (paymentMode() === 'Card') {
+                    <select
+                      class="form-select form-select-sm mt-1"
+                      [ngModel]="accountId()"
+                      (ngModelChange)="accountId.set($event ? +$event : null)"
+                    >
+                      <option [ngValue]="null">Select bank account…</option>
+                      @for (a of accounts(); track a.id) {
+                        <option [ngValue]="a.id">{{ a.name }}@if (a.bank_name) { · {{ a.bank_name }} }</option>
+                      }
+                    </select>
+                  }
+                  @if (paymentMode() === 'Cash+UPI') {
+                    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end mt-1"
+                      placeholder="Cash amount" title="Cash amount"
+                      [ngModel]="cashAmount()" (ngModelChange)="cashAmount.set($event === '' || $event == null ? null : +$event)" />
+                    <div class="tiny text-secondary mt-1">
+                      UPI ₹{{ (totals().net - (cashAmount() || 0)) > 0 ? (totals().net - (cashAmount() || 0) | number: '1.2-2') : '0.00' }}
+                    </div>
+                  }
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card-pharma mb-3">
+        <div class="table-responsive product-grid-scroll">
+          <table class="table table-sm table-bordered align-middle mb-0 edit-lines-table">
+            <thead class="table-light">
+              <tr>
+                <th>Product</th>
+                <th class="col-qty">Qty <span class="text-secondary fw-normal">(max/batch)</span></th>
+                <th class="col-disc">Disc%</th>
+                <th>Batch</th>
+                <th>Exp</th>
+                <th>Category</th>
+                <th>Pack</th>
+                <th>{{ isWholesale() ? 'Rate' : 'MRP' }}</th>
+                <th>Taxable</th>
+                <th>Discount</th>
+                @if (showProfit()) {
+                  <th>Profit</th>
+                }
+                <th>GST%</th>
+                <th>GST amt</th>
+                <th>Net</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of lines(); track $index; let i = $index) {
+                <tr>
+                  <td class="text-start product-name-cell">{{ line.product_name }}</td>
+                  <td>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      [ngModel]="line.qty"
+                      (ngModelChange)="onQtyChange(i, $event)"
+                      min="0"
+                      [max]="line.max_qty"
+                      step="0.01"
+                    />
+                    <div class="tiny text-secondary">max {{ line.max_qty | number: '1.0-2' }}</div>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      [ngModel]="line.disc"
+                      (ngModelChange)="onDiscPctChange(i, $event)"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </td>
+                  <td>{{ line.batch_no }}</td>
+                  <td>{{ expLabel(line.expiry) }}</td>
+                  <td [style.background-color]="scheduleBg(line.category)">{{ line.category }}</td>
+                  <td>{{ line.pack || '—' }}</td>
+                  <td>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm text-end"
+                      [ngModel]="line.rate"
+                      (ngModelChange)="onRateChange(i, $event)"
+                      min="0"
+                      step="0.01"
+                      [title]="isWholesale() ? 'Sale rate (pack)' : 'MRP / sell rate'"
+                    />
+                  </td>
+                  <td>{{ line.taxable | number: '1.2-2' }}</td>
+                  <td>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      [ngModel]="line.disc_amt"
+                      (ngModelChange)="onDiscAmtChange(i, $event)"
+                      min="0"
+                      step="0.01"
+                    />
+                  </td>
+                  @if (showProfit()) {
+                    <td>{{ line.profit | number: '1.2-2' }}</td>
+                  }
+                  <td>{{ line.gst_rate }}</td>
+                  <td>{{ line.tax | number: '1.2-2' }}</td>
+                  <td>{{ line.net | number: '1.2-2' }}</td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeLine(i)" title="Remove line">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+              @if (lines().length === 0) {
+                <tr>
+                  <td [attr.colspan]="showProfit() ? 15 : 14" class="text-center text-secondary py-4">No products on bill</td>
+                </tr>
+              }
+            </tbody>
+            @if (lines().length) {
+              <tfoot class="table-light fw-semibold">
+                <tr>
+                  <td colspan="8" class="text-end">Total</td>
+                  <td>{{ totals().taxable | number: '1.2-2' }}</td>
+                  <td>{{ totals().discount | number: '1.2-2' }}</td>
+                  @if (showProfit()) {
+                    <td>{{ totals().profit | number: '1.2-2' }}</td>
+                  }
+                  <td></td>
+                  <td>{{ totals().tax | number: '1.2-2' }}</td>
+                  <td>{{ totals().itemsNet | number: '1.2-2' }}</td>
+                  <td></td>
+                </tr>
+                @if (totals().bulk > 0) {
+                  <tr>
+                    <td [attr.colspan]="showProfit() ? 13 : 12" class="text-end text-secondary">Bulk disc (unchanged)</td>
+                    <td class="text-danger">−{{ totals().bulk | number: '1.2-2' }}</td>
+                    <td></td>
+                  </tr>
+                }
+                @if (totals().roundOff !== 0) {
+                  <tr>
+                    <td [attr.colspan]="showProfit() ? 13 : 12" class="text-end text-secondary">Round off</td>
+                    <td>{{ totals().roundOff > 0 ? '+' : '' }}{{ totals().roundOff | number: '1.2-2' }}</td>
+                    <td></td>
+                  </tr>
+                }
+                @if (totals().bulk > 0 || totals().roundOff !== 0) {
+                  <tr>
+                    <td [attr.colspan]="showProfit() ? 13 : 12" class="text-end">Net payable</td>
+                    <td>{{ totals().net | number: '1.2-2' }}</td>
+                    <td></td>
+                  </tr>
+                }
+              </tfoot>
+            }
+          </table>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-pharma" [disabled]="saving()" (click)="save()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          Save changes
+        </button>
+        <a routerLink="/app/sales" class="btn btn-outline-secondary">Close</a>
+      </div>
+    }
+  }
+</div>

@@ -6,6 +6,7 @@ use App\Core\App;
 use App\Core\Router;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\CorsMiddleware;
+use App\Middleware\PartnerApiMiddleware;
 use App\Middleware\RoleMiddleware;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -14,9 +15,10 @@ $app = new App(dirname(__DIR__));
 
 // Register middleware aliases used in route definitions.
 $app->registerMiddleware([
-    'cors' => CorsMiddleware::class,
-    'auth' => AuthMiddleware::class,
-    'role' => RoleMiddleware::class,
+    'cors'    => CorsMiddleware::class,
+    'auth'    => AuthMiddleware::class,
+    'role'    => RoleMiddleware::class,
+    'partner' => PartnerApiMiddleware::class,
 ]);
 
 $router = $app->router();

@@ -74,7 +74,9 @@ final class App
                 return $this->callHandler($match['handler'], $req);
             });
         } catch (HttpException $e) {
-            $response = Response::error($e->getMessage(), $e->statusCode(), $e->errors());
+            // Apply CORS on errors thrown outside middleware so the browser can read the message
+            // (otherwise Angular shows "0 Unknown Error").
+            $response = $this->withCors($request, Response::error($e->getMessage(), $e->statusCode(), $e->errors()));
         } catch (Throwable $e) {
             Logger::error($e->getMessage(), [
                 'file'  => $e->getFile(),
@@ -82,14 +84,30 @@ final class App
                 'trace' => $e->getTraceAsString(),
             ]);
             $debug = (bool) Config::get('app.debug', false);
-            $response = Response::error(
+            $response = $this->withCors($request, Response::error(
                 $debug ? $e->getMessage() : 'Internal server error',
                 500,
                 $debug ? ['trace' => explode("\n", $e->getTraceAsString())] : []
-            );
+            ));
         }
 
         $response->send();
+    }
+
+    private function withCors(Request $request, Response $response): Response
+    {
+        $cors    = Config::get('app.cors', []);
+        $origin  = $request->header('origin');
+        $allowed = $cors['allowed_origins'] ?? [];
+        $allowOrigin = ($origin && in_array($origin, $allowed, true)) ? $origin : ($allowed[0] ?? '*');
+
+        return $response
+            ->withHeader('Access-Control-Allow-Origin', $allowOrigin)
+            ->withHeader('Access-Control-Allow-Methods', implode(', ', $cors['allowed_methods'] ?? []))
+            ->withHeader('Access-Control-Allow-Headers', implode(', ', $cors['allowed_headers'] ?? []))
+            ->withHeader('Access-Control-Allow-Credentials', 'true')
+            ->withHeader('Access-Control-Max-Age', (string) ($cors['max_age'] ?? 86400))
+            ->withHeader('Vary', 'Origin');
     }
 
     private function preflightResponse(Request $request): Response

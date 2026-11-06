@@ -9,6 +9,7 @@ use App\Core\HttpException;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\Prescription;
+use App\Support\UploadGuard;
 
 /**
  * Handles prescription image/PDF uploads (file picker or camera capture)
@@ -23,15 +24,14 @@ final class PrescriptionController extends Controller
             throw HttpException::validation(['file' => ['A prescription file is required.']]);
         }
 
-        $maxBytes = (int) config('app.upload.max_mb', 10) * 1024 * 1024;
+        $maxMb = (int) config('app.upload.max_mb', 50);
+        $maxBytes = $maxMb * 1024 * 1024;
         if (($file['size'] ?? 0) > $maxBytes) {
-            throw HttpException::validation(['file' => ['File exceeds the maximum allowed size.']]);
+            throw HttpException::validation(['file' => ["File exceeds the maximum allowed size of {$maxMb} MB."]]);
         }
 
         $allowed = config('app.upload.allowed_mimes', ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
+        $mime = UploadGuard::detectMime($file['tmp_name'], $file['type'] ?? null);
         if (!in_array($mime, $allowed, true)) {
             throw HttpException::validation(['file' => ['Only JPG, PNG, WEBP or PDF files are allowed.']]);
         }

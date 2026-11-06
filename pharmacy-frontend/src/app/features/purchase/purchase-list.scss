@@ -1,0 +1,141 @@
+:host { display: block; }
+
+/* Six KPIs — compact row; 3×2 until very wide screens. */
+.purchase-kpis {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (min-width: 576px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1600px) {
+    grid-template-columns: repeat(6, minmax(8rem, 1fr));
+  }
+
+  .kpi-card {
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.65rem;
+  }
+
+  .kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    font-size: 1rem;
+  }
+
+  .kpi-body {
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .kpi-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .kpi-value {
+    font-size: clamp(0.82rem, 1.2vw, 1rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-top: 0.1rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+  }
+}
+
+/* Soft sky CTA — sits between Import (outline) and New Purchase (teal). */
+.btn-inward-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.28);
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+
+  i {
+    font-size: 0.95em;
+    line-height: 1;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    filter: brightness(1.06);
+    box-shadow: 0 4px 14px rgba(3, 105, 161, 0.35);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    filter: brightness(0.98);
+  }
+}
+
+/* TSC TE 210 / TE 244 thermal label print — distinct from A4 barcodes. */
+.btn-label-barcode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #475569 0%, #0f172a 100%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    filter: brightness(1.08);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+  }
+}
+
+.purchase-log-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.modal-backdrop-custom {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1050;
+}
+.modal-custom {
+  position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 2rem 1rem; pointer-events: none; overflow-y: auto;
+}
+.modal-card {
+  width: min(1100px, 100%);
+  pointer-events: auto;
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; gap: 0.75rem; flex-wrap: wrap;
+}
+.modal-body-custom { padding: 1.25rem; }
+
+@media (max-width: 575.98px) {
+  .modal-custom { padding: 0.5rem; }
+}

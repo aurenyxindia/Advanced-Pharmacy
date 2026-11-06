@@ -19,14 +19,39 @@ export interface PublicProduct {
   mrp: number;
 }
 
+export interface OrderTrackingEvent {
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
 export interface OrderTracking {
+  mode?: 'detail' | 'list';
+  order_no: string;
+  customer_name: string;
+  phone?: string | null;
+  status: string;
+  total_estimate: number;
+  created_at: string;
+  cancellable?: boolean;
+  events: OrderTrackingEvent[];
+}
+
+export interface OrderListItem {
   order_no: string;
   customer_name: string;
   status: string;
   total_estimate: number;
   created_at: string;
-  events: { status: string; note: string | null; created_at: string }[];
 }
+
+export interface OrderTrackList {
+  mode: 'list';
+  phone: string;
+  orders: OrderListItem[];
+}
+
+export type TrackResult = OrderTracking | OrderTrackList;
 
 @Injectable({ providedIn: 'root' })
 export class PublicService {
@@ -46,8 +71,19 @@ export class PublicService {
     return this.http.post<ApiResponse<{ order_no: string; tracking_token: string; total_estimate: number }>>(`${this.base}/orders`, payload);
   }
 
-  track(value: string): Observable<OrderTracking> {
-    const params = new HttpParams().set('token', value).set('order_no', value);
-    return this.http.get<ApiResponse<OrderTracking>>(`${this.base}/orders/track`, { params }).pipe(map((r) => r.data));
+  /** Lookup by phone, order number, or tracking token. */
+  track(value: string, by: 'phone' | 'ref' = 'ref'): Observable<TrackResult> {
+    let params = new HttpParams();
+    const v = value.trim();
+    if (by === 'phone') {
+      params = params.set('phone', v);
+    } else {
+      params = params.set('token', v).set('order_no', v);
+    }
+    return this.http.get<ApiResponse<TrackResult>>(`${this.base}/orders/track`, { params }).pipe(map((r) => r.data));
+  }
+
+  cancelOrder(payload: { order_no?: string; token?: string; phone?: string }): Observable<ApiResponse<{ order_no: string; status: string }>> {
+    return this.http.post<ApiResponse<{ order_no: string; status: string }>>(`${this.base}/orders/cancel`, payload);
   }
 }

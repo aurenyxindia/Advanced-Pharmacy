@@ -1,12 +1,16 @@
 <div class="billing">
-  <!-- Title bar with mode switch -->
-  <div class="bill-titlebar" [class.ws]="isWholesale()">
-    <span class="title-text">{{ isWholesale() ? 'WHOLESALE / PCD SALES BILL' : 'RETAIL SALES BILL' }}</span>
-    @if (canSwitch()) {
-      <div class="mode-switch" [class.right]="isWholesale()">
+  <!-- Retail / Wholesale mode -->
+  <div class="bill-titlebar" [class.ws]="isWholesale()" [class.pos-compact]="posOverlay()">
+    @if (!posOverlay()) {
+      <span class="title-text">{{ isWholesale() ? 'WHOLESALE / PCD SALES BILL' : 'RETAIL SALES BILL' }}</span>
+    } @else {
+      <span class="title-text pos-mode-label">{{ isWholesale() ? 'Wholesale / PCD' : 'Retail billing' }}</span>
+    }
+    @if (canSwitch() && !isCashCounterActive()) {
+      <div class="mode-switch" [class.right]="isWholesale()" [class.pos-mode-switch]="posOverlay()">
         <span class="mode-slider"></span>
-        <button class="mode-opt" [class.active]="!isWholesale()" (click)="setMode('retail')"><i class="bi bi-person me-1"></i>Retail</button>
-        <button class="mode-opt" [class.active]="isWholesale()" (click)="setMode('wholesale')"><i class="bi bi-box-seam me-1"></i>Wholesale</button>
+        <button type="button" class="mode-opt" tabindex="-1" [class.active]="!isWholesale()" (click)="setMode('retail')"><i class="bi bi-person me-1"></i>Retail</button>
+        <button type="button" class="mode-opt" tabindex="-1" [class.active]="isWholesale()" (click)="setMode('wholesale')"><i class="bi bi-box-seam me-1"></i>Wholesale</button>
       </div>
     } @else {
       <span class="mode-fixed">{{ businessType() | titlecase }} only</span>
@@ -17,21 +21,30 @@
   <div class="counter-bar">
     <div class="counter-tabs">
       @for (c of counters(); track c) {
-        <button class="counter-tab"
+        <button class="counter-tab" tabindex="-1"
+          [attr.data-counter]="c"
           [class.active]="activeCounter() === c"
           [class.in-use]="counterInUse(c)"
           [class.idle]="!counterInUse(c)"
           (click)="switchCounter(c)"
-          [title]="c">
+          (keydown)="onCounterArrow($event, c)"
+          [title]="counterLabel(c) + ' · ' + (counterNet(c) | currency: 'INR' : 'symbol' : '1.2-2')">
           <i class="bi" [class.bi-person-fill]="counterInUse(c)" [class.bi-cart3]="!counterInUse(c)"></i>
           <span class="counter-name">{{ counterLabel(c) }}</span>
+          <span class="counter-net">{{ counterNet(c) | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
           @if (counterCount(c) > 0) { <span class="badge ms-1">{{ counterCount(c) }}</span> }
           @if (counters().length > 1) { <i class="bi bi-x close-counter" (click)="removeCounter(c, $event)" title="Remove counter"></i> }
         </button>
       }
-      <button class="counter-add" (click)="addCounter()" title="Add counter"><i class="bi bi-plus-lg"></i></button>
+      <button class="counter-add" tabindex="-1" (click)="addCounter()" title="Add counter"><i class="bi bi-plus-lg"></i></button>
     </div>
-    <button class="btn btn-danger btn-sm view-sales" (click)="viewSales()">VIEW SALES (ALT + Q)</button>
+    <div class="counter-bar-actions">
+      <button type="button" class="btn btn-outline-secondary btn-sm cash-day-btn" tabindex="-1"
+        (click)="openCashCounterDayReport()" title="Cash/Counter memos without patient name">
+        <i class="bi bi-journal-text me-1"></i>Cash/Counter Bill Day Report
+      </button>
+      <button class="btn btn-danger btn-sm view-sales" tabindex="-1" (click)="viewSales()">VIEW SALES (ALT + Q)</button>
+    </div>
   </div>
 
   @if (ipdAdmissionId()) {
@@ -55,200 +68,749 @@
       @if (done.is_locked) {
         <div class="alert alert-warning d-inline-flex align-items-center py-2"><i class="bi bi-lock-fill me-2"></i> Scheduled-drug bill — locked.</div>
       }
-      <div class="d-flex gap-2 justify-content-center mt-2">
-        <button class="btn btn-light border" (click)="printInvoice()"><i class="bi bi-printer me-1"></i> Print</button>
-        <button class="btn btn-pharma" (click)="newBill()"><i class="bi bi-plus-lg me-1"></i> Next Bill</button>
+      @if (done.whatsapp_message) {
+        <div class="alert py-2 mt-2 mb-0 d-inline-block"
+          [class.alert-success]="done.whatsapp_sent"
+          [class.alert-warning]="done.whatsapp_sent === false">
+          {{ done.whatsapp_message }}
+        </div>
+      }
+      <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap saved-bill-actions">
+        @if (canEditSavedBill()) {
+          <button type="button" class="btn btn-warning" (click)="openEditSavedBill(done.id)"><i class="bi bi-pencil-square me-1"></i> Edit Bill</button>
+        }
+        <button type="button" class="btn btn-dark" (click)="printInvoice()"><i class="bi bi-printer me-1"></i> Print Copy</button>
+        <button type="button" class="btn btn-secondary" (click)="printDual()"><i class="bi bi-files me-1"></i> Dual Print</button>
+        <button type="button" class="btn btn-outline-danger" data-bill-tab="close" (click)="newBill()">Close</button>
       </div>
     </div>
   } @else {
-
   <div class="bill-body">
     <!-- Left: product search + add -->
-    <div class="product-panel card-pharma">
-      <div class="panel-head">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="fw-semibold small"><i class="bi bi-search me-1"></i>ADD PRODUCT</span>
-          <span class="text-secondary tiny">&uarr;&darr; to move · Enter to add</span>
+    <aside class="product-panel">
+      <header class="pp-head">
+        <div class="pp-head-title">
+          <i class="bi bi-bag-plus-fill"></i>
+          <span>Add Product</span>
         </div>
-        <div class="input-group input-group-sm mb-2 scan-group">
-          <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-          <input class="form-control" placeholder="Scan barcode..." [ngModel]="scanCode()"
-            (ngModelChange)="scanCode.set($event)" (keyup.enter)="onScan()" />
+        @if (searchResults().length) {
+          <span class="pp-result-count">{{ searchResults().length }} found</span>
+        }
+        @if (isCashCounterActive()) {
+          <span class="pp-result-count text-muted" title="H1 / X / Restricted are sent to Counter 1–3. Schedule H stays on Cash Counter like a normal product.">H1 / X → Counter 1–3</span>
+        }
+      </header>
+
+      <details class="pp-mobile-fold" open>
+        <summary class="pp-mobile-fold-toggle" tabindex="-1">
+          <i class="bi bi-search"></i>
+          <span>Search &amp; add products</span>
+          <i class="bi bi-chevron-down pp-fold-chevron"></i>
+        </summary>
+        <div class="pp-mobile-fold-body">
+      <div class="pp-search-zone">
+        <div class="pp-search-field">
+          <i class="bi bi-search"></i>
+          <input
+            type="text"
+            data-bill-tab="add-product"
+            placeholder="Search by name or molecule…"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearch($event)"
+            (keydown)="onSearchKey($event)"
+            autofocus
+          />
+          @if (searchTerm()) {
+            <button type="button" class="pp-search-clear" (click)="clearSearch()" title="Clear search">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          }
         </div>
-        @if (scanError()) { <div class="text-danger tiny mb-1">{{ scanError() }}</div> }
-        <input class="form-control form-control-sm add-search" placeholder="Type product or molecule name..."
-          [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" (keydown)="onSearchKey($event)" autofocus />
-        <div class="d-flex align-items-center gap-2 mt-2">
-          <select class="form-select form-select-sm" [ngModel]="selectedGeneric()" (ngModelChange)="onGenericChange($event ? +$event : null)">
-            <option [ngValue]="null">Substitute search: pick a molecule…</option>
-            @for (g of generics(); track g.id) { <option [ngValue]="g.id">{{ g.name }}</option> }
-          </select>
-          @if (selectedGeneric()) { <button class="btn btn-sm btn-light border" (click)="clearGeneric()" title="Clear"><i class="bi bi-x-lg"></i></button> }
+        <div class="pp-scan-row">
+          <div class="pp-scan-field" [class.is-busy]="scanBusy()">
+            <i class="bi bi-upc-scan"></i>
+            <input
+              type="text"
+              class="pp-scan-input"
+              inputmode="none"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Barcode scan — adds to bill"
+              [ngModel]="scanCode()"
+              (ngModelChange)="onScanCodeChange($event)"
+              (keydown.enter)="$event.preventDefault(); onScan()"
+              [disabled]="scanBusy()"
+              readonly
+              tabindex="-1"
+              title="Scan with the label gun — works with cursor anywhere on this form"
+            />
+          </div>
+          <span class="pp-keys-hint"><kbd>Scan label</kbd> adds product (click outside fields first, or use the box)</span>
         </div>
-        @if (substituteMode()) {
-          <div class="sub-banner mt-2"><i class="bi bi-arrow-left-right me-1"></i> Showing substitutes (same molecule)</div>
+        @if (scanOk()) {
+          <div class="pp-scan-ok"><i class="bi bi-check-circle me-1"></i>Added {{ scanOk() }}</div>
+        }
+        @if (scanError()) {
+          <div class="pp-scan-error"><i class="bi bi-exclamation-circle me-1"></i>{{ scanError() }}</div>
         }
       </div>
-      <div class="product-list">
-        @for (p of searchResults(); track p.binding_id; let idx = $index) {
-          <button type="button" class="product-row" [class.hl]="idx === highlight()"
-            [class.oos]="p.available_qty <= 0" (click)="addProduct(p)" (mouseenter)="highlight.set(idx)">
-            <div class="pr-main">
-              <span class="pr-name">{{ p.product_name }} @if (p.manufacturer_short) { <span class="mfg-chip">{{ p.manufacturer_short }}</span> }</span>
-              <span class="badge sched-{{ p.schedule_category }}" [class.blink-red]="isAlertSchedule(p.schedule_category)" [title]="scheduleMeaning(p.schedule_category)">{{ p.schedule_category }}</span>
-            </div>
-            <div class="pr-sub">
-              <span class="text-secondary">{{ p.generic_name || '-' }}</span>
-              <span class="pr-stats">
-                <span class="me-2">&#8377;{{ p.mrp || 0 }}</span>
-                <span [class.text-danger]="p.available_qty <= 0">
-                  <i class="bi bi-box-seam"></i> {{ p.available_qty }}
-                </span>
-              </span>
-            </div>
-          </button>
-        } @empty {
-          <div class="text-center text-secondary small py-4">
-            @if (searching()) { <span class="spinner-border spinner-border-sm"></span> }
-            @else {
-              <div class="mb-2"><i class="bi bi-inbox fs-4 d-block mb-1"></i> No products found.</div>
-              @if (searchTerm().trim().length >= 2) {
-                <button class="btn btn-sm btn-outline-success" (click)="openQuickAdd()">
-                  <i class="bi bi-plus-circle me-1"></i> Add purchase for "{{ searchTerm() }}"
+
+      <details class="pp-generic-fold" [open]="!!selectedGeneric() || substituteMode() || !!genericSearch()">
+        <summary tabindex="-1">Substitute by generic molecule</summary>
+        <div class="pp-generic-body">
+          <div class="pp-generic-select" [class.open]="showGenericDropdown()">
+            <div class="input-group input-group-sm pp-generic-input">
+              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                [ngModel]="genericSearch()"
+                (ngModelChange)="onGenericSearchInput($event)"
+                (focus)="openGenericDropdown()"
+                (click)="openGenericDropdown()"
+                (blur)="onGenericBlur()"
+                (keydown)="onGenericSearchKey($event)"
+                placeholder="Search generic molecule…"
+                autocomplete="off"
+              />
+              @if (genericSearch() || selectedGeneric()) {
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  title="Clear"
+                  (mousedown)="clearGeneric(); $event.preventDefault()"
+                >
+                  <i class="bi bi-x-lg"></i>
                 </button>
               }
+            </div>
+            @if (showGenericDropdown()) {
+              <div class="pp-generic-drop">
+                @if (filteredGenerics().length > 0) {
+                  <ul>
+                    @for (g of filteredGenerics(); track g.id; let i = $index) {
+                      <li
+                        [class.active]="genericActiveIndex() === i"
+                        (mousedown)="selectGenericOption(g); $event.preventDefault()"
+                      >{{ g.name }}</li>
+                    }
+                  </ul>
+                } @else {
+                  <div class="pp-generic-empty">
+                    @if (genericSearch().trim()) {
+                      No generic found for “{{ genericSearch().trim() }}”
+                    } @else {
+                      No generics loaded
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          @if (selectedGeneric()) {
+            <button type="button" class="btn btn-link btn-sm pp-generic-clear" (click)="clearGeneric()">Clear filter</button>
+          }
+          @if (substituteMode()) {
+            <div class="pp-substitute-note"><i class="bi bi-arrow-left-right me-1"></i>Showing substitute products</div>
+          }
+        </div>
+      </details>
+        </div>
+      </details>
+
+      <div class="product-list">
+        @for (p of searchResults(); track p.binding_id; let idx = $index) {
+          @if (needsRestock(p)) {
+            <div
+              class="product-card product-card--restock"
+              [class.active]="idx === highlight()"
+              [class.out-of-stock]="p.available_qty <= 0 && !p.is_expired"
+              [class.is-expired]="!!p.is_expired"
+              (mouseenter)="highlight.set(idx)"
+              [title]="p.is_expired ? 'Expired — add new stock via purchase' : 'Out of stock — add stock via purchase'"
+            >
+              <div class="pc-main">
+                <div class="pc-name-row">
+                  <span class="pc-name">{{ p.product_name }}</span>
+                  @if (p.is_expired) {
+                    <span class="badge badge-expired">Expired</span>
+                  } @else {
+                    <span class="badge text-bg-warning">Out of stock</span>
+                    <span class="badge sched-{{ p.schedule_category }}" [class.blink-red]="isAlertSchedule(p.schedule_category)">{{ p.schedule_category }}</span>
+                  }
+                </div>
+                @if (p.manufacturer_short || p.generic_name) {
+                  <div class="pc-meta">
+                    @if (p.manufacturer_short) { <span>{{ p.manufacturer_short }}</span> }
+                    @if (p.manufacturer_short && p.generic_name) { <span class="pc-dot">·</span> }
+                    @if (p.generic_name) { <span class="pc-generic">{{ p.generic_name }}</span> }
+                  </div>
+                }
+                <button type="button" class="btn btn-sm btn-outline-secondary pc-restock-btn"
+                  (click)="openQuickAddForProduct(p, $event)">
+                  <i class="bi bi-plus-lg me-1"></i>Add via purchase
+                </button>
+              </div>
+              <div class="pc-stats">
+                <span class="pc-mrp" [title]="isWholesale() ? 'Strip MRP' : 'MRP'">&#8377;{{ sidebarProductMrp(p) | number: '1.2-2' }}@if (isWholesale()) { <span class="pc-unit-hint">/strip</span> }</span>
+                @if (p.is_expired) {
+                  <span class="pc-stock expired">{{ sidebarProductStockLabel(p) }}</span>
+                } @else {
+                  <span class="pc-stock zero">{{ sidebarProductStockLabel(p) }}</span>
+                }
+              </div>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="product-card"
+              [class.active]="idx === highlight()"
+              (click)="selectProduct(p)"
+              (mouseenter)="highlight.set(idx)"
+              [title]="p.generic_name || p.product_name"
+            >
+              <div class="pc-main">
+                <div class="pc-name-row">
+                  <span class="pc-name">{{ p.product_name }}</span>
+                  <span class="badge sched-{{ p.schedule_category }}" [class.blink-red]="isAlertSchedule(p.schedule_category)">{{ p.schedule_category }}</span>
+                </div>
+                @if (p.manufacturer_short || p.generic_name) {
+                  <div class="pc-meta">
+                    @if (p.manufacturer_short) { <span>{{ p.manufacturer_short }}</span> }
+                    @if (p.manufacturer_short && p.generic_name) { <span class="pc-dot">·</span> }
+                    @if (p.generic_name) { <span class="pc-generic">{{ p.generic_name }}</span> }
+                  </div>
+                }
+              </div>
+              <div class="pc-stats">
+                <span class="pc-mrp" [title]="isWholesale() ? 'Strip MRP' : 'MRP'">&#8377;{{ sidebarProductMrp(p) | number: '1.2-2' }}@if (isWholesale()) { <span class="pc-unit-hint">/strip</span> }</span>
+                <span class="pc-stock">{{ sidebarProductStockLabel(p) }}</span>
+              </div>
+            </button>
+          }
+        } @empty {
+          <div class="product-empty">
+            @if (searching()) {
+              <span class="spinner-border spinner-border-sm text-pharma"></span>
+              <span>Searching…</span>
+            } @else if (searchTerm().trim().length >= 2) {
+              <i class="bi bi-search"></i>
+              <span>No matching products</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" (click)="openQuickAdd()">
+                <i class="bi bi-plus-lg me-1"></i>Add via purchase
+              </button>
+            } @else {
+              <i class="bi bi-keyboard"></i>
+              <span>Type at least 2 characters to search</span>
+              <span class="pp-empty-tip">Or scan a barcode above</span>
             }
           </div>
         }
       </div>
-    </div>
+    </aside>
 
     <!-- Right: bill details + grid -->
     <div class="bill-main">
       @if (error()) { <div class="alert alert-danger py-2 mb-2">{{ error() }}</div> }
-
-      <div class="card-pharma p-3 mb-2 details-card" [class.ws-card]="isWholesale()">
-        <div class="section-label">
-          <i class="bi" [class.bi-person-vcard]="!isWholesale()" [class.bi-building]="isWholesale()"></i>
-          {{ isWholesale() ? 'WHOLESALE CUSTOMER & BILL DETAILS' : 'CUSTOMER & BILL DETAILS' }}
+      @if (billInfo()) {
+        <div class="alert alert-warning py-2 mb-2" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ billInfo() }}
         </div>
-        <div class="row g-2 fade-section">
-          <div class="col-6 col-md-2">
-            <label>Bill Date</label>
-            <input type="date" class="form-control form-control-sm" [ngModel]="bill().billDate" (ngModelChange)="set('billDate', $event)" />
-          </div>
+      }
 
-          <!-- WHOLESALE: customer dropdown + rate type + CD -->
+      <div class="card-pharma p-3 mb-2 details-card form-gradient-border" data-no-barcode="1"
+        [class.ws-card]="isWholesale()"
+        [class.details-card--collapsed]="customerDetailsHidden()"
+        [class.patient-dropdown-open]="showPatientDropdown() && patientSearchQuery().trim().length > 0 && isRegularSale()">
+        <div class="section-label section-label--with-toggle">
+          <span class="section-label__title">
+            <i class="bi" [class.bi-person-vcard]="!isWholesale()" [class.bi-building]="isWholesale()"></i>
+            {{ isWholesale() ? 'WHOLESALE CUSTOMER & BILL DETAILS' : 'CUSTOMER & BILL DETAILS' }}
+          </span>
+          @if (customerDetailsHidden()) {
+            <span class="section-label__summary">
+              Net <b>{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+              · Items <b>{{ bill().lines.length }}</b>
+            </span>
+          }
+          <button type="button" class="btn btn-sm btn-outline-secondary details-toggle-btn"
+            (click)="toggleCustomerDetails()"
+            [attr.aria-expanded]="!customerDetailsHidden()"
+            [title]="customerDetailsHidden() ? 'Show customer & bill details' : 'Hide customer & bill details'">
+            <i class="bi" [class.bi-eye]="customerDetailsHidden()" [class.bi-eye-slash]="!customerDetailsHidden()"></i>
+            {{ customerDetailsHidden() ? 'Show' : 'Hide' }}
+          </button>
+        </div>
+        @if (!customerDetailsHidden()) {
+        <div class="row g-2 fade-section bill-fields">
+          <!-- WHOLESALE: Bill Date → Customer → Rate → CD → Payment → Net/Items → Contact → Email → Address → Narration -->
           @if (isWholesale()) {
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-sm-4 col-lg-2">
+              <label>Bill Date <span class="req">*</span></label>
+              <input type="date" class="form-control form-control-sm" [ngModel]="bill().billDate" (ngModelChange)="set('billDate', $event)" />
+            </div>
+            <div class="col-12 col-sm-8 col-lg-4">
               <label>Customer Name <span class="req">*</span></label>
-              <select class="form-select form-select-sm" [ngModel]="bill().customerId" (ngModelChange)="onCustomerChange($event ? +$event : null)">
+              <select class="form-select form-select-sm"
+                [ngModel]="addingPatient() || wholesaleCustomerPopup() ? NEW_PATIENT : bill().customerId"
+                (ngModelChange)="onWholesaleCustomerSelect($event)">
                 <option [ngValue]="null">Select Customer</option>
-                @for (c of customers(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
+                <option [ngValue]="NEW_PATIENT">+ New wholesale customer…</option>
+                @for (c of wholesaleCustomers(); track c.id) {
+                  <option [ngValue]="c.id">{{ c.name }}{{ c.phone ? ' · ' + c.phone : '' }}</option>
+                }
+              </select>
+              @if (addingPatient()) {
+                <input class="form-control form-control-sm text-uppercase mt-1" placeholder="Enter customer name"
+                  [ngModel]="bill().patientName" (ngModelChange)="set('patientName', $event)" />
+                <div class="tiny text-secondary mt-1">Saves as Customer Type = Wholesale</div>
+              }
+            </div>
+            <div class="col-6 col-sm-4 col-lg-2">
+              <label>Payment Mode <span class="req">*</span></label>
+              <select class="form-select form-select-sm" [ngModel]="bill().paymentMode" (ngModelChange)="onPaymentModeChange($event)">
+                @for (m of paymentModes; track m) { <option [value]="m">{{ m }}</option> }
               </select>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-sm-4 col-lg-2">
               <label>Rate Type</label>
               <select class="form-select form-select-sm" [ngModel]="bill().rateType" (ngModelChange)="setRateType($event)">
-                @for (rt of rateTypes; track rt.value) { <option [value]="rt.value">{{ rt.label }}</option> }
+                @for (rt of (isWholesale() ? wholesaleRateTypes : rateTypes); track rt.value) {
+                  <option [value]="rt.value">{{ rt.label }}</option>
+                }
               </select>
             </div>
-            <div class="col-6 col-md-2">
-              <label>CD Disc %</label>
+            <div class="col-6 col-sm-4 col-lg-2">
+              <label>CD %</label>
               <input type="number" class="form-control form-control-sm" [ngModel]="bill().cdDiscPct" (ngModelChange)="set('cdDiscPct', +$event)" />
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-sm-4 col-lg-2">
+              <label>Contact</label>
+              <input class="form-control form-control-sm" type="tel" inputmode="numeric" maxlength="10"
+                placeholder="10-digit mobile"
+                [ngModel]="bill().contact" (ngModelChange)="set('contact', $event)"
+                [class.is-invalid]="!!contactError()" />
+              @if (contactError(); as err) {
+                <div class="invalid-feedback d-block">{{ err }}</div>
+              }
+            </div>
+            <div class="col-12 col-sm-8 col-lg-4">
               <label>Email</label>
-              <input class="form-control form-control-sm" placeholder="Email" [ngModel]="bill().email" (ngModelChange)="set('email', $event)" />
+              <input type="email" class="form-control form-control-sm" placeholder="name@example.com"
+                maxlength="120" autocomplete="email"
+                [ngModel]="bill().email" (ngModelChange)="set('email', $event)"
+                [class.is-invalid]="!!emailFieldError()" />
+              @if (emailFieldError(); as err) {
+                <div class="invalid-feedback d-block">{{ err }}</div>
+              }
+            </div>
+            <div class="col-12 col-lg-6">
+              <label>Address</label>
+              <input class="form-control form-control-sm text-uppercase" placeholder="Address"
+                maxlength="255" autocomplete="street-address"
+                [ngModel]="bill().address" (ngModelChange)="set('address', $event)"
+                [class.is-invalid]="!!addressFieldError()" />
+              @if (addressFieldError(); as err) {
+                <div class="invalid-feedback d-block">{{ err }}</div>
+              }
+            </div>
+            <div class="col-6 col-sm-4 col-lg-2">
+              <label>Net / Items</label>
+              <div class="ws-inline-box">
+                <div class="retail-live-totals">
+                  <span class="rtl-net">Net <b>{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
+                  <span class="rtl-item">Items <b>{{ bill().lines.length }}</b></span>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-8 col-lg-4">
+              <label>Credit Note</label>
+              <select class="form-select form-select-sm"
+                [ngModel]="bill().creditNoteNo"
+                (ngModelChange)="onCreditNoteSelected($event)">
+                <option value="">— Select open credit note —</option>
+                @for (n of openCreditNotes(); track n.note_no) {
+                  <option [value]="n.note_no">{{ n.label }}</option>
+                }
+              </select>
+              @if (bill().creditDeductionAmt > 0) {
+                <div class="tiny text-secondary mt-1">Deduct ₹{{ bill().creditDeductionAmt | number: '1.2-2' }}</div>
+              }
+            </div>
+            @if (bill().paymentMode === 'Card') {
+              <div class="col-12 col-sm-6 col-lg-2">
+                <label>Account <span class="req">*</span></label>
+                <select class="form-select form-select-sm" [ngModel]="bill().accountId" (ngModelChange)="set('accountId', $event ? +$event : null)">
+                  <option [ngValue]="null">Select bank account</option>
+                  @for (a of bankAccounts(); track a.id) {
+                    <option [ngValue]="a.id">{{ a.account_no || a.name }}{{ a.bank_name ? ' (' + a.bank_name + ')' : '' }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="col-12 col-sm-6" [class.col-lg-4]="bill().paymentMode !== 'Card'" [class.col-lg-2]="bill().paymentMode === 'Card'">
+              <label>Bill Narration</label>
+              <input class="form-control form-control-sm text-uppercase" placeholder="..."
+                [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
+            </div>
+            <div class="col-12 col-sm-6 col-lg-2">
+              <label>Tax</label>
+              <div class="ws-inline-box">
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" id="interstate" [ngModel]="bill().isInterstate" (ngModelChange)="set('isInterstate', $event)" />
+                  <label class="form-check-label small" for="interstate">Inter-state (IGST)</label>
+                </div>
+              </div>
             </div>
           } @else {
-            <!-- RETAIL: mobile-first patient lookup -->
-            <div class="col-6 col-md-2">
-              <label>
-                Mobile No
-                @if (lookingUp()) { <span class="spinner-border spinner-border-sm ms-1"></span> }
-              </label>
-              <input class="form-control form-control-sm" inputmode="tel" maxlength="15" placeholder="Mobile number"
-                [ngModel]="bill().contact" (ngModelChange)="onContactChange($event)" />
-            </div>
-            <div class="col-6 col-md-3">
-              <label>
-                Patient Name
-                @if (bill().customerKnown) { <span class="badge text-bg-success ms-1">Saved</span> }
-              </label>
-              <input class="form-control form-control-sm" placeholder="Patient Name" [ngModel]="bill().patientName" (ngModelChange)="set('patientName', $event)" />
-            </div>
-            <div class="col-6 col-md-2 d-flex align-items-end">
-              <div class="form-check chronic-check" [class.is-chronic]="bill().isChronic">
-                <input class="form-check-input" type="checkbox" id="chronic" [ngModel]="bill().isChronic" (ngModelChange)="set('isChronic', $event)" />
-                <label class="form-check-label small" for="chronic">
-                  <i class="bi bi-heart-pulse me-1"></i>Chronic patient
-                </label>
-              </div>
-            </div>
-            <div class="col-6 col-md-2">
-              <label>Reminder Days</label>
-              <input type="number" class="form-control form-control-sm" placeholder="Days" [ngModel]="bill().reminderDays" (ngModelChange)="set('reminderDays', $event ? +$event : null)" />
-            </div>
-          }
+            <!-- RETAIL — explicit grid rows for stable alignment -->
+            <div class="col-12 retail-bill-fields">
+              <div class="retail-bill-row retail-bill-row--primary">
+                <div class="rb-field rb-span-date">
+                  <label>Bill Date <span class="req">*</span></label>
+                  <input type="date" class="form-control form-control-sm" [ngModel]="bill().billDate" (ngModelChange)="set('billDate', $event)" />
+                </div>
 
-          <div class="col-6 col-md-2">
-            <label>Sale Type</label>
-            <select class="form-select form-select-sm" [ngModel]="bill().saleType" (ngModelChange)="set('saleType', $event)">
-              @for (t of saleTypes; track t) { <option [value]="t">{{ t }}</option> }
-            </select>
-          </div>
-          <div class="col-6 col-md-2">
-            <label>Payment</label>
-            <select class="form-select form-select-sm" [ngModel]="bill().paymentMode" (ngModelChange)="set('paymentMode', $event)">
-              @for (m of paymentModes; track m) { <option [value]="m">{{ m }}</option> }
-            </select>
-          </div>
-          @if (isWholesale()) {
-            <div class="col-6 col-md-2">
-              <label>Contact</label>
-              <input class="form-control form-control-sm" placeholder="Contact No" [ngModel]="bill().contact" (ngModelChange)="set('contact', $event)" />
-            </div>
-          }
-          @if (!isWholesale()) {
-            <div class="col-6 col-md-3">
-              <label>Doctor</label>
-              <input class="form-control form-control-sm" list="doctorList" placeholder="Search / add doctor"
-                [ngModel]="bill().doctor" (ngModelChange)="set('doctor', $event)" />
-              <datalist id="doctorList">
-                @for (d of doctors(); track d.id) { <option [value]="d.name"></option> }
-              </datalist>
-            </div>
-          }
-          <div class="col-12 col-md-3">
-            <label>Address</label>
-            <input class="form-control form-control-sm" placeholder="Address" [ngModel]="bill().address" (ngModelChange)="set('address', $event)" />
-          </div>
-          <div class="col-6 col-md-2">
-            <label>Prescription</label>
-            <div class="d-flex gap-1">
-              <label class="btn btn-sm btn-light border mb-0 flex-fill">
-                <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'File' }}
-                <input type="file" accept="image/*,application/pdf" hidden (change)="onPrescriptionFile($event)" />
-              </label>
-              <button class="btn btn-sm btn-light border" (click)="openCamera()" title="Camera"><i class="bi bi-camera"></i></button>
-            </div>
-          </div>
-          @if (isWholesale()) {
-            <div class="col-6 col-md-2 d-flex align-items-end">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="interstate" [ngModel]="bill().isInterstate" (ngModelChange)="set('isInterstate', $event)" />
-                <label class="form-check-label small" for="interstate">Inter-state (IGST)</label>
+                @if (isRegularSale()) {
+                  <div class="rb-field rb-field--patient rb-span-patient">
+                    <label>
+                      Patient Name <span class="req">*</span>
+                      @if (bill().customerKnown) { <span class="badge text-bg-success ms-1">Saved</span> }
+                    </label>
+                    <div class="patient-combo combo" [class.open]="showPatientDropdown()"
+                      (mousedown)="$event.stopPropagation()">
+                      <div class="patient-combo-input-wrap">
+                        <i class="bi bi-search patient-combo-icon"></i>
+                        <input type="text" class="form-control form-control-sm patient-combo-input text-uppercase"
+                          name="pp_billing_patient_search"
+                          data-bill-tab="patient"
+                          autocomplete="off"
+                          autocorrect="off"
+                          autocapitalize="off"
+                          spellcheck="false"
+                          data-lpignore="true"
+                          data-form-type="other"
+                          readonly
+                          placeholder="Type patient name to search…"
+                          [ngModel]="patientSearchQuery()"
+                          (ngModelChange)="onPatientSearchQuery($event)"
+                          (focus)="onPatientComboFocus($event)"
+                          (blur)="onPatientComboBlur()"
+                          (keydown)="onPatientKeydown($event)" />
+                        @if (patientComboDisplayLabel() && !patientSearchQuery()) {
+                          <span class="patient-combo-selected" [title]="patientComboDisplayLabel()">
+                            {{ patientComboDisplayLabel() }}
+                          </span>
+                        }
+                        @if (patientComboDisplayLabel() || patientSearchQuery()) {
+                          <button type="button" class="patient-combo-clear btn btn-link p-0" tabindex="-1"
+                            (mousedown)="clearPatientCombo($event)" title="Clear">
+                            <i class="bi bi-x-circle"></i>
+                          </button>
+                        }
+                      </div>
+                      @if (showPatientDropdown() && patientSearchQuery().trim().length > 0) {
+                        <div class="combo-panel shadow-pharma-lg">
+                          <div class="combo-list">
+                            @if (!patientPhoneListActive() && patientSearchQuery().trim().length < 2) {
+                              <div class="combo-empty">Type at least 2 characters to search patients</div>
+                            }
+                            @for (c of filteredRetailPatientsForSelect(); track c.selectKey; let i = $index) {
+                              <button type="button" class="combo-item"
+                                [class.active-item]="patientActiveIndex() === i"
+                                (mousedown)="pickPatientComboOption(c.selectKey)">
+                                {{ patientOptionLabel(c) }}
+                              </button>
+                            } @empty {
+                              @if (patientSearchQuery().trim().length >= 2) {
+                                <div class="combo-empty">No patients match “{{ patientSearchQuery().trim() }}”</div>
+                              } @else if (patientPhoneListActive()) {
+                                <div class="combo-empty">No saved patient for this mobile — type patient name above</div>
+                              }
+                            }
+                            @if (filteredRetailPatientsForSelect().length >= 40) {
+                              <div class="combo-list-meta text-secondary small px-2 py-1">Showing first 40 — refine search</div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  <div class="rb-field rb-field--contact rb-span-contact">
+                    <label>
+                      Contact <span class="req">*</span>
+                      @if (lookingUp()) { <span class="spinner-border spinner-border-sm ms-1"></span> }
+                    </label>
+                    <div class="rb-contact-input-row">
+                      <input class="form-control form-control-sm" type="text" inputmode="numeric" maxlength="10"
+                        name="pp_billing_contact_no"
+                        data-bill-tab="contact"
+                        autocomplete="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        data-lpignore="true"
+                        placeholder="10-digit mobile"
+                        [ngModel]="bill().contact" (ngModelChange)="onContactChange($event)"
+                        (blur)="onPatientContactBlur()"
+                        [class.is-invalid]="!!contactError()" />
+                      @if (canShowPatientHistory() && (bill().customerId || bill().contact.length >= 10)) {
+                        <button type="button" class="btn btn-sm patient-history-trigger rb-icon-btn" tabindex="-1"
+                          (click)="openPatientPurchaseHistory()"
+                          [disabled]="patientHistoryLoading()"
+                          title="Previous sale history">
+                          <i class="bi bi-clock-history"></i>
+                        </button>
+                      }
+                      @if (canUseAgt() && agtPendingOrders().length) {
+                        <button type="button" class="btn btn-sm agt-order-trigger rb-icon-btn" tabindex="-1"
+                          (click)="openAgtPendingOrders()"
+                          title="AuraGharTak pending order">
+                          <i class="bi bi-truck"></i>
+                        </button>
+                      }
+                    </div>
+                    @if (contactError(); as err) {
+                      <div class="invalid-feedback d-block">{{ err }}</div>
+                    }
+                  </div>
+                }
+
+                @if (isCashCounterActive()) {
+                  <div class="rb-field rb-span-sale">
+                    <label>Sale Type</label>
+                    <input class="form-control form-control-sm bg-light" value="Cash/Counter" readonly tabindex="-1" />
+                  </div>
+                } @else {
+                  <div class="rb-field rb-span-sale">
+                    <label>Sale Type <span class="req">*</span></label>
+                    <select class="form-select form-select-sm" data-bill-tab="saleType"
+                      [ngModel]="bill().saleType" (ngModelChange)="onSaleTypeChange($event)">
+                      @for (t of saleTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+                    </select>
+                  </div>
+                }
+                <div class="rb-field rb-span-pay">
+                  <label>Payment Mode <span class="req">*</span></label>
+                  <select class="form-select form-select-sm" data-bill-tab="payment"
+                    [ngModel]="bill().paymentMode" (ngModelChange)="onPaymentModeChange($event)">
+                    @for (m of retailPaymentModes; track m) { <option [value]="m">{{ m }}</option> }
+                  </select>
+                </div>
+                <div class="rb-field rb-field--net rb-span-net">
+                  <label class="d-block">Net / Items</label>
+                  <div class="retail-live-totals mt-1">
+                    <span class="rtl-net">Net <b>{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
+                    <span class="rtl-item">Items <b>{{ bill().lines.length }}</b></span>
+                  </div>
+                  @if (retailBillDiscountEffective() > 0) {
+                    <div class="tiny text-secondary mt-1">Bulk disc −₹{{ retailBillDiscountEffective() | number: '1.2-2' }}</div>
+                  }
+                </div>
+                <div class="rb-field rb-span-bulk">
+                  <label>Bulk disc ₹</label>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm text-end"
+                    data-bill-tab="bulkDisc"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    [ngModel]="bill().billDiscountAmt"
+                    (ngModelChange)="onBillDiscountAmtChange($event)"
+                  />
+                </div>
               </div>
+
+              @if (isRegularSale() && ((multiplePatientsOnPhone() && phonePatientSelectKey() == null) || bill().customerKnown)) {
+                <div class="retail-bill-row retail-bill-row--status">
+                  @if (multiplePatientsOnPhone() && phonePatientSelectKey() == null) {
+                    <p class="retail-bill-status tiny text-warning mb-0">
+                      <i class="bi bi-people me-1"></i>{{ patientsOnPhone().length }} patients on this number — select one
+                    </p>
+                  } @else if (bill().customerKnown) {
+                    <p class="retail-bill-status tiny text-success mb-0">
+                      <i class="bi bi-check-circle me-1"></i>Patient found
+                    </p>
+                  }
+                </div>
+              }
+
+              @if (bill().paymentMode === 'Card') {
+                <div class="retail-bill-row retail-bill-row--account">
+                  <div class="rb-field rb-field--wide">
+                    <label>Account <span class="req">*</span></label>
+                    <select class="form-select form-select-sm" data-bill-tab="account"
+                      [ngModel]="bill().accountId" (ngModelChange)="set('accountId', $event ? +$event : null)">
+                      <option [ngValue]="null">Select bank account</option>
+                      @for (a of bankAccounts(); track a.id) {
+                        <option [ngValue]="a.id">{{ a.account_no || a.name }}{{ a.bank_name ? ' (' + a.bank_name + ')' : '' }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              }
+
+              @if (bill().paymentMode === 'Cash+UPI') {
+                <div class="retail-bill-row retail-bill-row--split">
+                  <div class="rb-field">
+                    <label>Cash Amount <span class="req">*</span></label>
+                    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" placeholder="0.00"
+                      data-bill-tab="cashAmount"
+                      [ngModel]="bill().cashAmount" (ngModelChange)="set('cashAmount', $event === '' || $event == null ? null : +$event)" />
+                  </div>
+                  <div class="rb-field">
+                    <label>UPI Amount</label>
+                    <input type="text" class="form-control form-control-sm text-end bg-light" readonly
+                      [value]="splitUpiAmount() | number: '1.2-2'" />
+                  </div>
+                  <div class="rb-field rb-split-hint tiny text-secondary">
+                    UPI = Net {{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }} − Cash
+                  </div>
+                </div>
+              }
+
+              @if (isRegularSale()) {
+                <div class="retail-bill-row retail-bill-row--secondary">
+                  <div class="rb-field rb-span-address">
+                    <label>Address</label>
+                    <input class="form-control form-control-sm text-uppercase" placeholder="Address"
+                      data-bill-tab="address"
+                      maxlength="255" autocomplete="street-address"
+                      [ngModel]="bill().address" (ngModelChange)="set('address', $event)"
+                      [class.is-invalid]="!!addressFieldError()" />
+                    @if (addressFieldError(); as err) {
+                      <div class="invalid-feedback d-block">{{ err }}</div>
+                    }
+                  </div>
+                  <div class="rb-field rb-span-doctor">
+                    <label>Doctor</label>
+                    <div class="patient-combo combo" [class.open]="showDoctorDropdown()">
+                      <div class="patient-combo-input-wrap">
+                        <i class="bi bi-person-badge patient-combo-icon"></i>
+                        <input type="text" class="form-control form-control-sm patient-combo-input text-uppercase"
+                          name="pp_billing_doctor_search"
+                          data-bill-tab="doctor"
+                          autocomplete="off"
+                          autocorrect="off"
+                          autocapitalize="off"
+                          spellcheck="false"
+                          data-lpignore="true"
+                          data-form-type="other"
+                          placeholder="Search / add doctor"
+                          [ngModel]="bill().doctor"
+                          (ngModelChange)="onDoctorInput($event)"
+                          (focus)="onDoctorFocus()"
+                          (blur)="onDoctorBlur()"
+                          (keydown)="onDoctorKeydown($event)" />
+                        @if (bill().doctor) {
+                          <button type="button" class="btn btn-link btn-sm p-0 patient-combo-clear" tabindex="-1" title="Clear doctor"
+                            (mousedown)="$event.preventDefault()" (click)="clearDoctor()">
+                            <i class="bi bi-x-circle"></i>
+                          </button>
+                        }
+                      </div>
+                      @if (showDoctorDropdown()) {
+                        <div class="combo-panel shadow-pharma-lg">
+                          <div class="combo-list">
+                            @for (d of filteredDoctors(); track d.id; let i = $index) {
+                              <button type="button" class="combo-item"
+                                [class.active-item]="doctorActiveIndex() === i"
+                                (mousedown)="$event.preventDefault(); pickDoctor(d.name)">
+                                <i class="bi bi-person-badge me-2 text-secondary"></i>{{ d.name }}
+                              </button>
+                            } @empty {
+                              <div class="combo-empty">
+                                @if (bill().doctor.trim()) {
+                                  No saved doctor — “{{ bill().doctor.trim() }}” will be used
+                                } @else {
+                                  No doctors in master
+                                }
+                              </div>
+                            }
+                            @if (filteredDoctors().length >= 40) {
+                              <div class="combo-list-meta text-secondary small px-2 py-1">Showing first 40 — refine search</div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  <div class="rb-field rb-span-rx">
+                    <label>Prescription @if (prescriptionRequired()) { <span class="req">*</span> }</label>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <label class="btn btn-sm btn-light border mb-0 flex-fill" tabindex="0" data-bill-tab="prescription"
+                        (keydown.enter)="openPrescriptionPicker($event)" (keydown.space)="openPrescriptionPicker($event)">
+                        <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'File' }}
+                        <input type="file" accept="image/*,application/pdf" hidden (change)="onPrescriptionFile($event)" />
+                      </label>
+                      <button type="button" class="btn btn-sm btn-light border" data-bill-tab="camera" (click)="openCamera()" title="Camera"><i class="bi bi-camera"></i></button>
+                    </div>
+                  </div>
+                  <div class="rb-field rb-span-reminder">
+                    <label>Reminder Days</label>
+                    <input type="number" class="form-control form-control-sm" placeholder="Days" data-bill-tab="reminder"
+                      min="0" max="365" step="1" inputmode="numeric"
+                      [ngModel]="bill().reminderDays"
+                      (ngModelChange)="set('reminderDays', $event)"
+                      [class.is-invalid]="!!reminderDaysFieldError()" />
+                    @if (reminderDaysFieldError(); as err) {
+                      <div class="invalid-feedback d-block">{{ err }}</div>
+                    }
+                  </div>
+                </div>
+                <div class="retail-bill-row retail-bill-row--tertiary">
+                  <div class="rb-field rb-span-narration">
+                    <label>Bill Narration</label>
+                    <input class="form-control form-control-sm text-uppercase" placeholder="..." data-bill-tab="narration"
+                      [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
+                  </div>
+                  <div class="rb-field rb-span-email">
+                    <label>Email</label>
+                    <input type="email" class="form-control form-control-sm" placeholder="name@example.com" data-bill-tab="email"
+                      maxlength="120" autocomplete="email"
+                      [ngModel]="bill().email" (ngModelChange)="set('email', $event)"
+                      [class.is-invalid]="!!emailFieldError()" />
+                    @if (emailFieldError(); as err) {
+                      <div class="invalid-feedback d-block">{{ err }}</div>
+                    }
+                  </div>
+                  <div class="rb-field rb-span-chronic">
+                    <label class="chronic-label">Chronic</label>
+                    <div class="form-check chronic-check" [class.is-chronic]="bill().isChronic">
+                      <input class="form-check-input" type="checkbox" id="chronic" data-bill-tab="chronic" [ngModel]="bill().isChronic" (ngModelChange)="set('isChronic', $event)" />
+                      <label class="form-check-label small" for="chronic">
+                        <i class="bi bi-heart-pulse me-1"></i>Chronic
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              } @else if (hasX() || prescriptionRequired()) {
+                <div class="retail-bill-row retail-bill-row--rx-only">
+                  <div class="rb-field">
+                    <label>Prescription <span class="req">*</span></label>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <label class="btn btn-sm btn-light border mb-0 flex-fill">
+                        <i class="bi bi-paperclip"></i> {{ bill().prescriptionName ? 'Attached' : 'File' }}
+                        <input type="file" accept="image/*,application/pdf" hidden (change)="onPrescriptionFile($event)" />
+                      </label>
+                      <button type="button" class="btn btn-sm btn-light border" (click)="openCamera()" title="Camera"><i class="bi bi-camera"></i></button>
+                    </div>
+                  </div>
+                </div>
+              }
             </div>
           }
-          <div class="col-12 col-md-3">
-            <label>Bill Narration</label>
-            <input class="form-control form-control-sm" placeholder="..." [ngModel]="bill().narration" (ngModelChange)="set('narration', $event)" />
-          </div>
         </div>
+        }
         @if (isWholesale()) {
           <!-- Wholesale (B2B): warnings only, no enforcement. -->
+          @if (linkedMrOrderId() && linkedMrCounter() === activeCounter()) {
+            <div class="alert alert-info py-1 px-2 small mt-2 mb-0 d-flex flex-wrap align-items-center gap-2">
+              <span><i class="bi bi-briefcase me-1"></i>Billing MR order <strong>{{ linkedMrOrderNo() }}</strong> — it will be marked Sold when this bill is saved.</span>
+              <button type="button" class="btn btn-sm btn-link p-0 ms-auto" (click)="clearLinkedMrOrder()">Unlink</button>
+            </div>
+          }
           @if (hasScheduleX()) {
             <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Note: this bill contains Schedule X (Narcotic / Psychotropic) drug(s).</div>
           }
@@ -264,87 +826,291 @@
           @if (hasH1()) {
             <div class="sched-alert-amber blink-red mt-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Schedule H1: Doctor &amp; Customer details are MANDATORY.</div>
           }
+          @if (canUseAgt() && agtLinkedRx() && !agtRxFloaterVisible()) {
+            <div class="mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary agt-show-rx-btn" (click)="showAgtRxFloater()">
+                <i class="bi bi-file-earmark-medical me-1"></i> Show AGT prescription
+              </button>
+            </div>
+          }
         }
       </div>
 
       <!-- Item grid -->
-      <div class="card-pharma grid-card">
-        <div class="table-responsive">
-          <table class="table table-sm bill-grid mb-0">
-            <thead>
-              <tr>
-                <th>Product</th><th>Mfg</th><th>Qty</th><th>Unit</th><th>Disc%</th><th>B.No</th><th>Shelf</th>
-                <th>Rate</th><th>Exp.</th><th>Cat</th><th>Pack</th><th class="text-end">MRP</th>
-                <th class="text-end">Taxable</th><th class="text-end">Disc</th>
-                <th class="text-end">Profit</th><th class="text-end">GST</th><th class="text-end">Net</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (line of bill().lines; track line.binding_id) {
+      <div class="card-pharma grid-card" [class.grid-card--wholesale]="isWholesale()" data-no-barcode="1" tabindex="-1">
+        @if (isWholesale()) {
+          <div class="ws-entry-scroll">
+            @if (!bill().lines.length) {
+              <div class="ws-empty text-center text-secondary py-3">
+                <i class="bi bi-arrow-left me-1"></i> Select a product from the left panel to enter rates.
+              </div>
+            }
+            <div class="ws-list-table-wrap">
+              <div class="ws-list-table-inner">
+                <table class="table table-sm bill-grid mb-0 bill-grid--wholesale-list">
+                  <colgroup>
+                    <col class="col-ws-prod" />
+                    <col span="3" class="col-ws-num" />
+                    <col class="col-ws-batch" />
+                    <col span="6" class="col-ws-num" />
+                    <col class="col-ws-act" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th class="col-ws-prod">Product</th>
+                      <th class="col-ws-num text-end" title="Qty (strips)">Qty</th>
+                      <th class="col-ws-num text-end">Free</th>
+                      <th class="col-ws-num text-end">Disc</th>
+                      <th class="col-ws-batch">Batch</th>
+                      <th class="col-ws-num text-end" title="MRP (strip)">MRP</th>
+                      <th class="col-ws-num text-end">Rate</th>
+                      <th class="col-ws-num text-end">Total</th>
+                      <th class="col-ws-num text-end">Tax</th>
+                      <th class="col-ws-num text-end">Profit</th>
+                      <th class="col-ws-num text-end">Net</th>
+                      <th class="col-ws-act text-center">#</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (line of bill().lines; track trackBillLine($index, line); let idx = $index) {
+                      <tr class="ws-list-row" [class.ws-list-row--active]="wsDraftEditIndex() === idx" (click)="editWholesaleLine(idx)">
+                        <td class="prod-cell col-ws-prod"><span class="prod-name" [title]="line.product_name">{{ line.product_name }}</span></td>
+                        <td class="col-ws-num text-end ws-num">{{ line.qty }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ line.free_qty | number: '1.0-2' }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ line.disc | number: '1.0-2' }}</td>
+                        <td class="col-ws-batch ws-batch" [title]="line.batch_no || ''">{{ line.batch_no || '-' }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ displayPackMrp(line) | number: '1.2-2' }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ line.rate | number: '1.2-2' }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ lineGross(line) | number: '1.2-2' }}</td>
+                        <td class="col-ws-num text-end ws-num">{{ lineTaxable(line) | number: '1.2-2' }}</td>
+                        <td class="col-ws-num text-end ws-num" [class.text-danger]="lineProfit(line) < 0" [title]="lineProfit(line) | number: '1.2-2'">{{ lineProfit(line) | number: '1.2-2' }}</td>
+                        <td class="col-ws-num text-end ws-num fw-semibold" [title]="lineSell(line) | number: '1.2-2'">{{ lineSell(line) | number: '1.2-2' }}</td>
+                        <td class="col-ws-act text-center" (click)="$event.stopPropagation()">
+                          <button type="button" class="btn btn-sm btn-link text-danger p-0 ws-del-btn" (click)="removeLine(idx)" title="Remove line"><i class="bi bi-trash"></i></button>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="12" class="text-center text-secondary py-2 ws-empty-row">No products added yet.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        } @else {
+            <div class="table-responsive bill-grid-scroll" [class.send-menu-open]="sendMenuIndex() !== null"
+              (scroll)="closeSendMenu()">
+            <div class="grid-scroll-hint d-none d-md-block d-xl-none" aria-hidden="true">
+              <i class="bi bi-arrows-expand"></i> Swipe table for more columns
+            </div>
+            <table class="table table-sm bill-grid mb-0 bill-grid--retail"
+              [class.bill-grid--cash-send]="isCashCounterActive()">
+              <thead>
                 <tr>
-                  <td class="prod-cell">
-                    <div>{{ line.product_name }}</div>
-                    <button class="btn btn-link btn-sm p-0 sub-link" (click)="openSubstitutes($index)">
-                      <i class="bi bi-arrow-left-right"></i> substitutes
-                    </button>
-                  </td>
-                  <td><span class="mfg-chip">{{ line.mfg || '-' }}</span></td>
-                  <td><input type="number" class="g-input" style="width:54px" [ngModel]="line.qty" (ngModelChange)="updateLine($index, { qty: +$event })" /></td>
-                  <td>
-                    <select class="g-input" style="width:62px" [ngModel]="line.unit_type" (ngModelChange)="onUnitTypeChange($index, $event)" [disabled]="isWholesale() || !line.allow_loose">
-                      <option value="unit">Unit</option>
-                      <option value="pack">Pack</option>
-                    </select>
-                  </td>
-                  <td><input type="number" class="g-input" style="width:50px" [ngModel]="line.disc" (ngModelChange)="updateLine($index, { disc: +$event })" /></td>
-                  <td>
-                    @if (line.batches.length > 1) {
-                      <select class="g-input" style="width:88px" [ngModel]="line.batch_id" (ngModelChange)="selectBatch($index, +$event)">
-                        @for (b of line.batches; track b.batch_id) { <option [ngValue]="b.batch_id">{{ b.batch_no }}</option> }
-                      </select>
-                    } @else { <span class="small">{{ line.batch_no || '-' }}</span> }
-                  </td>
-                  <td class="small">{{ line.shelf || '-' }}</td>
-                  <td><input type="number" class="g-input" style="width:72px" [ngModel]="line.rate" (ngModelChange)="updateLine($index, { rate: +$event })" /></td>
-                  <td class="small">{{ line.expiry ? (line.expiry | date: 'MM/yy') : '-' }}</td>
-                  <td><span class="badge sched-{{ line.category }}" [class.blink-red]="isAlertSchedule(line.category)" [title]="scheduleMeaning(line.category)">{{ line.category }}</span></td>
-                  <td class="small">{{ line.pack || '-' }}</td>
-                  <td class="text-end small">{{ line.unit_mrp | number: '1.2-2' }}</td>
-                  <td class="text-end small">{{ lineTaxable(line) | number: '1.2-2' }}</td>
-                  <td class="text-end small">{{ lineDiscountAmt(line) | number: '1.2-2' }}</td>
-                  <td class="text-end small text-success">{{ lineProfit(line) | number: '1.2-2' }}</td>
-                  <td class="text-end small">{{ lineGstAmt(line) | number: '1.2-2' }}</td>
-                  <td class="text-end fw-semibold">{{ lineSell(line) | number: '1.2-2' }}</td>
-                  <td><button class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
+                  @if (isCashCounterActive() && cashSelectMode()) {
+                    <th class="col-select text-center" title="Select products (Enter)">Sel</th>
+                  }
+                  <th class="col-product">Product</th>
+                  @if (isCashCounterActive()) {
+                    <th class="col-send">Counter</th>
+                  }
+                  <th class="col-mfg">Mfg</th>
+                  <th class="col-batch text-center">Batch</th>
+                  <th class="col-qty text-end">Qty</th>
+                  <th class="col-disc text-end">Disc%</th>
+                  <th class="col-shelf text-center" title="Shelf">Sh</th>
+                  <th class="col-rate text-end">Rate</th>
+                  <th class="col-exp text-center">Exp</th>
+                  <th class="col-cat text-center" title="Schedule">Sch</th>
+                  <th class="col-pack text-center">Pack</th>
+                  <th class="col-num text-end">MRP</th>
+                  <th class="col-num text-end" title="Taxable value (excl. GST)">Tax</th>
+                  <th class="col-num text-end">Disc₹</th>
+                  <th class="col-num text-end">Profit</th>
+                  <th class="col-num text-end" title="GST %">GST</th>
+                  <th class="col-num text-end">Net</th>
+                  <th class="col-action"></th>
                 </tr>
-              } @empty {
-                <tr><td colspan="18" class="text-center text-secondary py-4"><i class="bi bi-arrow-left me-1"></i> Search and click a product to add it.</td></tr>
-              }
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                @for (line of bill().lines; track trackBillLine($index, line); let idx = $index) {
+                  <tr class="bill-line-row"
+                    [attr.data-cash-select]="isCashCounterActive() && cashSelectMode() ? '' : null"
+                    [class.cash-select-focus]="isCashCounterActive() && cashSelectMode() && cashSelectFocus() === idx"
+                    [class.cash-select-on]="isCashCounterActive() && cashSelectMode() && isCashLineSelected(idx)"
+                    [attr.tabindex]="isCashCounterActive() && cashSelectMode() ? 0 : null"
+                    (click)="onCashSelectRowClick(idx, $event)">
+                    @if (isCashCounterActive() && cashSelectMode()) {
+                      <td class="col-select text-center" data-label="Sel">
+                        <span class="cash-sel-mark" [class.on]="isCashLineSelected(idx)">
+                          <i class="bi" [class.bi-check2-square]="isCashLineSelected(idx)" [class.bi-square]="!isCashLineSelected(idx)"></i>
+                        </span>
+                      </td>
+                    }
+                    <td class="prod-cell col-product" [title]="line.product_name">
+                      <div class="prod-cell-inner">
+                        <div class="prod-name-row">
+                          <span class="prod-name">{{ line.product_name }}</span>
+                          @if (isCashCounterActive()) {
+                            <span class="prod-line-net" title="Line net">₹{{ lineSell(line) | number: '1.2-2' }}</span>
+                          }
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm p-0 sub-link" (click)="openSubstitutes(idx); $event.stopPropagation()" title="Substitutes (same molecule)">
+                          <i class="bi bi-arrow-left-right"></i>
+                        </button>
+                      </div>
+                    </td>
+                    @if (isCashCounterActive()) {
+                      <td class="col-send" data-label="Counter">
+                        <div class="line-send" [class.open]="sendMenuIndex() === idx">
+                          <button type="button" class="line-send-btn"
+                            (click)="toggleSendMenu(idx, $event)"
+                            (keydown)="onSendMenuBtnKey(idx, $event)"
+                            [attr.aria-expanded]="sendMenuIndex() === idx"
+                            aria-haspopup="listbox"
+                            title="Send this product to Counter 1, 2 or 3">
+                            <span>Send to</span>
+                            <i class="bi" [class.bi-chevron-up]="sendMenuIndex() === idx" [class.bi-chevron-down]="sendMenuIndex() !== idx"></i>
+                          </button>
+                          @if (sendMenuIndex() === idx) {
+                            @if (sendMenuPos(); as pos) {
+                            <div class="line-send-menu shadow-pharma-lg" role="listbox"
+                              [style.top.px]="pos.top"
+                              [style.left.px]="pos.left"
+                              [style.minWidth.px]="pos.width">
+                              @for (c of cashSendCounters(); track c) {
+                                <button type="button" class="line-send-item" tabindex="-1" role="option"
+                                  [class.active]="c === lastCashSendDest()"
+                                  (mousedown)="$event.stopPropagation()"
+                                  (click)="onSendLineToCounter(idx, c)">
+                                  <span>{{ formatCounterName(c) }}</span>
+                                  @if (c === lastCashSendDest()) {
+                                    <i class="bi bi-check2"></i>
+                                  }
+                                </button>
+                              }
+                            </div>
+                            }
+                          }
+                        </div>
+                      </td>
+                    }
+                    <td class="col-mfg text-center" data-label="Mfg"><span class="mfg-chip">{{ line.mfg || '-' }}</span></td>
+                    <td class="col-batch text-center" data-label="Batch">
+                      @if (line.batches.length > 1) {
+                        <select class="g-input g-input-batch" [ngModel]="line.batch_id" (ngModelChange)="selectBatch(idx, +$event)">
+                          @for (b of line.batches; track b.batch_id) {
+                            <option [ngValue]="b.batch_id" [disabled]="isBatchExpired(b) || (b.quantity || 0) <= 0">
+                              {{ b.batch_no }} · MRP {{ batchStripMrp(b) | number: '1.2-2' }} · Qty {{ b.quantity }}{{ isBatchExpired(b) ? ' · Expired' : '' }}
+                            </option>
+                          }
+                        </select>
+                      } @else {
+                        <span class="cell-text" [class.text-danger]="isExpiryPast(line.expiry)">
+                          {{ line.batch_no || '-' }}
+                          @if (isExpiryPast(line.expiry)) { <span class="badge badge-expired ms-1">Expired</span> }
+                        </span>
+                      }
+                    </td>
+                    <td class="col-qty" data-label="Qty">
+                      <input type="number" min="1" step="1" class="g-input g-input-qty"
+                        [attr.max]="batchMaxSoldQty(line, idx)"
+                        [ngModel]="line.qty" (ngModelChange)="onQtyChange(idx, $event)" />
+                    </td>
+                    <td class="col-disc" data-label="Disc%">
+                      <input type="number" min="0" step="0.01" class="g-input g-input-disc"
+                        [ngModel]="line.disc" (ngModelChange)="onDiscPctChange(idx, $event)" />
+                    </td>
+                    <td class="col-shelf text-center" data-label="Sh"><span class="cell-text">{{ line.shelf || '-' }}</span></td>
+                    <td class="col-rate text-end" data-label="Rate">
+                      <span class="cell-num purchase-rate" title="Purchase rate from stock batch">{{ displayPurchaseRate(line) | number: '1.2-2' }}</span>
+                    </td>
+                    <td class="col-exp text-center" data-label="Exp" [title]="displayExpiry(line.expiry)">
+                      <span class="cell-exp" [class.exp-expired]="isExpiryPast(line.expiry)">
+                        {{ displayExpiryShort(line.expiry) }}
+                        @if (isExpiryPast(line.expiry)) {
+                          <span class="badge badge-expired d-block mt-1">Exp</span>
+                        }
+                      </span>
+                    </td>
+                    <td class="col-cat text-center" data-label="Sch">
+                      <span class="badge sched-{{ line.category }}" [class.blink-red]="isAlertSchedule(line.category)" [title]="scheduleMeaning(line.category)">{{ line.category }}</span>
+                    </td>
+                    <td class="col-pack text-center" data-label="Pack"><span class="cell-text">{{ line.pack || '-' }}</span></td>
+                    <td class="col-num" data-label="MRP"><span class="cell-num">{{ displayPackMrp(line) | number: '1.2-2' }}</span></td>
+                    <td class="col-num" data-label="Taxable"><span class="cell-num">{{ lineTaxable(line) | number: '1.2-2' }}</span></td>
+                    <td class="col-num" data-label="Disc₹">
+                      <input type="number" min="0" step="0.01" class="g-input g-input-disc-amt"
+                        [ngModel]="discAmtField(line)" (ngModelChange)="onDiscAmtChange(idx, $event)" />
+                    </td>
+                    <td class="col-num" data-label="Profit"><span class="cell-num text-success">{{ lineProfit(line) | number: '1.2-2' }}</span></td>
+                    <td class="col-num" data-label="GST"><span class="cell-num">{{ line.gst_rate | number: '1.0-2' }}%</span></td>
+                    <td class="col-num col-net" data-label="Net"><span class="cell-num fw-semibold">{{ lineSell(line) | number: '1.2-2' }}</span></td>
+                    <td class="col-action text-center">
+                      <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeLine(idx)"><i class="bi bi-x-lg"></i></button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td [attr.colspan]="isCashCounterActive() ? (cashSelectMode() ? 19 : 18) : 17" class="text-center text-secondary py-4"><i class="bi bi-arrow-left me-1"></i> Search and click a product to add it.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
 
         <!-- Footer -->
         <div class="grid-footer">
           <div class="totals-chips">
+            <span>Items <b>{{ bill().lines.length }}</b></span>
             <span>GST <b>{{ gstTotal() | number: '1.2-2' }}</b></span>
+            @if (!isWholesale() || !bill().isInterstate) {
+              <span>CGST <b>{{ cgst() | number: '1.2-2' }}</b></span>
+              <span>SGST <b>{{ sgst() | number: '1.2-2' }}</b></span>
+            }
             @if (isWholesale()) {
+              <span>Gross <b>{{ grossTotal() | number: '1.2-2' }}</b></span>
+              <span>Taxable <b>{{ taxableTotal() | number: '1.2-2' }}</b></span>
               @if (bill().isInterstate) { <span>IGST <b>{{ igst() | number: '1.2-2' }}</b></span> }
-              @else { <span>CGST <b>{{ cgst() | number: '1.2-2' }}</b></span><span>SGST <b>{{ cgst() | number: '1.2-2' }}</b></span> }
               <span>CD <b>{{ cdAmount() | number: '1.2-2' }}</b></span>
             }
             <span class="text-success">Profit <b>{{ profitTotal() | number: '1.2-2' }}</b></span>
+            @if (isCashCounterActive() && cashSelectMode()) {
+              <span class="selected-total-chip" title="Press S to toggle selection · Enter to select · Esc to exit">
+                Selected Total
+                <b>{{ selectedTotal() | number: '1.2-2' }}</b>
+                <span class="selected-total-count">({{ cashSelectedCount() }})</span>
+              </span>
+            }
           </div>
           <div class="net-total">
+            @if (!isWholesale() && retailBillDiscountEffective() > 0) {
+              <span class="small text-secondary">Subtotal {{ itemsSell() | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+            }
+            @if (roundOff() !== 0) {
+              <span class="small text-secondary">Round off {{ roundOff() > 0 ? '+' : '' }}{{ roundOff() | number: '1.2-2' }}</span>
+            }
             <span class="small text-secondary">NET TOTAL</span>
             <span class="net-amount">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
           </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" disabled title="Configure AI provider"><i class="bi bi-robot me-1"></i> AI PRESCRIPTION</button>
-            <button class="btn btn-success" [disabled]="saving()" (click)="save(false)">
-              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } SAVE
+          <div class="d-flex gap-2 bill-save-actions">
+            <button type="button" class="btn btn-primary btn-sm" data-bill-tab="save" [disabled]="saving()" (click)="save('save')">
+              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Save
             </button>
-            <button class="btn btn-pharma" [disabled]="saving()" (click)="save(true)"><i class="bi bi-printer me-1"></i> SAVE &amp; PRINT</button>
+            @if (showSaveWhatsapp()) {
+              <button type="button" class="btn btn-success btn-sm" data-bill-tab="saveWhatsapp" [disabled]="saving()" (click)="save('saveWithWhatsapp')">
+                @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                Save &amp; <i class="bi bi-whatsapp"></i>
+              </button>
+            }
+            <button type="button" class="btn btn-outline-danger btn-sm" data-bill-tab="discard" [disabled]="saving() || !counterHasDraft()" (click)="discardDraft()" title="Clear this counter’s unsaved bill">
+              Discard
+            </button>
+            @if (posOverlay()) {
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-bill-tab="close" (click)="closePos()" title="Close POS (Esc)">
+                <i class="bi bi-x-lg me-1"></i> Close
+              </button>
+            }
           </div>
         </div>
       </div>
@@ -356,7 +1122,7 @@
   @if (subOpen()) {
     <div class="modal-backdrop-custom" (click)="subOpen.set(false)"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:640px;">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" style="max-width:640px;">
         <div class="modal-head">
           <div>
             <h5 class="mb-0 fw-semibold">Substitutes</h5>
@@ -399,7 +1165,7 @@
   @if (cameraOpen()) {
     <div class="modal-backdrop-custom"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:520px;">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" style="max-width:520px;">
         <div class="modal-head"><h5 class="mb-0 fw-semibold">Capture Prescription</h5><button class="btn-close" (click)="closeCamera()"></button></div>
         <div class="modal-body-custom text-center">
           <video #video class="camera-view" playsinline></video>
@@ -415,14 +1181,14 @@
   <!-- Quick counter stock-in (product purchased but not yet entered) -->
   @if (quickOpen()) {
     <div class="modal-backdrop-custom" (click)="closeQuickAdd()"></div>
-    <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg" style="max-width:520px;">
+    <div class="modal-custom" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border quick-add-card" data-no-barcode="1">
         <div class="modal-head">
-          <h5 class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2 text-pharma"></i>Add Purchase for this Product</h5>
-          <button class="btn-close" (click)="closeQuickAdd()"></button>
+          <h5 id="quickAddTitle" class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2 text-pharma"></i>Add Purchase for this Product</h5>
+          <button type="button" class="btn-close" (click)="closeQuickAdd()" aria-label="Close"></button>
         </div>
-        <div class="modal-body-custom">
-          <p class="text-secondary small">Material received but not entered in Purchase yet? It will be stocked and ready to bill.</p>
+        <div class="modal-body-custom quick-add-body">
+          <p class="text-secondary small mb-2">Material received but not entered in Purchase yet? Details autofill from master / last stock — edit anything before save.</p>
           @if (quickError()) { <div class="alert alert-danger py-2">{{ quickError() }}</div> }
           <div class="row g-3">
             <div class="col-12 position-relative">
@@ -431,11 +1197,22 @@
                 @if (quick().masterId) { <span class="badge text-bg-success ms-1">in master</span> }
                 @else if (quickIsNew()) { <span class="badge text-bg-warning ms-1">new — will be added to master</span> }
               </label>
-              <input class="form-control" [ngModel]="quick().name" (ngModelChange)="onQuickName($event)" placeholder="Search master / type new name" autocomplete="off" />
+              <input class="form-control text-uppercase"
+                [ngModel]="quick().name"
+                (ngModelChange)="onQuickName($event)"
+                (keydown)="onQuickNameKey($event)"
+                placeholder="Search master / type new name"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-controls="quickProductList" />
               @if (quickResults().length) {
-                <div class="quick-dropdown shadow-pharma-lg">
-                  @for (p of quickResults(); track p.id) {
-                    <button type="button" class="quick-item" (mousedown)="pickQuickMaster(p)">
+                <div id="quickProductList" class="quick-dropdown shadow-pharma-lg" role="listbox">
+                  @for (p of quickResults(); track p.id; let idx = $index) {
+                    <button type="button" class="quick-item" role="option" tabindex="-1"
+                      [class.active]="idx === quickHighlight()"
+                      [attr.aria-selected]="idx === quickHighlight()"
+                      (mouseenter)="quickHighlight.set(idx)"
+                      (mousedown)="pickQuickMaster(p)">
                       <span class="fw-semibold">{{ p.name }}</span>
                       <span class="text-secondary small">{{ p.manufacturer }} · {{ p.schedule_category }}@if (p.pack_size) { · {{ p.pack_size }} }</span>
                     </button>
@@ -444,78 +1221,596 @@
               }
             </div>
 
-            <!-- Stock basics (always) -->
             <div class="col-6">
-              <label class="form-label">Batch No</label>
-              <input class="form-control" [ngModel]="quick().batch" (ngModelChange)="setQuick('batch', $event)" placeholder="Batch no" />
+              <label class="form-label">Batch No <span class="req">*</span></label>
+              <input class="form-control text-uppercase" [ngModel]="quick().batch" (ngModelChange)="setQuick('batch', $event)" placeholder="Batch no" />
             </div>
             <div class="col-6">
-              <label class="form-label">Quantity ({{ quick().masterId || quickIsNew() ? 'packs' : 'units' }}) <span class="req">*</span></label>
-              <input type="number" min="1" class="form-control" [ngModel]="quick().qty" (ngModelChange)="setQuick('qty', +$event)" />
+              <label class="form-label">Quantity (packs) <span class="req">*</span></label>
+              <input type="number" min="1" class="form-control" placeholder="Enter qty"
+                [ngModel]="quick().qty" (ngModelChange)="setQuick('qty', $event === '' || $event == null ? null : +$event)" />
             </div>
             <div class="col-6">
               <label class="form-label">MRP (₹) <span class="req">*</span></label>
               <input type="number" min="0" class="form-control" [ngModel]="quick().mrp" (ngModelChange)="setQuick('mrp', +$event)" />
             </div>
             <div class="col-6">
-              <label class="form-label">Purchase Rate (₹)</label>
-              <input type="number" min="0" class="form-control" [ngModel]="quick().rate" (ngModelChange)="setQuick('rate', $event === null || $event === '' ? null : +$event)" placeholder="Defaults to MRP" />
+              <label class="form-label">Purchase Rate (₹) <span class="req">*</span></label>
+              <input type="number" min="0" class="form-control" [ngModel]="quick().rate" (ngModelChange)="setQuick('rate', $event === null || $event === '' ? null : +$event)" placeholder="Purchase rate" />
             </div>
             <div class="col-6">
-              <label class="form-label">Expiry (MM/YYYY)</label>
-              <input class="form-control" [ngModel]="quick().expiry" (ngModelChange)="setQuick('expiry', $event)" placeholder="e.g. 12/2027" />
+              <label class="form-label">Expiry <span class="req">*</span></label>
+              <input type="month" class="form-control" [ngModel]="quick().expiry" (ngModelChange)="setQuick('expiry', $event)" />
             </div>
             <div class="col-6">
               <label class="form-label">GST %</label>
               <input type="number" min="0" max="28" class="form-control" [ngModel]="quick().gst" (ngModelChange)="setQuick('gst', +$event)" />
             </div>
 
-            <!-- Extended master fields (only when the product is NOT in the master) -->
-            @if (quickIsNew()) {
-              <div class="col-12"><hr class="my-1" /><span class="section-mini"><i class="bi bi-collection me-1"></i>New product — master catalog details</span></div>
-              <div class="col-6">
-                <label class="form-label">Manufacturer</label>
-                <input class="form-control" [ngModel]="quick().manufacturer" (ngModelChange)="setQuick('manufacturer', $event)" />
-              </div>
-              <div class="col-6">
-                <label class="form-label">Mfg Short (bill code)</label>
-                <input class="form-control" [ngModel]="quick().manufacturerShort" (ngModelChange)="setQuick('manufacturerShort', $event)" placeholder="e.g. CIP" />
-              </div>
-              <div class="col-6">
-                <label class="form-label">Schedule</label>
-                <select class="form-select" [ngModel]="quick().schedule" (ngModelChange)="setQuick('schedule', $event)">
-                  @for (s of scheduleCodes; track s) { <option [value]="s">{{ s }}</option> }
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label">Category</label>
-                <select class="form-select" [ngModel]="quick().category" (ngModelChange)="setQuick('category', $event)">
-                  @for (c of productCategories; track c) { <option [value]="c">{{ c }}</option> }
-                </select>
-              </div>
-              <div class="col-4">
-                <label class="form-label">HSN</label>
-                <input class="form-control" [ngModel]="quick().hsn" (ngModelChange)="setQuick('hsn', $event)" />
-              </div>
-              <div class="col-4">
-                <label class="form-label">Pack Size</label>
-                <input class="form-control" [ngModel]="quick().packSize" (ngModelChange)="setQuick('packSize', $event)" placeholder="e.g. 1x10" />
-              </div>
-              <div class="col-4">
-                <label class="form-label">Units / Pack</label>
-                <input type="number" min="1" class="form-control" [ngModel]="quick().unitsPerPack" (ngModelChange)="setQuick('unitsPerPack', +$event)" />
-              </div>
+            <div class="col-12">
+              <hr class="my-1" />
+              <span class="section-mini">
+                <i class="bi bi-collection me-1"></i>
+                {{ quick().masterId ? 'Master catalog details (editable)' : 'New product — master catalog details' }}
+              </span>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Manufacturer</label>
+              <input class="form-control text-uppercase" [ngModel]="quick().manufacturer" (ngModelChange)="setQuick('manufacturer', $event)" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Mfg Short (bill code)</label>
+              <input class="form-control text-uppercase" [ngModel]="quick().manufacturerShort" (ngModelChange)="setQuick('manufacturerShort', $event)" placeholder="e.g. CIP" maxlength="20" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Schedule</label>
+              <select class="form-select" [ngModel]="quick().schedule" (ngModelChange)="setQuick('schedule', $event)">
+                @for (s of scheduleCodes; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Category</label>
+              <select class="form-select" [ngModel]="quick().category" (ngModelChange)="setQuick('category', $event)">
+                @for (c of productCategories; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label">HSN</label>
+              <input class="form-control" inputmode="numeric" maxlength="8" placeholder="4–8 digits"
+                [ngModel]="quick().hsn" (ngModelChange)="setQuick('hsn', $event)" />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Pack Size <span class="req">*</span></label>
+              <select class="form-select"
+                [ngModel]="quickPackCustom() ? '__custom__' : (quick().packSize || '')"
+                (ngModelChange)="onQuickPackSelect($event)">
+                <option value="">Select pack</option>
+                @for (opt of quickPackOptions(); track opt) {
+                  <option [value]="opt">{{ opt }}</option>
+                }
+                <option value="__custom__">Custom…</option>
+              </select>
+              @if (quickPackCustom()) {
+                <input class="form-control text-uppercase mt-1" placeholder="e.g. 1x10 / 100 ML"
+                  [ngModel]="quick().packSize" (ngModelChange)="setQuick('packSize', $event)" />
+              }
+            </div>
+            <div class="col-4">
+              <label class="form-label">Units / Pack</label>
+              <input type="number" min="1" class="form-control" [ngModel]="quick().unitsPerPack" (ngModelChange)="setQuick('unitsPerPack', +$event)" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot quick-add-foot">
+          <button class="btn btn-light border" (click)="closeQuickAdd()">Cancel</button>
+          <button class="btn btn-pharma" (click)="saveQuickAdd()" [disabled]="quickSaving()">
+            @if (quickSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            <i class="bi bi-check-lg me-1"></i> Add &amp; Save
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (canUseAgt() && agtModalOpen()) {
+    <div class="modal d-block agt-order-modal-backdrop" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content card-pharma border-0 agt-order-modal">
+          <div class="modal-header agt-order-modal__header">
+            <div>
+              <span class="agt-order-modal__eyebrow">Home delivery</span>
+              <h5 class="modal-title mb-0">AuraGharTak order</h5>
+            </div>
+            <button type="button" class="btn-close" (click)="closeAgtModal()"></button>
+          </div>
+          <div class="modal-body">
+            @if (agtOrderLoading()) {
+              <p class="text-muted text-center py-3"><span class="spinner-border spinner-border-sm agt-spinner"></span> Loading…</p>
+            } @else if (!agtSelectedOrder()) {
+              <p class="text-muted">No pending order for this patient.</p>
+            } @else {
+              @if (agtPendingOrders().length > 1) {
+                <div class="list-group mb-3">
+                  @for (po of agtPendingOrders(); track po.id) {
+                    <button type="button" class="list-group-item list-group-item-action"
+                      [class.active]="agtSelectedOrder()?.id === po.id"
+                      (click)="selectAgtPendingOrder(po)">
+                      <strong>{{ po.order_no }}</strong>
+                      <span class="text-muted ms-2">{{ po.entry_date }}</span>
+                    </button>
+                  }
+                </div>
+              }
+              @if (agtSelectedOrder(); as o) {
+                <p><strong>{{ o.order_no }}</strong> <span class="badge agt-status-badge">{{ o.status }}</span></p>
+                @if (o.patient_note) {
+                  <p class="small text-muted">Note: {{ o.patient_note }}</p>
+                }
+                @if (o.prescription_url) {
+                  <div class="agt-rx-inline mb-3">
+                    <a [href]="o.prescription_url" target="_blank" rel="noopener">
+                      @if (agtPrescriptionIsPdf(o.prescription_url)) {
+                        <i class="bi bi-file-earmark-image"></i> View patient prescription (PDF)
+                      } @else {
+                        <i class="bi bi-file-earmark-image"></i> View patient prescription
+                      }
+                    </a>
+                    @if (!agtPrescriptionIsPdf(o.prescription_url)) {
+                      <a [href]="o.prescription_url" target="_blank" rel="noopener" class="d-inline-block mt-2">
+                        <img [src]="o.prescription_url" alt="Prescription" class="agt-rx-inline__thumb" />
+                      </a>
+                    }
+                  </div>
+                }
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead><tr><th>Product</th><th>Batch</th><th class="text-end">Qty</th><th>Stock</th></tr></thead>
+                    <tbody>
+                      @for (it of o.items ?? []; track it.id) {
+                        <tr>
+                          <td>{{ it.product_name || it.p_name }}</td>
+                          <td>{{ it.batch_no }}</td>
+                          <td class="text-end">{{ it.qty }}</td>
+                          <td class="small">
+                            @if (it.fulfillment_segments?.length) {
+                              OK
+                              @if ((it.qty_unfulfilled ?? 0) > 0) {
+                                <span class="text-warning"> (short {{ it.qty_unfulfilled }})</span>
+                              }
+                            } @else {
+                              <span class="text-danger">Out of stock</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
             }
           </div>
-          <div class="d-flex gap-2 justify-content-end mt-4">
-            <button class="btn btn-light border" (click)="closeQuickAdd()">Cancel</button>
-            <button class="btn btn-pharma" (click)="saveQuickAdd()" [disabled]="quickSaving()">
-              @if (quickSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-              <i class="bi bi-check-lg me-1"></i> Add &amp; Save
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light border" (click)="closeAgtModal()">Close</button>
+            <button type="button" class="btn btn-pharma"
+              [disabled]="!agtOrderOpenForSale(agtSelectedOrder())" (click)="addAgtOrderToBill()">
+              Add to bill
             </button>
           </div>
         </div>
       </div>
+    </div>
+  }
+
+  @if (canUseAgt() && agtLinkedRx() && agtRxFloaterVisible()) {
+    <app-agt-rx-floater [rx]="agtLinkedRx()" (dismiss)="hideAgtRxFloater()" />
+  }
+
+  @if (canShowPatientHistory() && patientHistoryModalOpen()) {
+    <div class="modal d-block patient-history-modal-backdrop" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content card-pharma border-0 patient-history-modal">
+          <div class="modal-header patient-history-modal__header">
+            <div>
+              <h5 class="modal-title mb-0">
+                <i class="bi bi-clock-history me-2"></i>Previous sale history
+              </h5>
+              @if (bill().patientName) {
+                <p class="patient-history-modal__subtitle mb-0">
+                  {{ bill().patientName }}
+                  @if (bill().contact) { <span>· {{ bill().contact }}</span> }
+                </p>
+              }
+            </div>
+            <button type="button" class="btn-close" (click)="closePatientHistoryModal()"></button>
+          </div>
+          <div class="modal-body patient-history-modal__body">
+            @if (patientHistoryLoading()) {
+              <p class="patient-history-modal__loading text-muted text-center py-4">
+                <span class="spinner-border spinner-border-sm me-2"></span>Loading purchase history…
+              </p>
+            } @else if (patientHistoryError(); as err) {
+              <div class="alert alert-warning mb-0">{{ err }}</div>
+            } @else if (patientHistoryBills().length === 0) {
+              <p class="patient-history-modal__empty text-muted text-center py-4 mb-0">
+                No previous retail bills found for this patient.
+              </p>
+            } @else {
+              @for (bill of patientHistoryBills(); track bill.order_no) {
+                <div class="patient-history-bill">
+                  <div class="patient-history-bill__head" (click)="togglePatientHistoryBill(bill.order_no)">
+                    <div class="patient-history-bill__meta">
+                      <span class="patient-history-bill__no">{{ bill.order_no }}</span>
+                      <span class="patient-history-bill__date">{{ bill.order_date | date: 'dd-MM-yyyy' }}</span>
+                      <span class="patient-history-bill__count">{{ bill.line_count || bill.products.length }} item(s)</span>
+                      <span class="patient-history-bill__net">Net {{ bill.net | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+                    </div>
+                    <div class="patient-history-bill__actions" (click)="$event.stopPropagation()">
+                      <button type="button" class="btn btn-sm btn-pharma" (click)="reorderPatientHistoryBill(bill)">
+                        <i class="bi bi-layers me-1"></i>Reorder bill
+                      </button>
+                      <button type="button" class="btn btn-sm btn-link patient-history-bill__toggle"
+                        (click)="togglePatientHistoryBill(bill.order_no)">
+                        {{ patientHistoryExpanded() === bill.order_no ? 'Hide' : 'Show' }} items
+                      </button>
+                    </div>
+                  </div>
+                  @if (patientHistoryExpanded() === bill.order_no) {
+                    <div class="table-responsive patient-history-bill__table-wrap">
+                      <table class="table table-sm table-hover patient-history-table mb-0">
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th>Batch</th>
+                            <th>Exp</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Disc %</th>
+                            <th class="text-end">MRP</th>
+                            <th class="text-end">Net</th>
+                            <th>Stock</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (line of bill.products; track $index) {
+                            <tr [class.patient-history-row--oos]="line.stock_status === 'none'"
+                              [class.patient-history-row--split]="line.stock_status === 'split_batch' || line.stock_status === 'split_batch_partial' || line.stock_status === 'new_batch'">
+                              <td>
+                                <div class="patient-history-product">{{ line.p_name }}</div>
+                                @if (line.m_name) {
+                                  <div class="patient-history-product__sub">{{ line.m_name }}</div>
+                                }
+                                @if ((line.qty_unfulfilled ?? 0) > 0) {
+                                  <div class="patient-history-product__sub">Short by {{ line.qty_unfulfilled }} qty</div>
+                                }
+                              </td>
+                              <td>
+                                <span class="patient-history-batch-old">{{ line.batch_no }}</span>
+                                @if (line.stock_status === 'new_batch') {
+                                  <span class="patient-history-batch-tag">sold batch</span>
+                                }
+                              </td>
+                              <td>{{ line.exp_date || '—' }}</td>
+                              <td class="text-end">{{ line.qty }}</td>
+                              <td class="text-end">{{ line.disc_per }}</td>
+                              <td class="text-end">{{ line.historical_unit_mrp | number: '1.2-2' }}</td>
+                              <td class="text-end">{{ line.net | number: '1.2-2' }}</td>
+                              <td>
+                                @if (line.stock_status === 'same_batch') {
+                                  <span class="patient-history-stock patient-history-stock--ok">{{ patientHistoryStockSummary(line) }}</span>
+                                } @else if (line.stock_status === 'split_batch' || line.stock_status === 'split_batch_partial') {
+                                  <span class="patient-history-stock patient-history-stock--split">{{ patientHistoryStockSummary(line) }}</span>
+                                } @else if (line.stock_status === 'new_batch') {
+                                  <div class="patient-history-old-batch-stock">
+                                    <span class="patient-history-old-batch-stock__label">Old batch qty</span>
+                                    <span class="patient-history-stock patient-history-stock--oos">Out of stock</span>
+                                  </div>
+                                } @else if (line.stock_status === 'none') {
+                                  <span class="patient-history-stock patient-history-stock--oos">Out of stock</span>
+                                }
+                              </td>
+                              <td class="text-nowrap">
+                                <button type="button" class="btn btn-sm btn-success"
+                                  [disabled]="!line.fulfillment_segments?.length"
+                                  (click)="addPatientHistoryLine(line)">
+                                  <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                              </td>
+                            </tr>
+                            @if ((line.fulfillment_segments?.length ?? 0) > 0 && (line.stock_status !== 'same_batch' || (line.fulfillment_segments?.length ?? 0) > 1)) {
+                              <tr class="patient-history-fulfillment-row">
+                                <td colspan="9">
+                                  <div class="patient-history-fulfillment">
+                                    <span class="patient-history-fulfillment__title">Will add to sale:</span>
+                                    <ul class="patient-history-fulfillment__list mb-0">
+                                      @for (seg of line.fulfillment_segments; track $index) {
+                                        <li>
+                                          <strong>{{ seg.qty }}</strong> × batch <strong>{{ seg.batch_no }}</strong>
+                                          @if (seg.exp_date) { <span> · exp {{ seg.exp_date }}</span> }
+                                          @if (seg.rate_source === 'historical') {
+                                            <span> · <em>previous sale rate</em> ₹{{ seg.unit_mrp | number: '1.2-2' }}</span>
+                                          }
+                                          @if (seg.rate_source === 'current') {
+                                            <span> · <em>current MRP</em> ₹{{ seg.unit_mrp | number: '1.2-2' }}</span>
+                                          }
+                                          <span class="text-muted"> ({{ seg.available_qty }} in stock)</span>
+                                        </li>
+                                      }
+                                    </ul>
+                                  </div>
+                                </td>
+                              </tr>
+                            }
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light border" (click)="closePatientHistoryModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (isWholesale() && wsDraft(); as d) {
+    <div class="ws-modal-backdrop" (click)="onWsModalBackdropClick($event)" aria-hidden="true"></div>
+    <div class="ws-modal" role="dialog" aria-modal="true" [attr.aria-label]="d.product_name"
+      [style.transform]="wsModalTransform()">
+      <div #wsModalPanel class="ws-entry-panel ws-entry-panel--modal" tabindex="-1"
+        (keydown)="onWsModalKeydown($event)">
+        <div class="ws-entry-head ws-modal-drag-handle" (mousedown)="onWsModalDragStart($event)">
+          <div class="ws-modal-head-main">
+            <i class="bi bi-grip-horizontal ws-modal-grip" aria-hidden="true"></i>
+            <div>
+              <span class="ws-entry-title">{{ d.product_name }}</span>
+              @if (wsDraftIsEdit()) { <span class="ws-entry-badge">Editing line</span> }
+            </div>
+          </div>
+          <div class="ws-modal-head-actions">
+            <button type="button" class="btn btn-link btn-sm text-secondary p-0" (click)="clearWholesaleDraft()">Clear</button>
+            <button type="button" class="btn btn-sm btn-light border ws-modal-close" (click)="clearWholesaleDraft()" title="Close">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        @if (prevCustomerRates().length > 0 || prevRatesLineIndex() !== null) {
+          <div class="ws-prev-bar ws-prev-bar--modal">
+            @if (prevCustomerRates().length > 0) {
+              <div class="ws-prev-bar__left">
+                <span class="ws-prev-bar__title">Prev Sale Rate</span>
+                @if (bill().patientName) {
+                  <span class="ws-prev-bar__party" [title]="bill().patientName">{{ bill().patientName }}</span>
+                }
+              </div>
+              <div class="ws-prev-bar__list">
+                @for (prev of prevCustomerRates(); track $index) {
+                  <button type="button" class="ws-prev-bar__chip"
+                    [class.tone-high]="prevRateToneFor(prev) === 'high'"
+                    [class.tone-low]="prevRateToneFor(prev) === 'low'"
+                    [class.tone-same]="prevRateToneFor(prev) === 'same'"
+                    (click)="applyPrevCustomerRate(prev)"
+                    [title]="prevRateTooltip(prev, $index)">
+                    @if ($index === 0) { <span class="ws-prev-bar__tag">LATEST</span> }
+                    <span class="ws-prev-bar__bill">{{ prev.invoice_no || '-' }}</span>
+                    <span class="ws-prev-bar__amt">{{ prev.sale_rate | number: '1.2-2' }}</span>
+                    @if (prevRateToneFor(prev) === 'high') { <span class="ws-prev-bar__tone">HIGH</span> }
+                    @if (prevRateToneFor(prev) === 'low') { <span class="ws-prev-bar__tone">LOW</span> }
+                    <span class="ws-prev-bar__date">{{ prev.invoice_date | date: 'dd/MM/yy' }}</span>
+                  </button>
+                }
+              </div>
+              <span class="ws-prev-bar__tip">High / Low vs entered rate · Click to apply</span>
+            } @else if (bill().customerId && prevRatesLineIndex() !== null) {
+              <span class="ws-prev-bar__empty">No previous rate for this party &amp; product</span>
+            }
+          </div>
+        }
+        <div class="ws-entry-body">
+          <div class="ws-entry-row ws-entry-row--info">
+            <div class="ws-field ws-field--wide">
+              <label>Product</label>
+              <span class="ws-val ws-val--name">{{ d.product_name }}</span>
+            </div>
+            <div class="ws-field">
+              <label>B. No</label>
+              @if (d.batches.length > 1) {
+                <select class="form-select form-select-sm ws-input" [ngModel]="d.batch_id" (ngModelChange)="selectWholesaleDraftBatch(+$event)">
+                  @for (b of d.batches; track b.batch_id) {
+                    <option [ngValue]="b.batch_id" [disabled]="isBatchExpired(b)">{{ b.batch_no }}</option>
+                  }
+                </select>
+              } @else { <span class="ws-val">{{ d.batch_no || '-' }}</span> }
+            </div>
+            <div class="ws-field"><label>Pack</label><span class="ws-val">{{ d.pack || '-' }}</span></div>
+            <div class="ws-field"><label>MRP (strip)</label><span class="ws-val">{{ displayPackMrp(d) | number: '1.2-2' }}</span></div>
+            <div class="ws-field"><label>Pur. Rate</label><span class="ws-val">{{ displayPurchaseRate(d) | number: '1.2-2' }}</span></div>
+          </div>
+          <div class="ws-entry-row ws-entry-row--rates">
+            <div class="ws-field ws-field--rate">
+              <label [title]="wholesalePrimaryRateLabel()">{{ wholesalePrimaryRateLabel() }}</label>
+              <input #wsModalRateInput type="number" class="form-control form-control-sm ws-input" [ngModel]="d.rate"
+                (ngModelChange)="patchWholesaleDraftRate($event)"
+                (focus)="onWholesaleDraftFocus()" [readonly]="d.billing_with === 'Net Rate'" />
+            </div>
+            <div class="ws-field ws-field--rate">
+              <label [title]="wholesaleOthRateLabel()">{{ wholesaleOthRateLabel() }}</label>
+              <input type="number" class="form-control form-control-sm ws-input" [ngModel]="d.oth_rate"
+                (ngModelChange)="patchWholesaleDraftOthRate($event)" />
+            </div>
+            <div class="ws-field ws-field--qty">
+              <label>Qty (Strips)</label>
+              <input type="number" min="1" step="1" class="form-control form-control-sm ws-input"
+                [ngModel]="d.qty" (ngModelChange)="patchWholesaleDraftQty($event)" />
+            </div>
+            <div class="ws-field ws-field--scheme">
+              <label>Sale Scheme</label>
+              <select class="form-select form-select-sm ws-input ws-input--select" [ngModel]="d.sale_scheme_pct"
+                (ngModelChange)="patchWholesaleDraft({ sale_scheme_pct: +$event })">
+                @for (opt of saleSchemeOptions; track opt.pct) {
+                  <option [ngValue]="opt.pct">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+            <div class="ws-field ws-field--billing">
+              <label>Billing With</label>
+              <select class="form-select form-select-sm ws-input ws-input--select" [ngModel]="d.billing_with"
+                (ngModelChange)="patchWholesaleDraft({ billing_with: $event })">
+                @for (bw of billingWithOptions; track bw) { <option [ngValue]="bw">{{ bw }}</option> }
+              </select>
+            </div>
+            <div class="ws-field">
+              <label>Free Qty</label>
+              @if (d.sale_scheme_pct > 0) {
+                <span class="ws-val">{{ d.free_qty | number: '1.0-2' }}</span>
+              } @else {
+                <input type="number" min="0" step="0.01" class="form-control form-control-sm ws-input"
+                  [ngModel]="d.free_qty" (ngModelChange)="patchWholesaleDraftFreeQty($event)" />
+              }
+            </div>
+            <div class="ws-field"><label>Total Qty</label><span class="ws-val ws-val--strong">{{ d.total_qty | number: '1.0-2' }}</span></div>
+            <div class="ws-field"><label>Pur. Sh%</label><span class="ws-val">{{ d.scheme_pct | number: '1.0-2' }}</span></div>
+            <div class="ws-field"><label>Net Rate</label><span class="ws-val">{{ d.net_rate | number: '1.2-2' }}</span></div>
+          </div>
+          <div class="ws-entry-row ws-entry-row--calc">
+            <div class="ws-field"><label>Pur. Disc%</label><span class="ws-val">{{ d.pur_disc_pct | number: '1.0-2' }}</span></div>
+            <div class="ws-field">
+              <label>Disc%</label>
+              <input type="number" class="form-control form-control-sm ws-input" [ngModel]="d.disc"
+                (ngModelChange)="patchWholesaleDraftDisc($event)" />
+            </div>
+            <div class="ws-field"><label>Tax %</label><span class="ws-val">{{ d.gst_rate | number: '1.0-2' }}</span></div>
+            <div class="ws-field"><label>Total Amt.</label><span class="ws-val">{{ lineGross(d) | number: '1.2-2' }}</span></div>
+            <div class="ws-field"><label>Disc. Amt.</label><span class="ws-val">{{ lineDiscountAmt(d) | number: '1.2-2' }}</span></div>
+            <div class="ws-field"><label>Taxable</label><span class="ws-val">{{ lineTaxable(d) | number: '1.2-2' }}</span></div>
+            <div class="ws-field">
+              <label>Profit</label>
+              <span class="ws-val" [class.text-danger]="lineProfit(d) < 0" [class.text-success]="lineProfit(d) >= 0">{{ lineProfit(d) | number: '1.2-2' }}</span>
+            </div>
+            <div class="ws-field"><label>Net</label><span class="ws-val ws-val--strong">{{ lineSell(d) | number: '1.2-2' }}</span></div>
+          </div>
+        </div>
+        <div class="ws-entry-actions">
+          <span class="ws-entry-hint"><kbd>Tab</kbd> between fields · <kbd>Enter</kbd> add · <kbd>Esc</kbd> close · drag header to move</span>
+          <button type="button" class="btn btn-pharma btn-sm px-4 ws-entry-add-btn"
+            (click)="commitWholesaleAdd()">{{ wsDraftIsEdit() ? 'Update' : 'Add' }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (cashDayOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeCashCounterDayReport()"></div>
+    <div class="modal-custom cash-day-modal">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border cash-day-card">
+        <div class="modal-head">
+          <div>
+            <h5 class="mb-0 fw-semibold">Cash/Counter Bill Day Report</h5>
+            <span class="text-secondary small">Walk-in cash memos without patient name</span>
+          </div>
+          <button type="button" class="btn-close" (click)="closeCashCounterDayReport()"></button>
+        </div>
+        <div class="modal-body-custom">
+          <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div>
+              <label class="form-label small mb-1">Date</label>
+              <input type="date" class="form-control form-control-sm" [ngModel]="cashDayDate()"
+                (ngModelChange)="onCashDayDateChange($event)" [max]="todayLocalDate()" />
+            </div>
+            <button type="button" class="btn btn-pharma btn-sm" (click)="loadCashCounterDay()" [disabled]="cashDayLoading()">
+              @if (cashDayLoading()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              View
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm" (click)="downloadCashCounterDayExcel()"
+              [disabled]="!cashDay()?.rows?.length || cashDayExporting()">
+              <i class="bi bi-file-earmark-excel me-1"></i>Excel
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="downloadCashCounterDayPdf()"
+              [disabled]="!cashDay()">
+              <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+            </button>
+          </div>
+          @if (cashDayError()) {
+            <div class="alert alert-danger py-2">{{ cashDayError() }}</div>
+          }
+          @if (cashDay(); as d) {
+            <div class="cash-day-kpis">
+              <div class="cash-day-kpi"><span>Memos</span><b>{{ d.totals.count }}</b></div>
+              <div class="cash-day-kpi"><span>Items</span><b>{{ d.totals.items }}</b></div>
+              <div class="cash-day-kpi"><span>Gross</span><b>{{ d.totals.gross | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div>
+              <div class="cash-day-kpi"><span>Discount</span><b>{{ d.totals.discount | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div>
+              <div class="cash-day-kpi"><span>GST</span><b>{{ d.totals.gst | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div>
+              <div class="cash-day-kpi cash-day-kpi--net"><span>Day total</span><b>{{ d.totals.net | currency: 'INR' : 'symbol' : '1.2-2' }}</b></div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Date</th>
+                    <th>Counter</th>
+                    <th>Payment</th>
+                    <th class="text-end">Items</th>
+                    <th class="text-end">Gross</th>
+                    <th class="text-end">Discount</th>
+                    <th class="text-end">GST</th>
+                    <th class="text-end">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (!d.rows.length) {
+                    <tr>
+                      <td colspan="9" class="text-center text-secondary py-4">No cash/counter memos for this date.</td>
+                    </tr>
+                  }
+                  @for (r of d.rows; track r.id) {
+                    <tr>
+                      <td>{{ r.invoice_no }}</td>
+                      <td>{{ formatCashDayDate(r.invoice_date) }}</td>
+                      <td>{{ r.counter || '—' }}</td>
+                      <td>{{ (r.payment_mode || '') | uppercase }}</td>
+                      <td class="text-end">{{ r.item_count }}</td>
+                      <td class="text-end">{{ r.gross_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                      <td class="text-end">{{ r.discount_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                      <td class="text-end">{{ r.gst_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                      <td class="text-end">{{ r.net_amount | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                    </tr>
+                  }
+                </tbody>
+                @if (d.rows.length) {
+                  <tfoot>
+                    <tr>
+                      <th colspan="4">Total</th>
+                      <th class="text-end">{{ d.totals.items }}</th>
+                      <th class="text-end">{{ d.totals.gross | currency: 'INR' : 'symbol' : '1.2-2' }}</th>
+                      <th class="text-end">{{ d.totals.discount | currency: 'INR' : 'symbol' : '1.2-2' }}</th>
+                      <th class="text-end">{{ d.totals.gst | currency: 'INR' : 'symbol' : '1.2-2' }}</th>
+                      <th class="text-end">{{ d.totals.net | currency: 'INR' : 'symbol' : '1.2-2' }}</th>
+                    </tr>
+                  </tfoot>
+                }
+              </table>
+            </div>
+          } @else if (cashDayLoading()) {
+            <div class="text-center py-4"><span class="spinner-border text-pharma"></span></div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (wholesaleCustomerPopup()) {
+    <div data-no-barcode="1">
+      <app-master-page
+        embedKey="customers"
+        [embedPreset]="wholesaleCustomerPreset"
+        [embedLock]="wholesaleCustomerLock"
+        (embedSaved)="onWholesaleCustomerCreated($event)"
+        (embedClosed)="closeWholesaleCustomerPopup()" />
     </div>
   }
 </div>

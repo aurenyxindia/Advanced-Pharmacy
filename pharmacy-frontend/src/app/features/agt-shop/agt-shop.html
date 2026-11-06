@@ -1,0 +1,106 @@
+<div class="agt-shop-page container py-3">
+  @if (loading()) {
+    <div class="text-center py-5"><span class="spinner-border"></span></div>
+  } @else if (error() && !pharmacy().name) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  } @else if (done(); as d) {
+    <div class="card card-pharma text-center p-4">
+      @if (cancelled()) {
+        <h1 class="h4 text-secondary">Order cancelled</h1>
+        <p class="mb-0">Order no: <strong>{{ d.order_no }}</strong> was cancelled.</p>
+      } @else {
+        <h1 class="h4 text-success">Order placed</h1>
+        <p class="mb-1">Order no: <strong>{{ d.order_no }}</strong></p>
+        <p class="text-muted">Estimated total: ₹{{ d.estimated_total | number:'1.2-2' }}</p>
+        <p class="small">The pharmacy will confirm and deliver your medicines.</p>
+        @if (allowCustomerCancel()) {
+          <p class="small text-muted mb-2">You can cancel while the order is still new (before billing).</p>
+          <button type="button" class="btn btn-outline-danger btn-sm" [disabled]="cancelling()" (click)="cancelPlacedOrder()">
+            @if (cancelling()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Cancel this order
+          </button>
+        }
+      }
+    </div>
+  } @else {
+    <div class="mb-3">
+      <h1 class="h4 mb-0">{{ pharmacy().name }}</h1>
+      <p class="small text-muted mb-0">{{ pharmacy().address }} · {{ pharmacy().contact }}</p>
+      <p class="small mt-2">Ordering for <strong>{{ patient().name }}</strong> ({{ patient().contact }})</p>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-warning py-2">{{ error() }}</div>
+    }
+
+    @if (cancelHint()) {
+      <div class="alert py-2 mb-2 small" [class.alert-info]="allowCustomerCancel()" [class.alert-secondary]="!allowCustomerCancel()">
+        <i class="bi" [class.bi-arrow-repeat]="allowCustomerCancel()" [class.bi-lock]="!allowCustomerCancel()"></i>
+        {{ cancelHint() }}
+      </div>
+    }
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-8">
+        <div class="input-group mb-2">
+          <input class="form-control" [ngModel]="searchQ()" (ngModelChange)="searchQ.set($event)"
+            placeholder="Search medicine…" />
+          <button type="button" class="btn btn-outline-secondary" (click)="onSearch()">Search</button>
+        </div>
+        <div class="card card-pharma">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr><th>Product</th><th>Batch</th><th class="text-end">MRP</th><th class="text-end">Stock</th><th></th></tr>
+              </thead>
+              <tbody>
+                @for (p of products(); track $index) {
+                  <tr>
+                    <td>{{ p['p_name'] }}<br /><span class="small text-muted">{{ p['pack_size'] }}</span></td>
+                    <td class="small">{{ p['batch_no'] }}</td>
+                    <td class="text-end">₹{{ p['unit_mrp'] }}</td>
+                    <td class="text-end">{{ p['availableQty'] }}</td>
+                    <td class="text-end text-nowrap">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="changeQty(p, -1)">−</button>
+                      <span class="mx-1">{{ qtyInCart(p) }}</span>
+                      <button type="button" class="btn btn-sm btn-pharma" (click)="changeQty(p, 1)">+</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="card card-pharma sticky-top">
+          <div class="card-body">
+            <h2 class="h6">Your cart</h2>
+            @if (!cart().length) {
+              <p class="small text-muted">Add strips from the list.</p>
+            } @else {
+              <ul class="list-unstyled small mb-2">
+                @for (c of cart(); track c.p_name + c.batch_no) {
+                  <li class="d-flex justify-content-between">
+                    <span>{{ c.p_name }} × {{ c.qty }}</span>
+                    <span>₹{{ (c.unit_mrp * c.qty) | number:'1.2-2' }}</span>
+                  </li>
+                }
+              </ul>
+              <p class="fw-semibold">Total: ₹{{ cartTotal() | number:'1.2-2' }}</p>
+            }
+            <label class="form-label small">Note for pharmacy</label>
+            <textarea class="form-control form-control-sm mb-2" rows="2" [ngModel]="patientNote()"
+              (ngModelChange)="patientNote.set($event)"></textarea>
+            <label class="form-label small">Prescription (photo/PDF)</label>
+            <input type="file" class="form-control form-control-sm mb-3" accept="image/*,.pdf" (change)="onRxFile($event)" />
+            <button type="button" class="btn btn-pharma w-100" [disabled]="placing() || !cart().length" (click)="placeOrder()">
+              @if (placing()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Place order
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

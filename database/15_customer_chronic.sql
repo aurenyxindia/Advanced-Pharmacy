@@ -1,6 +1,8 @@
 -- Migration 15: chronic-patient flag on the customer master.
 -- Patients are maintained in `customers` (keyed by phone within a client).
 
+USE `pharma_ops`;
+
 ALTER TABLE `customers`
     ADD COLUMN IF NOT EXISTS `is_chronic` TINYINT(1) NOT NULL DEFAULT 0 AFTER `gstin`;
 

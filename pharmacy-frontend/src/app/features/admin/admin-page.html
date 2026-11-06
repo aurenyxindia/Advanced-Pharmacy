@@ -1,0 +1,263 @@
+<div class="admin-page">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div>
+      <h4 class="fw-bold mb-0"><i class="bi bi-shield-lock me-2 text-pharma"></i>Admin</h4>
+      <p class="small text-secondary mb-0">
+        Activate pharmacies and manage Android subscription plan prices.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      @if (tab() === 'pharmacies') {
+        <span class="badge text-bg-warning">Pending {{ pendingCount() }}</span>
+      }
+      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="reload()" [disabled]="loading() || plansLoading()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills gap-2 mb-3 flex-wrap">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'pharmacies'" (click)="setTab('pharmacies')">
+        Pharmacies
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'plans'" (click)="setTab('plans')">
+        Subscription plans
+      </button>
+    </li>
+  </ul>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+  @if (success()) {
+    <div class="alert alert-success py-2">{{ success() }}</div>
+  }
+
+  @if (tab() === 'pharmacies') {
+    <div class="card card-pharma">
+      <div class="card-body border-bottom py-2">
+        <input class="form-control form-control-sm" placeholder="Search pharmacy, email, phone, access…"
+          [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+      </div>
+      <div class="card-body p-0">
+        @if (loading()) {
+          <div class="text-center py-5"><div class="spinner-border text-pharma"></div></div>
+        } @else if (filtered().length === 0) {
+          <div class="text-secondary small p-3 mb-0">No pharmacies found.</div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 admin-table">
+              <thead>
+                <tr>
+                  <th>Pharmacy</th>
+                  <th>Login</th>
+                  <th>License</th>
+                  <th>Type</th>
+                  <th>Access</th>
+                  <th>Android expiry</th>
+                  <th>Registered</th>
+                  <th class="text-center">Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of filtered(); track r.client_id) {
+                  <tr [class.table-warning]="!isActive(r)">
+                    <td>
+                      <div class="fw-semibold">{{ r.business_name }}</div>
+                      <div class="small text-secondary">#{{ r.client_id }} · {{ r.city || '—' }}{{ r.state ? ', ' + r.state : '' }}</div>
+                    </td>
+                    <td>
+                      <div>{{ r.owner_login_name || r.owner_name || '—' }}</div>
+                      <div class="small text-secondary">{{ r.email || '—' }}</div>
+                      @if (r.phone) { <div class="small text-secondary">{{ r.phone }}</div> }
+                    </td>
+                    <td class="small">{{ r.drug_license_no || '—' }}</td>
+                    <td><span class="badge text-bg-light text-uppercase">{{ r.business_type || '—' }}</span></td>
+                    <td>
+                      <span class="badge"
+                        [class.text-bg-primary]="accessLabel(r) === 'Both'"
+                        [class.text-bg-info]="accessLabel(r) === 'Web'"
+                        [class.text-bg-success]="accessLabel(r) === 'Android'">
+                        {{ accessLabel(r) }}
+                      </span>
+                      @if (r.subscription_plan) {
+                        <div class="small text-secondary text-uppercase">{{ r.subscription_plan }}</div>
+                      }
+                    </td>
+                    <td class="small text-nowrap">{{ formatDate(r.android_expiry_date) }}</td>
+                    <td class="small text-nowrap">{{ formatDate(r.registered_at) }}</td>
+                    <td class="text-center">
+                      <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                          [checked]="isActive(r)"
+                          [disabled]="togglingId() === r.client_id"
+                          (change)="onToggle(r, $event)"
+                          [attr.aria-label]="'Toggle ' + r.business_name" />
+                      </div>
+                      <div class="small" [class.text-success]="isActive(r)" [class.text-danger]="!isActive(r)">
+                        {{ isActive(r) ? 'On' : 'Off' }}
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <p class="small text-secondary mb-0">
+        Amounts calculate automatically. Recurring = monthly × months − discount + GST. Lifetime = base + GST.
+      </p>
+      <button type="button" class="btn btn-pharma btn-sm" (click)="openAddPlan()" [disabled]="showAddPlan()">
+        <i class="bi bi-plus-lg me-1"></i> Add new plan
+      </button>
+    </div>
+
+    @if (showAddPlan()) {
+      <div class="card card-pharma mb-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h6 class="fw-semibold mb-0">New subscription plan</h6>
+            <span class="badge text-bg-light">Payable preview: {{ inr(createPlanPreviewPayable()) }}</span>
+          </div>
+          <div class="row g-2">
+            <div class="col-12 col-md-3">
+              <label class="form-label small mb-1">Code</label>
+              <input class="form-control form-control-sm" [(ngModel)]="newPlan.code"
+                placeholder="test_1rs" maxlength="32" />
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small mb-1">Name</label>
+              <input class="form-control form-control-sm" [(ngModel)]="newPlan.name"
+                placeholder="Test ₹1" maxlength="80" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">Months (0 = lifetime)</label>
+              <input class="form-control form-control-sm" type="number" min="0" max="1200" step="1"
+                [(ngModel)]="newPlan.months" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">Monthly ₹</label>
+              <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                [(ngModel)]="newPlan.monthly_rate" [disabled]="newPlan.months <= 0" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">Discount %</label>
+              <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.1"
+                [(ngModel)]="newPlan.discount_pct" [disabled]="newPlan.months <= 0" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">GST %</label>
+              <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.1"
+                [(ngModel)]="newPlan.gst_pct" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">Lifetime base ₹</label>
+              <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                [(ngModel)]="newPlan.lifetime_base" [disabled]="newPlan.months > 0" />
+            </div>
+            <div class="col-6 col-md-2 d-flex align-items-end">
+              <div class="form-check form-switch mb-1">
+                <input class="form-check-input" type="checkbox" id="newPlanActive" [(ngModel)]="newPlan.is_active" />
+                <label class="form-check-label small" for="newPlanActive">Active</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="button" class="btn btn-pharma btn-sm" (click)="submitNewPlan()" [disabled]="creatingPlan()">
+              @if (creatingPlan()) { Creating… } @else { Create plan }
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelAddPlan()" [disabled]="creatingPlan()">
+              Cancel
+            </button>
+            <span class="small text-secondary align-self-center">
+              Tip: for a ₹1 Razorpay test plan use months=1, monthly=1, discount=0, GST=0.
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="card card-pharma">
+      <div class="card-body p-0">
+        @if (plansLoading()) {
+          <div class="text-center py-5"><div class="spinner-border text-pharma"></div></div>
+        } @else if (plans().length === 0) {
+          <div class="text-secondary small p-3 mb-0">No plans found. Click <strong>Add new plan</strong> to create one.</div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 admin-table">
+              <thead>
+                <tr>
+                  <th>Plan</th>
+                  <th>Months</th>
+                  <th>Monthly ₹</th>
+                  <th>Discount %</th>
+                  <th>GST %</th>
+                  <th>Lifetime base</th>
+                  <th>Payable</th>
+                  <th>Active</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of plans(); track p.code) {
+                  <tr>
+                    <td>
+                      <input class="form-control form-control-sm" [(ngModel)]="p.name" />
+                      <div class="small text-secondary text-uppercase">{{ p.code }}</div>
+                    </td>
+                    <td class="small">{{ p.is_lifetime ? 'Lifetime' : p.months }}</td>
+                    <td>
+                      <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                        [(ngModel)]="p.monthly_rate" [disabled]="p.is_lifetime" />
+                    </td>
+                    <td>
+                      <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.1"
+                        [(ngModel)]="p.discount_pct" [disabled]="p.is_lifetime" />
+                    </td>
+                    <td>
+                      <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.1"
+                        [(ngModel)]="p.gst_pct" />
+                    </td>
+                    <td>
+                      @if (p.is_lifetime) {
+                        <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                          [(ngModel)]="p.lifetime_base" />
+                      } @else {
+                        <span class="text-secondary">—</span>
+                      }
+                    </td>
+                    <td class="fw-semibold text-nowrap">{{ inr(previewPayable(p)) }}</td>
+                    <td>
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="p.is_active" />
+                      </div>
+                    </td>
+                    <td>
+                      <button type="button" class="btn btn-pharma btn-sm"
+                        [disabled]="savingCode() === p.code"
+                        (click)="savePlan(p)">
+                        @if (savingCode() === p.code) {
+                          Saving…
+                        } @else {
+                          Save
+                        }
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

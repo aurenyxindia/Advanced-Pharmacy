@@ -1,0 +1,138 @@
+.ss-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1050;
+}
+
+.ss-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.ss-card {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.ss-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ss-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.ss-search {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 380px;
+
+  i {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.8rem;
+  }
+
+  .form-control { padding-left: 1.85rem; }
+}
+
+.ss-stats {
+  display: flex;
+  gap: 1rem;
+  color: #475569;
+}
+
+.ss-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ss-table {
+  font-size: 0.82rem;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: #f8fafc;
+    white-space: nowrap;
+  }
+
+  .col-min { width: 9.5rem; }
+  .col-act { width: 5.5rem; }
+}
+
+.min-input { width: 4.75rem; }
+
+.row-ok > td { background: #f0fdf4; }
+
+.stock-pill {
+  display: inline-block;
+  min-width: 2.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+  text-align: center;
+
+  &.out { background: #fee2e2; color: #b91c1c; }
+  &.ok { background: #dcfce7; color: #15803d; }
+}
+
+.ss-badge {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #64748b;
+
+  &.ok { background: #dcfce7; color: #15803d; }
+}
+
+.ss-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 575.98px) {
+  .ss-wrap { padding: 0.5rem; }
+  .ss-card { max-height: calc(100vh - 1rem); }
+}

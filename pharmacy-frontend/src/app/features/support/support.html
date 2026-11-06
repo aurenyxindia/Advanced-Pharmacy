@@ -1,0 +1,385 @@
+<div class="support-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0"><i class="bi bi-life-preserver me-2 text-pharma"></i>Support Center</h4>
+      <p class="text-secondary mb-0 small">
+        @if (isAdmin()) {
+          Manage all client tickets - update status, remarks, attachments and reply in chat.
+        } @else {
+          Raise tickets, view support remarks and chat with the support team.
+        }
+      </p>
+    </div>
+    <button class="btn btn-pharma" (click)="openNew()"><i class="bi bi-plus-lg me-1"></i> New Ticket</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-2 mb-2">
+    <div class="col-6 col-md-3">
+      <div class="card-pharma py-2 px-3 kpi-mini">
+        <div class="kpi-icon bg-slate"><i class="bi bi-ticket-detailed"></i></div>
+        <div><div class="kpi-val">{{ counts().total }}</div><div class="kpi-lbl">Tickets</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-pharma py-2 px-3 kpi-mini">
+        <div class="kpi-icon bg-process"><i class="bi bi-hourglass-split"></i></div>
+        <div><div class="kpi-val">{{ counts().open }}</div><div class="kpi-lbl">Open</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-pharma py-2 px-3 kpi-mini">
+        <div class="kpi-icon bg-resolved"><i class="bi bi-check2-circle"></i></div>
+        <div><div class="kpi-val">{{ counts().resolved }}</div><div class="kpi-lbl">Resolved</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-pharma py-2 px-3 kpi-mini">
+        <div class="kpi-icon bg-rejected"><i class="bi bi-x-circle"></i></div>
+        <div><div class="kpi-val">{{ counts().rejected }}</div><div class="kpi-lbl">Rejected</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card-pharma py-2 px-3 mb-2">
+    <div class="row g-2 align-items-end">
+      @if (isAdmin()) {
+        <div class="col-12 col-md-6 col-lg-5">
+          <label class="form-label">Client</label>
+          <div class="input-group input-group-sm">
+            <input class="form-control" [(ngModel)]="search" placeholder="Client no / medical name / ticket no"
+                   (keyup.enter)="runSearch()" />
+            <button class="btn btn-pharma" (click)="runSearch()" [disabled]="loading()"><i class="bi bi-search me-1"></i>Search</button>
+            <button class="btn btn-outline-secondary" (click)="clearSearch()" [disabled]="loading() || !activeSearch()" title="Show latest tickets">Recent</button>
+          </div>
+        </div>
+      }
+      <div class="col-8 col-md-4 col-lg-3">
+        <label class="form-label">Status</label>
+        <select class="form-select form-select-sm" [(ngModel)]="statusFilter" (ngModelChange)="load()">
+          <option value="">All Status</option>
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+      <div class="col-4 col-md-2 col-lg-1">
+        <button class="btn btn-sm btn-outline-secondary w-100" (click)="load()" [disabled]="loading()" title="Refresh">
+          <i class="bi bi-arrow-clockwise" [class.spin]="loading()"></i>
+        </button>
+      </div>
+    </div>
+    @if (isAdmin() && limitedLog() && !activeSearch()) {
+      <div class="small text-secondary mt-2">Showing latest {{ logLimit() }} tickets - search to find a client's older tickets.</div>
+    } @else if (isAdmin() && activeSearch()) {
+      <div class="small text-secondary mt-2">Search results for "{{ activeSearch() }}"</div>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>{{ error() }}</div>
+  }
+
+  <!-- Ticket log -->
+  <div class="card-pharma">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0 support-table">
+        <thead>
+          <tr>
+            <th class="c-ticket">Ticket</th>
+            @if (isAdmin()) { <th>Client</th> }
+            <th>Subject / Query</th>
+            <th class="c-status">Status</th>
+            <th class="d-none d-md-table-cell">Support Remark</th>
+            <th class="c-act text-center">Files &middot; Chat</th>
+            <th class="c-open"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td [attr.colspan]="isAdmin() ? 7 : 6" class="text-center py-5"><span class="spinner-border text-pharma"></span></td></tr>
+          } @else if (tickets().length === 0) {
+            <tr>
+              <td [attr.colspan]="isAdmin() ? 7 : 6" class="text-center py-5 text-secondary">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>No tickets found.
+                <div class="mt-2"><button class="btn btn-sm btn-pharma" (click)="openNew()">Raise your first ticket</button></div>
+              </td>
+            </tr>
+          } @else {
+            @for (t of tickets(); track t.id) {
+              <tr class="ticket-row" [class.row-locked]="isLocked(t)" (click)="openTicket(t)">
+                <td>
+                  <div class="cell-main fw-semibold">{{ t.ticket_no }}</div>
+                  <div class="cell-sub">{{ fmt(t.created_at) }}</div>
+                </td>
+                @if (isAdmin()) {
+                  <td [title]="t.medical_name">
+                    <div class="cell-main fw-semibold">{{ t.medical_name || '-' }}</div>
+                    <div class="cell-sub">#{{ t.client_no }}@if (t.contact_no) { &middot; {{ t.contact_no }} }</div>
+                  </td>
+                }
+                <td [title]="t.subject + ' - ' + t.query_text">
+                  <div class="cell-main">{{ t.subject }}</div>
+                  <div class="cell-sub">{{ t.query_text || '-' }}</div>
+                </td>
+                <td><span class="status-badge" [ngClass]="statusClass(t.status)">{{ t.status }}</span></td>
+                <td class="d-none d-md-table-cell" [title]="t.admin_remark">
+                  <div class="cell-remark">{{ t.admin_remark || '-' }}</div>
+                </td>
+                <td class="text-center text-nowrap act-cell">
+                  <span [class.text-secondary]="!attachmentCount(t)"><i class="bi bi-paperclip"></i>{{ attachmentCount(t) }}</span>
+                  <span class="chat-count ms-2" [class.has-replies]="t.reply_count > 0"><i class="bi bi-chat-dots"></i> {{ t.reply_count }}</span>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-pharma btn-open" title="Open ticket" (click)="$event.stopPropagation(); openTicket(t)">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- New ticket -->
+  @if (newOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeNew()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg new-card">
+        <div class="modal-head">
+          <h5 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2 text-pharma"></i>Raise New Ticket</h5>
+          <button class="btn-close" (click)="closeNew()"></button>
+        </div>
+        <div class="modal-body-custom">
+          <div class="row g-3">
+            <div class="col-12 col-lg-8">
+              <div class="mb-3">
+                <label class="form-label">Subject / Query Title <span class="text-danger">*</span></label>
+                <input class="form-control" [(ngModel)]="subject" maxlength="500" placeholder="Short title of your issue" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Query Details <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="6" [(ngModel)]="queryText" placeholder="Describe your issue in detail..."></textarea>
+              </div>
+              <div>
+                <label class="form-label">Screenshots <span class="text-secondary small">(max 8 images, 5 MB each)</span></label>
+                <input type="file" class="form-control form-control-sm" accept="image/*" multiple (change)="onNewShots($event)" />
+                @if (newShots().length) {
+                  <div class="chip-list mt-2">
+                    @for (f of newShots(); track $index) {
+                      <span class="file-chip"><i class="bi bi-image"></i>{{ f.name }}<button type="button" (click)="removeNewShot($index)">&times;</button></span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="info-box">
+                <h6 class="fw-semibold mb-2">How it works</h6>
+                <ol class="small mb-2 ps-3">
+                  <li>Enter subject and full query details.</li>
+                  <li>Attach screenshots if needed.</li>
+                  <li>Submit - ticket is marked <strong>In Process</strong>.</li>
+                  <li>Open the ticket anytime to chat with support.</li>
+                </ol>
+                <p class="mb-0 small text-secondary">Default remark: resolved within 24 hrs.</p>
+              </div>
+            </div>
+          </div>
+          @if (newError()) {
+            <div class="alert alert-danger py-2 small mt-3 mb-0">{{ newError() }}</div>
+          }
+          <div class="d-flex flex-wrap justify-content-end gap-2 mt-4 pt-3 border-top">
+            <button class="btn btn-light border" (click)="closeNew()" [disabled]="saving()">Cancel</button>
+            <button class="btn btn-pharma" (click)="submitTicket()" [disabled]="saving()">
+              @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> Submitting... } @else { <i class="bi bi-send me-1"></i> Submit Ticket }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Ticket detail + chat -->
+  @if (view(); as t) {
+    <div class="modal-backdrop-custom" (click)="closeTicket()"></div>
+    <div class="modal-custom">
+      <div class="modal-card card-pharma shadow-pharma-lg view-card">
+        <div class="modal-head">
+          <div class="d-flex flex-wrap align-items-center gap-2 min-w-0">
+            <h5 class="mb-0 fw-semibold text-nowrap"><i class="bi bi-ticket-perforated me-2 text-pharma"></i>{{ t.ticket_no }}</h5>
+            <span class="status-badge" [ngClass]="statusClass(t.status)">{{ t.status }}</span>
+            <span class="view-subject text-secondary">{{ t.subject }}</span>
+          </div>
+          <button class="btn-close" (click)="closeTicket()"></button>
+        </div>
+
+        <div class="view-body">
+          <!-- Left: ticket info + admin update -->
+          <div class="view-side">
+            <div class="info-grid">
+              @if (isAdmin()) {
+                <div><span class="lbl">Client</span><span class="val">#{{ t.client_no }} &middot; {{ t.medical_name || '-' }}</span></div>
+                <div><span class="lbl">Contact</span><span class="val">{{ t.contact_no || '-' }}</span></div>
+              }
+              <div><span class="lbl">Created</span><span class="val">{{ t.created_by || '-' }} &middot; {{ fmt(t.created_at) }}</span></div>
+            </div>
+
+            <div class="sect">
+              <span class="lbl">Query Details</span>
+              <div class="text-box">{{ t.query_text || '-' }}</div>
+            </div>
+
+            <div class="sect">
+              <span class="lbl">Support Remark</span>
+              <div class="text-box remark">{{ t.admin_remark || '-' }}</div>
+            </div>
+
+            @if (t.screenshot_urls.length) {
+              <div class="sect">
+                <span class="lbl">Client Screenshots</span>
+                <div class="thumbs">
+                  @for (u of t.screenshot_urls; track u) {
+                    <button type="button" class="thumb" (click)="openImage(u)">
+                      @if (blobs()[u]) { <img [src]="blobs()[u]" alt="Screenshot" /> } @else { <span class="spinner-border spinner-border-sm text-secondary"></span> }
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (t.admin_screenshot_urls.length || t.admin_files.length) {
+              <div class="sect">
+                <span class="lbl">Support Attachments</span>
+                <div class="thumbs">
+                  @for (u of t.admin_screenshot_urls; track u) {
+                    <button type="button" class="thumb" (click)="openImage(u)">
+                      @if (blobs()[u]) { <img [src]="blobs()[u]" alt="Support screenshot" /> } @else { <span class="spinner-border spinner-border-sm text-secondary"></span> }
+                    </button>
+                  }
+                </div>
+                @for (f of t.admin_files; track f.url) {
+                  <button type="button" class="file-link" (click)="downloadFile(f)"><i class="bi bi-download"></i>{{ f.name }}</button>
+                }
+              </div>
+            }
+
+            @if (isAdmin()) {
+              <div class="admin-box">
+                <div class="fw-semibold small mb-2"><i class="bi bi-shield-check me-1 text-pharma"></i>Support Action</div>
+                @if (isLocked(t)) {
+                  <div class="small text-secondary"><i class="bi bi-lock me-1"></i>Resolved tickets are locked. The client can reply to reopen it.</div>
+                } @else {
+                  <div class="mb-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="adminStatus">
+                      @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+                    </select>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label">Remark for client</label>
+                    <textarea class="form-control form-control-sm" rows="3" [(ngModel)]="adminRemark" placeholder="Write a clear remark for the client..."></textarea>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 mb-2">
+                    <label class="btn btn-sm btn-outline-secondary mb-0"><i class="bi bi-camera me-1"></i>Screenshot
+                      <input type="file" accept="image/*" multiple hidden (change)="onAdminShots($event)" />
+                    </label>
+                    <label class="btn btn-sm btn-outline-secondary mb-0"><i class="bi bi-paperclip me-1"></i>File
+                      <input type="file" [accept]="docAccept" multiple hidden (change)="onAdminFiles($event)" />
+                    </label>
+                  </div>
+                  @if (adminShots().length || adminFiles().length) {
+                    <div class="chip-list mb-2">
+                      @for (f of adminShots(); track $index) {
+                        <span class="file-chip"><i class="bi bi-image"></i>{{ f.name }}<button type="button" (click)="removeAdminShot($index)">&times;</button></span>
+                      }
+                      @for (f of adminFiles(); track $index) {
+                        <span class="file-chip"><i class="bi bi-file-earmark"></i>{{ f.name }}<button type="button" (click)="removeAdminFile($index)">&times;</button></span>
+                      }
+                    </div>
+                  }
+                  @if (adminError()) { <div class="alert alert-danger py-1 px-2 small mb-2">{{ adminError() }}</div> }
+                  <button class="btn btn-sm btn-pharma w-100" (click)="saveAdminUpdate()" [disabled]="updating()">
+                    @if (updating()) { <span class="spinner-border spinner-border-sm me-1"></span> Saving... } @else { <i class="bi bi-check2 me-1"></i> Update Ticket }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Right: chat -->
+          <div class="chat">
+            <div class="chat-head">
+              <i class="bi bi-chat-dots me-1"></i> Ticket Conversation
+              @if (loadingReplies()) { <span class="spinner-border spinner-border-sm ms-2 text-secondary"></span> }
+            </div>
+            <div class="chat-messages" #chatScroll>
+              @if (!loadingReplies() && replies().length === 0) {
+                <div class="chat-empty"><i class="bi bi-chat-square-text fs-3 d-block mb-2"></i>No messages yet. Start the conversation below.</div>
+              }
+              @for (r of replies(); track r.id) {
+                <div class="bubble" [class.bubble-admin]="r.is_admin" [class.bubble-client]="!r.is_admin">
+                  <div class="bubble-meta"><strong>{{ r.sender_name || (r.is_admin ? 'Support' : 'Client') }}</strong><span>{{ fmt(r.created_at) }}</span></div>
+                  <div class="bubble-text">{{ r.message }}</div>
+                  @if (r.screenshot_urls.length || r.files.length) {
+                    <div class="bubble-atts">
+                      @for (u of r.screenshot_urls; track u) {
+                        <button type="button" class="thumb thumb-sm" (click)="openImage(u)">
+                          @if (blobs()[u]) { <img [src]="blobs()[u]" alt="attachment" /> } @else { <span class="spinner-border spinner-border-sm text-secondary"></span> }
+                        </button>
+                      }
+                      @for (f of r.files; track f.url) {
+                        <button type="button" class="file-link" (click)="downloadFile(f)"><i class="bi bi-paperclip"></i>{{ f.name }}</button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            @if (canReply()) {
+              <div class="chat-composer">
+                @if (!isAdmin() && isResolved(t)) {
+                  <div class="small text-secondary mb-2"><i class="bi bi-info-circle me-1"></i>This ticket is resolved. Send a reply to reopen it for support.</div>
+                }
+                <textarea class="form-control form-control-sm chat-input" rows="2" [(ngModel)]="replyText" placeholder="Type your reply..."></textarea>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                  <label class="btn btn-sm btn-outline-secondary mb-0" title="Attach screenshot"><i class="bi bi-camera"></i>
+                    <input type="file" accept="image/*" multiple hidden (change)="onReplyShots($event)" />
+                  </label>
+                  <label class="btn btn-sm btn-outline-secondary mb-0" title="Attach file"><i class="bi bi-paperclip"></i>
+                    <input type="file" [accept]="docAccept" multiple hidden (change)="onReplyFiles($event)" />
+                  </label>
+                  <button class="btn btn-sm btn-pharma ms-auto" (click)="sendReply()" [disabled]="sending()">
+                    @if (sending()) { <span class="spinner-border spinner-border-sm me-1"></span> Sending... } @else { <i class="bi bi-send me-1"></i> Send }
+                  </button>
+                </div>
+                @if (replyShots().length || replyFiles().length) {
+                  <div class="chip-list mt-2">
+                    @for (f of replyShots(); track $index) {
+                      <span class="file-chip"><i class="bi bi-image"></i>{{ f.name }}<button type="button" (click)="removeReplyShot($index)">&times;</button></span>
+                    }
+                    @for (f of replyFiles(); track $index) {
+                      <span class="file-chip"><i class="bi bi-file-earmark"></i>{{ f.name }}<button type="button" (click)="removeReplyFile($index)">&times;</button></span>
+                    }
+                  </div>
+                }
+                @if (replyError()) { <div class="alert alert-danger py-1 px-2 small mt-2 mb-0">{{ replyError() }}</div> }
+              </div>
+            } @else {
+              <div class="chat-locked">
+                <i class="bi bi-lock me-1"></i>
+                @if (isAdmin()) { This ticket is closed - chat is locked. } @else { This ticket is closed and cannot be replied to. }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast()) {
+    <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div>
+  }
+</div>

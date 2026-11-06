@@ -1,0 +1,463 @@
+<div class="upload-po">
+  @if (error) { <div class="alert alert-danger py-2">{{ error }}</div> }
+  @if (toast) { <div class="alert alert-success py-2">{{ toast }}</div> }
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <span class="badge text-bg-primary px-3 py-2"><i class="bi bi-bag me-1"></i> UPLOAD PO</span>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-outline-success btn-sm" (click)="openPtrModal()">
+        <i class="bi bi-calculator me-1"></i> PTR/PTS Calculator
+      </button>
+      <a class="btn btn-outline-success btn-sm" routerLink="/app/purchase/new">
+        <i class="bi bi-plus-circle me-1"></i> NEW PURCHASE
+      </a>
+    </div>
+  </div>
+
+  <div class="card-pharma p-2 mb-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label>Invoice No <span class="req">*</span></label>
+        <input class="form-control form-control-sm" [(ngModel)]="invoiceNo" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label>Invoice Date <span class="req">*</span></label>
+        <input type="date" class="form-control form-control-sm" [(ngModel)]="invoiceDate" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label>Distributor <span class="req">*</span></label>
+        <div class="distributor-combo" [class.open]="showDistributorDropdown" (click)="$event.stopPropagation()">
+          <button type="button" class="distributor-combo__trigger" (click)="openDistributorDropdown($event)">
+            <span class="distributor-combo__value" [class.placeholder]="!distributorName">
+              @if (distributorName) {
+                <span class="fw-semibold">{{ distributorName }}</span>@if (selectedDistributorAddr(); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+              } @else {
+                Select distributor…
+              }
+            </span>
+            <span class="distributor-combo__actions">
+              @if (distributorName) {
+                <i class="bi bi-x-circle" (click)="clearDistributor($event)" title="Clear"></i>
+              }
+              <i class="bi bi-chevron-down"></i>
+            </span>
+          </button>
+          @if (showDistributorDropdown) {
+            <div class="distributor-combo__panel">
+              <div class="distributor-combo__search">
+                <i class="bi bi-search"></i>
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Search distributor…"
+                  [ngModel]="distributorQuery"
+                  (ngModelChange)="onDistributorQuery($event)"
+                  (keydown.escape)="showDistributorDropdown = false"
+                  autofocus
+                />
+              </div>
+              <div class="distributor-combo__list">
+                @for (d of filteredDistributors(); track d.id) {
+                  <button type="button" class="distributor-combo__item" [class.active]="d.id === distributorId" (mousedown)="pickDistributor(d)">
+                    <span class="fw-semibold">{{ d.name }}</span>@if (distributorAddr(d.address); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+                  </button>
+                } @empty {
+                  <div class="distributor-combo__empty">
+                    @if (!distributorsLoaded) {
+                      Loading distributors…
+                    } @else if (distributorQuery.trim()) {
+                      No distributor matches “{{ distributorQuery.trim() }}”
+                    } @else {
+                      No distributor found
+                    }
+                  </div>
+                }
+                <button type="button" class="distributor-combo__item distributor-combo__item--new" (mousedown)="goAddDistributor($event)">
+                  <i class="bi bi-plus-circle me-1"></i>
+                  @if (distributorQuery.trim()) {
+                    Add “{{ distributorQuery.trim() }}” in Distributor Master
+                  } @else {
+                    Add new distributor in Distributor Master
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label>Cash/Credit</label>
+        <select class="form-select form-select-sm" [(ngModel)]="cashCredit">
+          <option>Cash</option>
+          <option>UPI</option>
+          <option>Cheque</option>
+          <option>Credit</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label>Total Bill CD</label>
+        <select class="form-select form-select-sm" [(ngModel)]="totalBillCd" (ngModelChange)="calculateCdPer()">
+          <option value="Percentage">Percentage</option>
+          <option value="Amount">Amount</option>
+        </select>
+      </div>
+      @if (totalBillCd === 'Amount') {
+        <div class="col-6 col-md-2">
+          <label>Gross Bill Amt.</label>
+          <input type="number" class="form-control form-control-sm" [(ngModel)]="netBillAmt" (ngModelChange)="calculateCdPer()" />
+        </div>
+        <div class="col-6 col-md-2">
+          <label>CD Amt.</label>
+          <input type="number" class="form-control form-control-sm" [(ngModel)]="cdAmt" (ngModelChange)="calculateCdPer()" />
+        </div>
+      }
+      <div class="col-6 col-md-1">
+        <label>CD % <span class="req">*</span></label>
+        <input type="number" class="form-control form-control-sm" [(ngModel)]="cdPer" (ngModelChange)="calculateAll()" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label>Select Format <span class="req">*</span></label>
+        <select class="form-select form-select-sm" [(ngModel)]="format" (ngModelChange)="onFormatChange()">
+          @for (f of formats; track f) {
+            <option [value]="f">{{ f }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label>Purchase CSV File <span class="req">*</span></label>
+        <input type="file" class="form-control form-control-sm" accept=".csv" (change)="onFileSelected($event)" />
+      </div>
+    </div>
+
+    <hr class="my-2 border-dashed" />
+
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label>Return Bill Deduction</label>
+        <select class="form-select form-select-sm" [(ngModel)]="selectedDebitNoteNo" (ngModelChange)="onDebitNoteSelected()">
+          <option value="">-- Select Debit Note No. --</option>
+          @for (n of openDebitNotes; track n.note_no) {
+            <option [value]="n.note_no">{{ n.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-4 col-md-2">
+        <label>Debit Amount</label>
+        <input type="number" class="form-control form-control-sm" [ngModel]="debitDeductionAmt" readonly />
+      </div>
+      <div class="col-4 col-md-2">
+        <label>Bill Net</label>
+        <input type="text" class="form-control form-control-sm" [ngModel]="billNet" readonly />
+      </div>
+      <div class="col-4 col-md-2">
+        <label>Net After Debit</label>
+        <input type="text" class="form-control form-control-sm text-primary fw-semibold" [ngModel]="getFinalPayable()" readonly />
+      </div>
+    </div>
+  </div>
+
+  @if (matching) {
+    <div class="text-secondary small mb-2"><span class="spinner-border spinner-border-sm text-pharma me-1"></span> Matching products…</div>
+  }
+
+  <div class="card-pharma p-0 mb-2">
+    <div class="table-responsive upload-table-wrap">
+      <table class="table table-sm table-bordered align-middle mb-0 upload-purchase-table">
+        <thead>
+          <tr>
+            <th>Match</th>
+            <th>HSN</th>
+            <th>Product Name</th>
+            <th>Batch No</th>
+            <th>Qty.</th>
+            <th>MRP</th>
+            <th>Rate</th>
+            <th>PTR</th>
+            <th>PTS</th>
+            <th>Pack Size</th>
+            <th>Free Qty.</th>
+            <th>MFG Name.</th>
+            <th>Exp. Dt.</th>
+            <th>Gross Amt.</th>
+            <th>Disc. %</th>
+            <th>Disc. Amt.</th>
+            <th>CD Amt.</th>
+            <th>GST %</th>
+            <th>Taxable</th>
+            <th>GST AMT.</th>
+            <th>Net Amt.</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of rows; track $index; let i = $index) {
+            <tr [class.table-warning]="!item.product_matched">
+              <td class="text-nowrap">
+                @if (item.product_matched) {
+                  <span class="text-success fw-bold">✓</span>
+                } @else {
+                  <span class="text-danger fw-bold">✗</span>
+                  <button type="button" class="btn btn-sm btn-outline-primary ms-1 py-0" (click)="openAddProductModal(item)" title="Add product">
+                    <i class="bi bi-plus"></i> Add
+                  </button>
+                }
+              </td>
+              <td><input class="form-control form-control-sm" [(ngModel)]="item.hsn" /></td>
+              <td style="min-width:160px">
+                @if (item.product_matched && item.matchedProducts && item.matchedProducts.length > 1) {
+                  <select class="form-select form-select-sm"
+                    [ngModel]="item.selectedProduct?.id"
+                    (ngModelChange)="onProductSelect(item, +$event)">
+                    @for (m of item.matchedProducts; track m.id) {
+                      <option [ngValue]="m.id">{{ m.name }} ({{ m.pack_size || '-' }})</option>
+                    }
+                  </select>
+                } @else if (item.product_matched) {
+                  {{ item.p_name }}
+                } @else {
+                  {{ item.product }}
+                }
+              </td>
+              <td><input class="form-control form-control-sm" [(ngModel)]="item.batch_no" /></td>
+              <td><input type="number" class="form-control form-control-sm" [(ngModel)]="item.qty" (ngModelChange)="calculateTaxable(item)" /></td>
+              <td><input type="number" step="0.01" class="form-control form-control-sm" [(ngModel)]="item.mrp" /></td>
+              <td><input type="number" step="0.01" class="form-control form-control-sm" [(ngModel)]="item.purchase_rate" (ngModelChange)="calculateTaxable(item)" /></td>
+              <td><input class="form-control form-control-sm" [(ngModel)]="item.ptr" /></td>
+              <td><input class="form-control form-control-sm" [(ngModel)]="item.pts" /></td>
+              <td style="min-width:110px">
+                <select
+                  class="form-select form-select-sm pack-select"
+                  [ngModel]="rowPackValue(item)"
+                  (ngModelChange)="onRowPackChange(item, $event)"
+                >
+                  <option value="">Select pack…</option>
+                  @if (rowOrphanPack(item); as orphan) {
+                    <option [value]="orphan">{{ orphan }}</option>
+                  }
+                  @for (p of packSizeOptions; track p.pack) {
+                    <option [value]="p.pack">{{ p.label || p.pack }}</option>
+                  }
+                </select>
+              </td>
+              <td><input type="number" class="form-control form-control-sm" [(ngModel)]="item.scheme" (ngModelChange)="calculateTaxable(item)" /></td>
+              <td class="small">{{ item.m_name || item.m_nameCsv || '-' }}</td>
+              <td><input type="month" class="form-control form-control-sm" [(ngModel)]="item.expiry_date" /></td>
+              <td class="text-end">{{ item.totalAmt }}</td>
+              <td><input type="number" step="0.01" class="form-control form-control-sm" [(ngModel)]="item.disc" (ngModelChange)="calculateTaxable(item)" /></td>
+              <td><input type="number" step="0.01" class="form-control form-control-sm" [(ngModel)]="item.disc_amt" (ngModelChange)="calculateDiscPer(item)" /></td>
+              <td class="text-end">{{ item.prodCdAmt }}</td>
+              <td>
+                <select class="form-select form-select-sm" [(ngModel)]="item.gst" (ngModelChange)="calculateTaxable(item)">
+                  <option [ngValue]="0">0</option>
+                  <option [ngValue]="5">5</option>
+                  <option [ngValue]="12">12</option>
+                  <option [ngValue]="18">18</option>
+                  <option [ngValue]="28">28</option>
+                  <option [ngValue]="40">40</option>
+                </select>
+              </td>
+              <td class="text-end">{{ item.taxable }}</td>
+              <td class="text-end">{{ item.gst_amt }}</td>
+              <td class="text-end fw-semibold">{{ item.net_amt }}</td>
+              <td>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="deleteRow(i)" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="22" class="text-center text-secondary py-4">Choose format and upload a purchase CSV to load lines.</td>
+            </tr>
+          }
+          @if (rows.length) {
+            <tr class="fw-semibold table-light">
+              <td colspan="13" class="text-end">Total</td>
+              <td class="text-end">{{ grossTotal }}</td>
+              <td></td>
+              <td class="text-end">{{ totalDiscAmt }}</td>
+              <td class="text-end">{{ totalCdAmt }}</td>
+              <td></td>
+              <td class="text-end">{{ totalTaxable }}</td>
+              <td class="text-end">{{ taxTotal }}</td>
+              <td class="text-end">{{ getFinalPayable() }}</td>
+              <td></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <button type="button" class="btn btn-pharma" [disabled]="saving || matching || showAddProductModal || !rows.length" (click)="save()">
+    @if (saving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+    <i class="bi bi-cloud-upload me-1"></i> SAVE PURCHASE
+  </button>
+</div>
+
+@if (showPtrModal) {
+  <div class="modal fade show d-block" tabindex="-1" style="background:rgba(15,23,42,.45)">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-calculator me-1"></i> PTR / PTS Calculator</h5>
+          <button type="button" class="btn-close" (click)="closePtrModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-4">
+              <label>MRP</label>
+              <input type="number" class="form-control form-control-sm" [(ngModel)]="ptrMrp" (ngModelChange)="calcPtrPts()" />
+            </div>
+            <div class="col-4">
+              <label>Retailer Margin</label>
+              <input type="number" class="form-control form-control-sm" [(ngModel)]="ptrMargin" (ngModelChange)="calcPtrPts()" />
+            </div>
+            <div class="col-4">
+              <label>GST %</label>
+              <input type="number" class="form-control form-control-sm" [(ngModel)]="ptrGst" (ngModelChange)="calcPtrPts()" />
+            </div>
+            <div class="col-12">
+              <div class="alert alert-success py-2 mb-0">PTR = PTS = <b>{{ ptrResult | number:'1.2-2' }}</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-pharma btn-sm" (click)="closePtrModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showAddProductModal) {
+  <div class="modal fade show d-block add-product-overlay" tabindex="-1" (click)="onAddProductBackdrop($event)">
+    <div class="modal-dialog modal-dialog-centered modal-lg add-product-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-circle me-1"></i> Add Product</h5>
+          <button type="button" class="btn-close" (click)="closeAddProductModal()" [disabled]="savingProduct"></button>
+        </div>
+        <div class="modal-body">
+          @if (addProductError) {
+            <div class="alert alert-danger py-2">{{ addProductError }}</div>
+          }
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <label>Product Type <span class="req">*</span></label>
+              <select class="form-select form-select-sm" [(ngModel)]="addForm.product_type">
+                @for (t of productTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-12 col-md-8">
+              <label>Product Name <span class="req">*</span></label>
+              <input class="form-control form-control-sm text-uppercase" [(ngModel)]="addForm.name" />
+            </div>
+            @if (addForm.product_type === 'Medicine') {
+              <div class="col-12 col-md-6">
+                <label>Schedule Category <span class="req">*</span></label>
+                <select class="form-select form-select-sm" [(ngModel)]="addForm.schedule_category">
+                  @for (s of schedules; track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="col-12 col-md-6">
+              <label>Margin Category (Wholesale)</label>
+              <select class="form-select form-select-sm" [(ngModel)]="addForm.product_category">
+                <option value="">-- Optional --</option>
+                @for (c of marginCategories; track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label>Pack Size <span class="req">*</span></label>
+              <div class="pack-select-wrap" [class.open]="showAddPackDropdown" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  [ngModel]="addPackSearch"
+                  (ngModelChange)="onAddPackSearchInput($event)"
+                  (focus)="openAddPackDropdown()"
+                  (click)="openAddPackDropdown()"
+                  (blur)="onAddPackBlur()"
+                  placeholder="Search pack size…"
+                  autocomplete="off"
+                />
+                @if (showAddPackDropdown && filteredAddPackSizes.length > 0) {
+                  <ul class="pack-size-drop">
+                    @for (p of filteredAddPackSizes; track p.pack) {
+                      <li (mousedown)="selectAddPack(p); $event.preventDefault()">{{ p.label || p.pack }}</li>
+                    }
+                  </ul>
+                }
+                @if (showAddPackDropdown && filteredAddPackSizes.length === 0) {
+                  <div class="pack-size-drop pack-size-drop--empty">No pack size found</div>
+                }
+              </div>
+            </div>
+            @if (addForm.product_type !== 'General' && addForm.product_type !== 'Food/Nutra') {
+              <div class="col-12 col-md-4">
+                <label>Dosage</label>
+                <input class="form-control form-control-sm" [(ngModel)]="addForm.dosage_form" list="up-dosage-list" />
+                <datalist id="up-dosage-list">
+                  @for (d of dosageForms; track d) {
+                    <option [value]="d"></option>
+                  }
+                </datalist>
+              </div>
+              <div class="col-12 col-md-4">
+                <label>Strength</label>
+                <input class="form-control form-control-sm text-uppercase" [(ngModel)]="addForm.strength" placeholder="e.g. 500 MG" />
+              </div>
+            }
+            <div class="col-12 col-md-4">
+              <label>MRP <span class="req">*</span></label>
+              <input type="number" step="0.01" class="form-control form-control-sm" [(ngModel)]="addForm.mrp" />
+            </div>
+            <div class="col-12 col-md-4">
+              <label>GST %</label>
+              <select class="form-select form-select-sm" [(ngModel)]="addForm.default_gst_rate">
+                <option [ngValue]="0">0</option>
+                <option [ngValue]="5">5</option>
+                <option [ngValue]="12">12</option>
+                <option [ngValue]="18">18</option>
+                <option [ngValue]="28">28</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label>HSN</label>
+              <input class="form-control form-control-sm" [(ngModel)]="addForm.hsn_code" />
+            </div>
+            <div class="col-12 col-md-8">
+              <label>Packing Desc.</label>
+              <input class="form-control form-control-sm text-uppercase" [(ngModel)]="addForm.packing_desc" />
+            </div>
+            @if (addForm.product_type !== 'General') {
+              <div class="col-12 col-md-8">
+                <label>Manufacturer Name</label>
+                <input class="form-control form-control-sm" [(ngModel)]="addForm.manufacturer" list="up-mfg-list" placeholder="Type or pick manufacturer" />
+                <datalist id="up-mfg-list">
+                  @for (m of manufacturers; track m) {
+                    <option [value]="m"></option>
+                  }
+                </datalist>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light border btn-sm" (click)="closeAddProductModal()" [disabled]="savingProduct">Close</button>
+          <button type="button" class="btn btn-pharma btn-sm" (click)="saveProductFromModal()" [disabled]="savingProduct">
+            @if (savingProduct) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            <i class="bi bi-save me-1"></i> Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

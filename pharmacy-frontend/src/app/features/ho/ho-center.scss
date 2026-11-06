@@ -15,28 +15,72 @@
   white-space: nowrap;
 }
 
-.search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 30;
-  background: #fff;
-  border-radius: 0.6rem;
+/* Let the product dropdown escape the card (global .card-pharma uses overflow:hidden). */
+.transfer-card.card-pharma,
+.transfer-card {
+  overflow: visible !important;
+}
+
+.combo { position: relative; z-index: 1; }
+.combo.open { z-index: 50; }
+.combo-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  cursor: pointer; background: #fff;
+}
+.combo-trigger:disabled { cursor: not-allowed; opacity: .7; }
+.combo-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-value.placeholder { color: #94a3b8; }
+.combo-actions { color: #64748b; flex-shrink: 0; }
+.combo-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  max-height: 320px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: .65rem;
+  overflow: hidden; box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+}
+.combo-search {
+  display: flex; align-items: center; gap: .5rem; padding: .5rem .65rem;
+  border-bottom: 1px solid #e2e8f0; color: #94a3b8; flex-shrink: 0;
+}
+.combo-search .form-control { border: 0; box-shadow: none; padding: 0; }
+.combo-list {
+  flex: 1 1 auto;
+  height: 260px;
   max-height: 260px;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
-.search-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  padding: 0.5rem 0.85rem;
-  border-bottom: 1px solid #f1f5f9;
-  &:hover { background: #f1f5f9; }
+.combo-list::-webkit-scrollbar { width: 10px; }
+.combo-list::-webkit-scrollbar-thumb {
+  background: #64748b; border-radius: 8px; border: 2px solid #f1f5f9;
 }
+.combo-list::-webkit-scrollbar-track { background: #f1f5f9; }
+.combo-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
+  width: 100%; border: 0; background: transparent; text-align: left;
+  padding: .55rem .75rem; border-bottom: 1px solid #f1f5f9;
+}
+.combo-item:hover { background: #f0fdfa; }
+.combo-empty { padding: .85rem .75rem; color: #94a3b8; font-size: .875rem; }
+
+.modal-backdrop-custom {
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1050;
+}
+.modal-custom {
+  position: fixed; inset: 0; z-index: 1055; display: flex; align-items: flex-start;
+  justify-content: center; padding: 3rem 1rem; pointer-events: none; overflow-y: auto;
+}
+.modal-card {
+  width: min(720px, 100%); pointer-events: auto; background: #fff; border-radius: 16px;
+  max-height: calc(100vh - 4rem); overflow: auto;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #e5e7eb;
+}
+.modal-body-custom { padding: 1.25rem; }
 
 .toast-custom {
   position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff;

@@ -1,0 +1,63 @@
+@if (rx(); as rxModel) {
+  <div class="agt-rx-floater" [class.is-collapsed]="collapsed()">
+    <div class="agt-rx-floater__head">
+      <div class="agt-rx-floater__title">
+        <i class="bi bi-file-earmark-medical"></i>
+        <span>AGT Rx</span>
+        <span class="agt-rx-floater__order">{{ rxModel.orderNo }}</span>
+      </div>
+      <div class="agt-rx-floater__head-actions">
+        <button type="button" class="agt-rx-floater__icon-btn" (click)="toggleCollapse()" [title]="collapsed() ? 'Expand' : 'Minimize'">
+          <i class="bi" [class.bi-chevron-up]="!collapsed()" [class.bi-chevron-down]="collapsed()"></i>
+        </button>
+        <button type="button" class="agt-rx-floater__icon-btn" (click)="close()" title="Hide">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    @if (!collapsed()) {
+      @if (isPdf(rxModel.prescriptionUrl)) {
+        <div class="agt-rx-floater__pdf">
+          <i class="bi bi-file-earmark-pdf"></i>
+          <button type="button" class="btn btn-sm btn-outline-secondary me-1" (click)="openFull()">Open PDF</button>
+          <button type="button" class="btn btn-sm btn-pharma" (click)="copyLink()">Copy link</button>
+        </div>
+      } @else {
+        <div
+          class="agt-rx-floater__viewport"
+          [class.is-panning]="zoom() > 1"
+          (wheel)="onWheel($event)"
+          (mousedown)="onPanStart($event)"
+          title="Scroll to zoom · drag to pan when zoomed in"
+        >
+          <div class="agt-rx-floater__stage" [style.transform]="stageTransform()">
+            <img
+              [src]="absoluteUrl(rxModel.prescriptionUrl)"
+              alt="Patient prescription"
+              class="agt-rx-floater__img"
+              draggable="false"
+            />
+          </div>
+        </div>
+        <div class="agt-rx-floater__hint">Mouse wheel to zoom · drag image when zoomed</div>
+        <div class="agt-rx-floater__toolbar">
+          <button type="button" class="agt-rx-floater__zoom-btn" (click)="zoomOut()" title="Zoom out">−</button>
+          <button type="button" class="agt-rx-floater__pct" (click)="zoomReset()" title="Reset zoom">
+            {{ zoom() * 100 | number:'1.0-0' }}%
+          </button>
+          <button type="button" class="agt-rx-floater__zoom-btn" (click)="zoomIn()" title="Zoom in">+</button>
+          <button type="button" class="agt-rx-floater__action-btn" (click)="copyLink()" title="Copy prescription link">
+            <i class="bi bi-clipboard"></i>
+          </button>
+          <button type="button" class="agt-rx-floater__action-btn" (click)="openFull()" title="Open full size in new tab">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </button>
+        </div>
+        @if (copyHint()) {
+          <div class="agt-rx-floater__toast">{{ copyHint() }}</div>
+        }
+      }
+    }
+  </div>
+}

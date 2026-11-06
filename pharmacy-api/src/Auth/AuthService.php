@@ -37,29 +37,75 @@ final class AuthService
 
     /**
      * Attempt login. Returns token bundle + user profile on success.
+     *
+     * @param bool $fromAndroid true when User-Agent is AdvancedPharmacy-Android
      */
-    public function attempt(string $email, string $password, string $ip): array
+    public function attempt(string $login, string $password, string $ip, bool $fromAndroid = false): array
     {
-        $email = strtolower(trim($email));
-        $key   = sha1($email . '|' . $ip);
+        $login = trim($login);
+        $rateKeyId = str_contains($login, '@')
+            ? strtolower($login)
+            : (preg_replace('/\D+/', '', $login) ?? '');
+        $key = sha1($rateKeyId . '|' . $ip);
 
         $maxAttempts = (int) Config::get('app.rate_limit.max_attempts', 5);
-        $decay       = (int) Config::get('app.rate_limit.decay_seconds', 300);
+        $decay       = (int) Config::get('app.rate_limit.decay_seconds', 30);
 
         if ($this->loginAttempts->recentFailures($key, $decay) >= $maxAttempts) {
-            throw HttpException::tooManyRequests('Too many failed attempts. Please try again later.');
+            $retryAfter = $this->loginAttempts->lockRemainingSeconds($key, $decay);
+            throw new HttpException(
+                "Too many failed attempts. Try again in {$retryAfter}s.",
+                429,
+                [
+                    'retry_after' => $retryAfter,
+                    'lock_seconds' => $decay,
+                    'max_attempts' => $maxAttempts,
+                ]
+            );
         }
 
-        $user = $this->users->findByEmail($email);
+        $user = $this->users->findByEmailOrPhone($login);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            $this->loginAttempts->log($key, $email, false, $ip);
-            throw HttpException::unauthorized('Invalid credentials.');
+            $this->loginAttempts->log($key, $login, false, $ip);
+            $failures = $this->loginAttempts->recentFailures($key, $decay);
+            if ($failures >= $maxAttempts) {
+                $retryAfter = $this->loginAttempts->lockRemainingSeconds($key, $decay);
+                throw new HttpException(
+                    "Too many failed attempts. Try again in {$retryAfter}s.",
+                    429,
+                    [
+                        'retry_after' => $retryAfter,
+                        'lock_seconds' => $decay,
+                        'max_attempts' => $maxAttempts,
+                    ]
+                );
+            }
+            $left = max(0, $maxAttempts - $failures);
+            throw new HttpException(
+                'Invalid credentials.',
+                401,
+                [
+                    'attempts_left' => $left,
+                    'max_attempts' => $maxAttempts,
+                ]
+            );
         }
 
         if (($user['status'] ?? '') !== 'active') {
             throw HttpException::forbidden('Account is not active.');
         }
+
+        // Separate platform_active flag (clients/users) — does not change users.status logic.
+        $adminSvc = new \App\Services\AdminRegistrationService();
+        $adminSvc->ensurePlatformActiveColumns();
+        if (!$adminSvc->isUserPlatformActive($user)) {
+            throw HttpException::forbidden(
+                'Your account is registered but not activated yet. Please wait for admin approval.'
+            );
+        }
+
+        $this->assertChannelAllowed($user, $fromAndroid);
 
         // Rehash if algorithm parameters changed.
         if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID)) {
@@ -111,6 +157,34 @@ final class AuthService
         }
     }
 
+    /**
+     * web_android: both (existing users) | web | android.
+     * android_expiry_date is enforced only on Android login when a date is set.
+     */
+    private function assertChannelAllowed(array $user, bool $fromAndroid): void
+    {
+        $channel = strtolower(trim((string) ($user['web_android'] ?? 'both')));
+        if ($channel === '' || !in_array($channel, ['both', 'web', 'android'], true)) {
+            $channel = 'both';
+        }
+
+        if ($fromAndroid) {
+            if ($channel === 'web') {
+                throw HttpException::forbidden(
+                    'This account is registered for the web app only. Please sign in on the website.'
+                );
+            }
+            // Paid/trial expiry is handled via subscription.needs_payment (paywall), not a hard login block.
+            return;
+        }
+
+        if ($channel === 'android') {
+            throw HttpException::forbidden(
+                'This account is registered for the Android app only. Please sign in on the Android app.'
+            );
+        }
+    }
+
     private function issueTokens(array $user): array
     {
         $claims = [
@@ -134,6 +208,11 @@ final class AuthService
             date('Y-m-d H:i:s', $decoded['exp'])
         );
 
+        $subscription = (new \App\Services\ClientSubscriptionService())->snapshotForClient(
+            (int) ($user['client_id'] ?? 0),
+            $user
+        );
+
         return [
             'access_token'  => $accessToken,
             'refresh_token' => $refreshToken,
@@ -147,6 +226,7 @@ final class AuthService
                 'client_id' => $user['client_id'] !== null ? (int) $user['client_id'] : null,
                 'branch_id' => $user['branch_id'] !== null ? (int) $user['branch_id'] : null,
             ],
+            'subscription' => $subscription,
         ];
     }
 }

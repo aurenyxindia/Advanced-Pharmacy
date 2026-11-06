@@ -1,11 +1,11 @@
 <div class="reg-wrapper bg-auth">
-  <div class="reg-card card-pharma shadow-pharma-lg">
+  <div class="reg-card card-pharma shadow-pharma-lg form-gradient-border">
     <div class="reg-header bg-gradient-primary">
       <div class="d-flex align-items-center gap-3">
         <div class="reg-logo"><i class="bi bi-capsule-pill"></i></div>
         <div>
           <h2 class="mb-0 fw-bold text-white">Register your pharmacy</h2>
-          <p class="mb-0 text-white-50">Start your 14-day free trial — no card required</p>
+          <p class="mb-0 text-white-50">Set up your pharmacy account in minutes</p>
         </div>
       </div>
     </div>
@@ -19,46 +19,150 @@
       }
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <h6 class="section-title"><i class="bi bi-shop me-2"></i>Business details</h6>
+        <h6 class="section-title"><i class="bi bi-shop me-2"></i>Pharmacy type</h6>
+        <div class="row g-3 mb-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Business type <span class="req">*</span></label>
+            <select class="form-select" formControlName="business_type"
+              [class.is-invalid]="(form.controls.business_type.touched && form.controls.business_type.invalid) || fieldError('business_type')">
+              @for (opt of businessTypeOptions; track opt.value) {
+                <option [ngValue]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            <div class="invalid-feedback d-block" *ngIf="controlHint('business_type') || fieldError('business_type')">
+              {{ fieldError('business_type') || controlHint('business_type') }}
+            </div>
+          </div>
+          <div class="col-12 col-md-6 d-flex align-items-end">
+            <p class="form-text mb-2">{{ businessTypeHint() }}</p>
+          </div>
+        </div>
+
+        <h6 class="section-title mt-4"><i class="bi bi-building me-2"></i>Business details</h6>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Business / Pharmacy name <span class="req">*</span></label>
             <input class="form-control" formControlName="business_name"
               [class.is-invalid]="(form.controls.business_name.touched && form.controls.business_name.invalid) || fieldError('business_name')" />
-            <div class="invalid-feedback d-block" *ngIf="fieldError('business_name')">{{ fieldError('business_name') }}</div>
+            <div class="invalid-feedback d-block" *ngIf="fieldError('business_name') || controlHint('business_name')">
+              {{ fieldError('business_name') || controlHint('business_name') }}
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Owner / Proprietor name <span class="req">*</span></label>
             <input class="form-control" formControlName="owner_name"
-              [class.is-invalid]="form.controls.owner_name.touched && form.controls.owner_name.invalid" />
+              [class.is-invalid]="(form.controls.owner_name.touched && form.controls.owner_name.invalid) || fieldError('owner_name')" />
+            <div class="invalid-feedback d-block" *ngIf="fieldError('owner_name') || controlHint('owner_name')">
+              {{ fieldError('owner_name') || controlHint('owner_name') }}
+            </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Drug License Number <span class="req">*</span></label>
+          <div class="col-12">
+            <label class="form-label">{{ drugLicenseLabel() }} <span class="req">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-patch-check"></i></span>
-              <input class="form-control" formControlName="drug_license_no" placeholder="e.g. MH-DL-20B-12345"
+              <input class="form-control" formControlName="drug_license_no" [placeholder]="drugLicensePlaceholder()"
                 [class.is-invalid]="(form.controls.drug_license_no.touched && form.controls.drug_license_no.invalid) || fieldError('drug_license_no')" />
             </div>
-            <div class="invalid-feedback d-block" *ngIf="fieldError('drug_license_no')">{{ fieldError('drug_license_no') }}</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">GSTIN</label>
-            <input class="form-control" formControlName="gstin" placeholder="15-digit GSTIN" />
+            <div class="invalid-feedback d-block" *ngIf="fieldError('drug_license_no') || controlHint('drug_license_no')">
+              {{ fieldError('drug_license_no') || controlHint('drug_license_no') }}
+            </div>
           </div>
         </div>
+
+        @if (showsRetail()) {
+          <div class="reg-type-panel reg-type-retail mt-4">
+            <h6 class="section-title mb-2"><i class="bi bi-bag-heart me-2"></i>Retail pharmacy details</h6>
+            <ul class="reg-feature-list small text-secondary mb-3">
+              <li>Retail sales billing &amp; POS counters</li>
+              <li>Patient / walk-in customer billing</li>
+              <li>Schedule H / H1 / X registers</li>
+              <li>Refill reminders &amp; home delivery</li>
+            </ul>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">FSSAI No.</label>
+                <input class="form-control" formControlName="fssai_no" placeholder="Optional — 14 digits"
+                  maxlength="14" inputmode="numeric" (input)="onFssaiInput($event)"
+                  [class.is-invalid]="form.controls.fssai_no.touched && form.controls.fssai_no.invalid" />
+                <div class="invalid-feedback d-block" *ngIf="controlHint('fssai_no')">{{ controlHint('fssai_no') }}</div>
+                <div class="form-text">Needed if you sell food supplements or FSSAI-regulated items.</div>
+              </div>
+              @if (!showsWholesale()) {
+                <div class="col-md-6">
+                  <label class="form-label">GSTIN</label>
+                  <div class="gstin-field">
+                    <input class="form-control text-uppercase" formControlName="gstin"
+                      placeholder="Optional for retail-only"
+                      maxlength="15"
+                      [class.is-invalid]="form.controls.gstin.touched && form.controls.gstin.invalid"
+                      [class.gstin-ok]="gstinLooksValid()"
+                      (input)="onGstinInput($event)" />
+                    <span class="gstin-counter small" [class.text-success]="gstinLooksValid()">{{ (form.controls.gstin.value || '').length }}/15</span>
+                  </div>
+                  <div class="invalid-feedback d-block" *ngIf="gstinHint()">{{ gstinHint() }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (showsWholesale()) {
+          <div class="reg-type-panel reg-type-wholesale mt-4">
+            <h6 class="section-title mb-2"><i class="bi bi-box-seam me-2"></i>Wholesale / PCD details</h6>
+            <ul class="reg-feature-list small text-secondary mb-3">
+              <li>Wholesale &amp; PCD sales billing</li>
+              <li>CD discount, PTR / PTS rates</li>
+              <li>B2B customer &amp; distributor accounts</li>
+              <li>IGST / interstate wholesale invoices</li>
+            </ul>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">GSTIN @if (gstinRequired()) { <span class="req">*</span> }</label>
+                <div class="gstin-field">
+                  <input class="form-control text-uppercase" formControlName="gstin"
+                    placeholder="Enter 15-character GSTIN"
+                    maxlength="15"
+                    [class.is-invalid]="form.controls.gstin.touched && form.controls.gstin.invalid"
+                    [class.gstin-ok]="gstinLooksValid()"
+                    (input)="onGstinInput($event)" />
+                  <span class="gstin-counter small" [class.text-success]="gstinLooksValid()">{{ (form.controls.gstin.value || '').length }}/15</span>
+                </div>
+                <div class="invalid-feedback d-block" *ngIf="gstinHint()">{{ gstinHint() }}</div>
+                @if (!gstinHint()) {
+                  <div class="form-text">Required for wholesale / PCD — e.g. 22AAAAA0000A1Z5</div>
+                }
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">PAN</label>
+                <input class="form-control text-uppercase" formControlName="pan" placeholder="e.g. ABCDE1234F" maxlength="10"
+                  [class.is-invalid]="form.controls.pan.touched && form.controls.pan.invalid"
+                  (input)="onPanInput($event)" />
+                <div class="invalid-feedback d-block" *ngIf="panHint()">{{ panHint() }}</div>
+                <div class="form-text">Recommended for wholesale B2B billing.</div>
+              </div>
+            </div>
+          </div>
+        }
 
         <h6 class="section-title mt-4"><i class="bi bi-telephone me-2"></i>Contact &amp; address</h6>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Email address <span class="req">*</span></label>
-            <input class="form-control" formControlName="email"
+            <input class="form-control" formControlName="email" type="email" autocomplete="email"
+              placeholder="owner@pharmacy.com" maxlength="150"
               [class.is-invalid]="(form.controls.email.touched && form.controls.email.invalid) || fieldError('email')" />
-            <div class="invalid-feedback d-block" *ngIf="fieldError('email')">{{ fieldError('email') }}</div>
+            <div class="invalid-feedback d-block" *ngIf="fieldError('email') || controlHint('email')">
+              {{ fieldError('email') || controlHint('email') }}
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Phone <span class="req">*</span></label>
-            <input class="form-control" formControlName="phone"
-              [class.is-invalid]="form.controls.phone.touched && form.controls.phone.invalid" />
+            <input class="form-control" formControlName="phone" type="tel" inputmode="numeric"
+              placeholder="10-digit mobile" maxlength="10" (input)="onPhoneInput($event)"
+              [class.is-invalid]="(form.controls.phone.touched && form.controls.phone.invalid) || fieldError('phone')" />
+            <div class="invalid-feedback d-block" *ngIf="fieldError('phone') || controlHint('phone')">
+              {{ fieldError('phone') || controlHint('phone') }}
+            </div>
           </div>
           <div class="col-12">
             <label class="form-label">Address</label>
@@ -74,7 +178,10 @@
           </div>
           <div class="col-md-4">
             <label class="form-label">Pincode</label>
-            <input class="form-control" formControlName="pincode" />
+            <input class="form-control" formControlName="pincode" inputmode="numeric"
+              placeholder="6-digit pincode" maxlength="6" (input)="onPincodeInput($event)"
+              [class.is-invalid]="form.controls.pincode.touched && form.controls.pincode.invalid" />
+            <div class="invalid-feedback d-block" *ngIf="controlHint('pincode')">{{ controlHint('pincode') }}</div>
           </div>
         </div>
 
@@ -82,18 +189,39 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Password <span class="req">*</span></label>
-            <input type="password" class="form-control" formControlName="password" autocomplete="new-password"
-              [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid" />
-            <div class="text-danger small mt-1" *ngIf="form.controls.password.touched && form.controls.password.invalid">
-              Minimum 8 characters.
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input
+                [type]="showPassword() ? 'text' : 'password'"
+                class="form-control"
+                formControlName="password"
+                autocomplete="new-password"
+                placeholder="Minimum 8 characters"
+                [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+              />
+              <button type="button" class="btn btn-outline-secondary" (click)="togglePassword()" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+                <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+              </button>
             </div>
+            <div class="invalid-feedback d-block" *ngIf="controlHint('password')">{{ controlHint('password') }}</div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Confirm password <span class="req">*</span></label>
-            <input type="password" class="form-control" formControlName="password_confirmation" autocomplete="new-password"
-              [class.is-invalid]="form.controls.password_confirmation.touched && (form.controls.password_confirmation.invalid || form.errors?.['mismatch'])" />
-            <div class="text-danger small mt-1" *ngIf="form.errors?.['mismatch'] && form.controls.password_confirmation.touched">
-              Passwords do not match.
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+              <input
+                [type]="showConfirmPassword() ? 'text' : 'password'"
+                class="form-control"
+                formControlName="password_confirmation"
+                autocomplete="new-password"
+                [class.is-invalid]="form.controls.password_confirmation.touched && (form.controls.password_confirmation.invalid || form.errors?.['mismatch'])"
+              />
+              <button type="button" class="btn btn-outline-secondary" (click)="toggleConfirmPassword()" [attr.aria-label]="showConfirmPassword() ? 'Hide password' : 'Show password'">
+                <i class="bi" [class.bi-eye]="!showConfirmPassword()" [class.bi-eye-slash]="showConfirmPassword()"></i>
+              </button>
+            </div>
+            <div class="invalid-feedback d-block" *ngIf="formHint() || controlHint('password_confirmation')">
+              {{ formHint() || controlHint('password_confirmation') }}
             </div>
           </div>
         </div>
@@ -102,7 +230,7 @@
           @if (loading()) {
             <span class="spinner-border spinner-border-sm me-2"></span> Creating your account...
           } @else {
-            <i class="bi bi-rocket-takeoff me-2"></i> Create account &amp; start trial
+            <i class="bi bi-rocket-takeoff me-2"></i> Create account
           }
         </button>
 

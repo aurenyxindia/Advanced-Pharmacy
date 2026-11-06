@@ -1,141 +1,508 @@
 <div class="purchase-entry">
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+  @if (isEditMode()) {
+    <h4 class="fw-bold mb-0"><i class="bi bi-pencil-square me-1"></i> Edit Purchase</h4>
+  } @else {
     <h4 class="fw-bold mb-0"><i class="bi bi-cart-plus me-1"></i> New Purchase</h4>
+  }
     <div class="d-flex gap-2">
-      <label class="btn btn-light border mb-0"><i class="bi bi-filetype-csv me-1"></i> Upload Purchase
-        <input type="file" accept=".csv,.tsv,.txt" hidden (change)="onCsvSelected($event)" /></label>
-      <button class="btn btn-light border" (click)="router.navigate(['/app/purchase'])"><i class="bi bi-eye me-1"></i> View Purchase (Alt+V)</button>
+      @if (!isEditMode()) {
+        <label class="btn btn-light border mb-0"><i class="bi bi-filetype-csv me-1"></i> Upload Purchase
+          <input type="file" accept=".csv,.tsv,.txt" hidden (change)="onCsvSelected($event)" /></label>
+      }
+      <button class="btn btn-light border" (click)="router.navigate(['/app/purchase'])"><i class="bi bi-list me-1"></i> Back to List</button>
     </div>
   </div>
 
+  @if (loadingPurchase()) {
+    <div class="text-center py-5"><span class="spinner-border text-pharma"></span></div>
+  } @else {
   @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
 
-  <!-- Invoice header -->
-  <div class="card-pharma p-2 mb-2">
-    <div class="row g-2">
-      <div class="col-md-3"><label>Invoice No <span class="req">*</span></label>
-        <input class="form-control form-control-sm" [ngModel]="invoiceNo()" (ngModelChange)="invoiceNo.set($event)" /></div>
-      <div class="col-md-2"><label>Date</label>
-        <input type="date" class="form-control form-control-sm" [ngModel]="invoiceDate()" (ngModelChange)="invoiceDate.set($event)" /></div>
-      <div class="col-md-5"><label>Supplier</label>
-        <input class="form-control form-control-sm" list="supplierList"
-          placeholder="Select supplier or type to add new"
-          [ngModel]="supplierName()" (ngModelChange)="supplierName.set($event)" />
-        <datalist id="supplierList">
-          @for (s of suppliers(); track s.id) { <option [value]="s.name"></option> }
-        </datalist>
+  <!-- Invoice header — Retail sequence -->
+  <div class="card-pharma p-2 mb-2 form-gradient-border purchase-header-card">
+    <div class="purchase-header-grid purchase-header-grid--row1"
+      [class.purchase-header-grid--cd-amount]="cdMode() === 'Amount'"
+      [class.purchase-header-grid--edit]="isEditMode()">
+      @if (isEditMode()) {
+        <div class="ph-field ph-field--po"><label>PO No</label>
+          <input class="form-control form-control-sm bg-light" [value]="poNoLabel()" readonly /></div>
+      }
+      <div class="ph-field ph-field--inv-no"><label>Invoice No <span class="req">*</span></label>
+        <input class="form-control form-control-sm text-uppercase"
+          [ngModel]="invoiceNo()" (ngModelChange)="onInvoiceNo($event)" />
+        @if (invoiceWarning()) {
+          <div class="text-danger small mt-1">{{ invoiceWarning() }}</div>
+        }
       </div>
-      <div class="col-md-2"><label>Bill Disc %</label>
-        <input type="number" class="form-control form-control-sm" [ngModel]="billDiscountPct()" (ngModelChange)="billDiscountPct.set(+$event)" /></div>
+      <div class="ph-field ph-field--inv-date"><label>Invoice Date <span class="req">*</span></label>
+        <input type="date" class="form-control form-control-sm" [ngModel]="invoiceDate()" (ngModelChange)="invoiceDate.set($event); persistDraft()" /></div>
+      <div class="ph-field ph-field--distributor"><label>Distributor <span class="req">*</span></label>
+        <div class="combo supplier-combo" [class.open]="showSupplierDropdown()">
+          <button type="button" class="combo-trigger form-control form-control-sm text-start"
+            (mousedown)="$event.stopPropagation()"
+            (click)="openSupplierDropdown($event)">
+            <span class="combo-value" [class.placeholder]="!supplierName()">
+              @if (supplierName()) {
+                <span class="fw-semibold">{{ supplierName() }}</span>@if (selectedSupplierAddr(); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+              } @else {
+                Select distributor…
+              }
+            </span>
+            <span class="combo-actions">
+              @if (supplierName()) {
+                <i class="bi bi-x-circle combo-clear" (click)="clearSupplier($event)" title="Clear"></i>
+              }
+              <i class="bi bi-chevron-down"></i>
+            </span>
+          </button>
+          @if (showSupplierDropdown()) {
+            <div class="combo-panel shadow-pharma-lg" (click)="$event.stopPropagation()">
+              <div class="combo-search">
+                <i class="bi bi-search"></i>
+                <input class="form-control form-control-sm" placeholder="Search distributor…"
+                  [ngModel]="supplierQuery()" (ngModelChange)="onSupplierQuery($event)"
+                  (click)="$event.stopPropagation()" autofocus />
+              </div>
+              <div class="combo-list">
+                @if (distributorsError()) {
+                  <div class="combo-empty text-danger">{{ distributorsError() }}</div>
+                } @else {
+                @if (filteredSuppliers().length > 0) {
+                  <div class="combo-list-meta text-secondary small px-2 py-1">
+                    {{ filteredSuppliers().length }} distributor(s)
+                    @if (!supplierQuery().trim() && distributorsReady()) { · full list loaded }
+                    @if (supplierQuery().trim()) { · search results }
+                  </div>
+                }
+                @for (s of filteredSuppliers(); track s.id) {
+                  <button type="button" class="combo-item" (mousedown)="pickSupplier(s)">
+                    <span class="fw-semibold">{{ s.name }}</span>@if (distributorAddr(s.address); as addr){<span class="fw-normal text-secondary"> ({{ addr }})</span>}
+                  </button>
+                } @empty {
+                  <div class="combo-empty">
+                    @if (!distributorsReady() && !distributorsError()) {
+                      Loading distributors…
+                    } @else if (supplierQuery().trim()) {
+                      No distributors match “{{ supplierQuery().trim() }}”
+                    } @else {
+                      No distributors found — add one in Distributor Master
+                    }
+                  </div>
+                }
+                }
+                <button type="button" class="combo-item combo-item-new" (mousedown)="goAddSupplier($event)">
+                  <i class="bi bi-plus-circle me-1"></i>
+                  @if (supplierQuery().trim()) {
+                    Add “{{ supplierQuery().trim() }}” in Distributor Master
+                  } @else {
+                    Add new distributor in Distributor Master
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="ph-field ph-field--cash"><label>Cash/Credit <span class="req">*</span></label>
+        <select class="form-select form-select-sm ph-select" [ngModel]="cashCredit()" (ngModelChange)="onCashCreditChange($event)">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Credit">Credit</option>
+        </select>
+      </div>
+      <div class="ph-field ph-field--due"><label>Due Date <span class="req">*</span></label>
+        <input type="date" class="form-control form-control-sm"
+          [class.bg-light]="isDueDateReadonly()"
+          [ngModel]="dueDate()" (ngModelChange)="dueDate.set($event); persistDraft()"
+          [readOnly]="isDueDateReadonly()" tabindex="{{ isDueDateReadonly() ? -1 : 0 }}" /></div>
+      <div class="ph-field ph-field--cd-mode"><label>Total Bill CD</label>
+        <select class="form-select form-select-sm ph-select" [ngModel]="cdMode()" (ngModelChange)="onCdModeChange($event)">
+          <option value="Percentage">Percentage</option>
+          <option value="Amount">Amount</option>
+        </select>
+      </div>
+      @if (cdMode() === 'Amount') {
+        <div class="ph-field ph-field--net-bill"><label>Net Bill</label>
+          <input type="number" class="form-control form-control-sm" [ngModel]="netBillAmt()" (ngModelChange)="onNetBillAmtChange(+$event)" /></div>
+        <div class="ph-field ph-field--cd-amt"><label>CD Amt</label>
+          <input type="number" class="form-control form-control-sm input-no-spinner" [ngModel]="cdAmt()" (ngModelChange)="onCdAmtChange(+$event)" /></div>
+      }
+      <div class="ph-field ph-field--cd-pct"><label>CD % <span class="req">*</span></label>
+        <input type="number" class="form-control form-control-sm" [ngModel]="cdPct()" (ngModelChange)="onCdPctChange(+$event)"
+          [readOnly]="cdMode() === 'Amount'" [class.bg-light]="cdMode() === 'Amount'" /></div>
+      <div class="ph-field ph-field--net-total"><label>Net</label>
+        <input class="form-control form-control-sm bg-light fw-semibold text-pharma" [value]="netTotal() | number: '1.2-2'" readonly tabindex="-1" /></div>
+    </div>
+
+    <div class="purchase-header-grid purchase-header-grid--row2 mt-2">
+      <div class="ph-field ph-field--debit-select"><label>Return Bill Deduction</label>
+        <select class="form-select form-select-sm" [ngModel]="debitNoteNo()" (ngModelChange)="onDebitNoteSelected($event)">
+          <option value="">-- Select Debit Note No. --</option>
+          @for (n of openDebitNotes(); track n.note_no) {
+            <option [value]="n.note_no">{{ n.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="ph-field ph-field--debit-amt"><label>Debit Amount</label>
+        <input class="form-control form-control-sm bg-light text-end" [value]="debitDeductionAmt() | number: '1.2-2'" readonly tabindex="-1" /></div>
+      <div class="ph-field ph-field--bill-net"><label>Bill Net</label>
+        <input class="form-control form-control-sm bg-light text-end" [value]="billNetBeforeDebit() | number: '1.2-2'" readonly tabindex="-1" /></div>
+      <div class="ph-field ph-field--net-after"><label>Net After Debit</label>
+        <input class="form-control form-control-sm bg-light fw-semibold text-end text-pharma" [value]="netTotal() | number: '1.2-2'" readonly tabindex="-1" /></div>
     </div>
   </div>
 
   <!-- Compact product entry -->
-  <div class="card-pharma entry-card p-3 mb-2">
-    <div class="section-label">ADD PRODUCT</div>
-    <div class="row g-2">
-      <div class="col-md-3 position-relative">
+  <div class="card-pharma entry-card p-2 mb-2 form-gradient-border">
+    <div class="section-label mb-1">ADD PRODUCT</div>
+    <div class="entry-grid entry-grid--row1" [class.entry-grid--catalog]="!!entry().master_product_id">
+      <div class="ef ef-product product-combo">
         <label>Product <span class="req">*</span></label>
-        <input class="form-control form-control-sm" placeholder="Type to search / add new"
-          [ngModel]="entry().product_name" (ngModelChange)="onProductInput($event)" (blur)="showResults.set(false)" />
-        @if (entry().master_product_id) { <span class="badge text-bg-success entry-badge">catalog</span> }
-        @else if (entry().product_name) { <span class="badge text-bg-warning entry-badge">new</span> }
-        @if (showResults() && searchResults().length) {
-          <div class="entry-dropdown shadow-pharma-lg">
-            @for (p of searchResults(); track p.id) {
-              <button type="button" class="entry-item" (mousedown)="selectProduct(p)">
-                <span class="fw-semibold">{{ p.name }}</span>
-                <span class="text-secondary small">
-                  {{ p.manufacturer }}@if (p.manufacturer_short) { ({{ p.manufacturer_short }}) } ·
-                  {{ p.schedule_category }}@if (p.pack_size) { · {{ p.pack_size }} }
-                </span>
-              </button>
-            }
+        <div class="combo" [class.open]="showResults()">
+          <div class="combo-input-wrap">
+            <i class="bi bi-search combo-input-icon"></i>
+            <input class="form-control form-control-sm combo-input text-uppercase" placeholder="Search product…"
+              [ngModel]="entry().product_name"
+              (ngModelChange)="onProductInput($event)"
+              (keydown)="handleProductKeyDown($event)"
+              (mousedown)="$event.stopPropagation()"
+              (focus)="openProductDropdown($event)"
+              (click)="openProductDropdown($event)" />
+            <button type="button" class="combo-caret"
+              (mousedown)="$event.stopPropagation()"
+              (click)="openProductDropdown($event)" tabindex="-1">
+              <i class="bi bi-chevron-down"></i>
+            </button>
           </div>
-        }
+          @if (entry().master_product_id) { <span class="badge text-bg-success entry-badge">catalog</span> }
+          @else if (entry().product_name) { <span class="badge text-bg-warning entry-badge">new</span> }
+          @if (showResults()) {
+            <div class="combo-panel shadow-pharma-lg" (click)="$event.stopPropagation()">
+              <div class="combo-list">
+                @for (p of searchResults(); track p.id; let i = $index) {
+                  <button type="button" class="combo-item" [class.active-item]="i === selectedProductIndex()" (mousedown)="selectProduct(p)">
+                    <span class="fw-semibold">{{ p.name }}</span>
+                    <span class="text-secondary small">
+                      {{ p.manufacturer }}@if (p.manufacturer_short) { ({{ p.manufacturer_short }}) } ·
+                      {{ p.schedule_category }}@if (p.pack_size) { · {{ p.pack_size }} }
+                      @if (p.generic_name) { · {{ p.generic_name }} }
+                      @if (p.dosage_form) { · {{ p.dosage_form }} }
+                      @if (p.strength) { · {{ p.strength }} }
+                    </span>
+                  </button>
+                } @empty {
+                  <div class="combo-empty">
+                    @if (entry().product_name.trim() || productQuery().trim()) { No products match }
+                    @else { Type to search… }
+                  </div>
+                }
+                <button type="button" class="combo-item combo-item-new" (mousedown)="goAddProduct($event)">
+                  <i class="bi bi-plus-circle me-1"></i>
+                  @if (entry().product_name.trim() || productQuery().trim()) {
+                    Add “{{ entry().product_name.trim() || productQuery().trim() }}” in Product Master
+                  } @else { Add new product in Product Master }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
       </div>
-      <div class="col-6 col-md-1"><label>HSN</label><input class="form-control form-control-sm" [ngModel]="entry().hsn_code" (ngModelChange)="patch('hsn_code', $event)" /></div>
-      <div class="col-6 col-md-2"><label title="Drives PTR/PTS via Rate Margin Master">Category</label>
+      <div class="ef ef-hsn"><label>HSN</label>
+        <input class="form-control form-control-sm" inputmode="numeric" maxlength="8" placeholder="HSN"
+          [ngModel]="entry().hsn_code" (ngModelChange)="patch('hsn_code', $event)" /></div>
+      <div class="ef ef-cat"><label title="Rate Margin category">Category</label>
         <select class="form-select form-select-sm" [ngModel]="entry().product_category" (ngModelChange)="patch('product_category', $event)">
+          <option value="">— Select —</option>
+          @if (entry().product_category && !categoryOptions.includes(entry().product_category)) {
+            <option [value]="entry().product_category">{{ entry().product_category }}</option>
+          }
           @for (c of categoryOptions; track c) { <option [value]="c">{{ c }}</option> }
         </select></div>
       @if (!entry().master_product_id) {
-        <div class="col-6 col-md-2"><label>Schedule</label>
+        <div class="ef ef-sched"><label>Schedule</label>
           <select class="form-select form-select-sm" [ngModel]="entry().schedule_category" (ngModelChange)="patch('schedule_category', $event)">
             @for (s of scheduleOptions; track s) { <option [value]="s">{{ s }}</option> }
           </select></div>
       }
-      <div class="col-6 col-md-2"><label>Batch <span class="req">*</span></label><input class="form-control form-control-sm" [ngModel]="entry().batch_no" (ngModelChange)="patch('batch_no', $event)" /></div>
-      <div class="col-6 col-md-2"><label>Expiry</label><input class="form-control form-control-sm" placeholder="MM/YYYY" [ngModel]="entry().expiry_date" (ngModelChange)="patch('expiry_date', $event)" /></div>
-      <div class="col-6 col-md-1"><label>Shelf</label><input class="form-control form-control-sm" [ngModel]="entry().shelf_location" (ngModelChange)="patch('shelf_location', $event)" /></div>
-      <div class="col-6 col-md-1"><label>Qty(pk)</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().quantity" (ngModelChange)="patch('quantity', +$event)" /></div>
+      <div class="ef ef-batch"><label>Batch <span class="req">*</span></label>
+        <input class="form-control form-control-sm text-uppercase"
+          [ngModel]="entry().batch_no" (ngModelChange)="patch('batch_no', $event)" /></div>
+      <div class="ef ef-expiry"><label>Expiry <span class="req">*</span></label>
+        <input type="month" class="form-control form-control-sm ef-month"
+          [min]="minExpiry" [max]="maxExpiry"
+          [ngModel]="entry().expiry_date" (ngModelChange)="patch('expiry_date', $event)" /></div>
+      <div class="ef ef-shelf"><label>Shelf</label>
+        <input class="form-control form-control-sm text-uppercase"
+          [ngModel]="entry().shelf_location" (ngModelChange)="patch('shelf_location', $event)" /></div>
+      <div class="ef ef-qty"><label>Qty(pk) <span class="req">*</span></label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().quantity" (ngModelChange)="patch('quantity', +$event)" /></div>
     </div>
-    <div class="row g-2 mt-1">
-      <div class="col-6 col-md-2"><label title="Standard pack; auto-detects units">Pack Size</label>
-        <select class="form-select form-select-sm" [ngModel]="packSelect()" (ngModelChange)="onPackChange($event)">
-          <option value="">Custom…</option>
-          @for (p of packSizes(); track p.pack) { <option [value]="p.pack">{{ p.pack }} ({{ p.units }}u)</option> }
-        </select>
+    <div class="entry-grid entry-grid--row2">
+      <div class="ef ef-pack pack-select-wrap" [class.open]="showPackDropdown()">
+        <label>Pack <span class="req">*</span></label>
+        <input type="text" class="form-control form-control-sm"
+          [ngModel]="packSizeSearch()"
+          (ngModelChange)="onPackSearchInput($event)"
+          (focus)="openPackDropdown()"
+          (click)="openPackDropdown()"
+          (blur)="onPackSearchBlur()"
+          placeholder="Pack…"
+          autocomplete="off" />
+        @if (showPackDropdown() && filteredPackSizes().length > 0) {
+          <ul class="pack-size-drop pack-size-drop--up">
+            @for (p of filteredPackSizes(); track p.pack) {
+              <li (mousedown)="selectPackSize(p); $event.preventDefault()">{{ packLabel(p) }}</li>
+            }
+          </ul>
+        }
+        @if (showPackDropdown() && filteredPackSizes().length === 0) {
+          <div class="pack-size-drop pack-size-drop--up pack-size-drop--empty">No pack size found</div>
+        }
       </div>
-      <div class="col-6 col-md-1"><label>Units/Pk</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().units_per_pack" (ngModelChange)="patch('units_per_pack', +$event)" /></div>
-      <div class="col-6 col-md-1"><label title="Free quantity in saleable units">Free (units)</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().free_quantity" (ngModelChange)="patch('free_quantity', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>Pur.Rate</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>MRP</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().mrp" (ngModelChange)="patch('mrp', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>PTR</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().ptr" (ngModelChange)="patch('ptr', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>PTS</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().pts" (ngModelChange)="patch('pts', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>GST %</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().gst_rate" (ngModelChange)="patch('gst_rate', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>Disc %</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().discount_pct" (ngModelChange)="patch('discount_pct', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>Scheme %</label><input type="number" class="form-control form-control-sm" [ngModel]="entry().scheme_pct" (ngModelChange)="patch('scheme_pct', +$event)" /></div>
-      <div class="col-6 col-md-1"><label>Net Rate</label><input class="form-control form-control-sm bg-light" [value]="netRate(entry()) | number: '1.2-2'" disabled /></div>
-      <div class="col-6 col-md-1"><label>Total</label><input class="form-control form-control-sm bg-light" [value]="entryTotal(entry()) | number: '1.2-2'" disabled /></div>
-      <div class="col-6 col-md-1 d-flex align-items-end">
+      <div class="ef ef-upp"><label>U/Pk</label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().units_per_pack" (ngModelChange)="patch('units_per_pack', +$event)" /></div>
+      <div class="ef ef-free"><label>Free</label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().free_quantity" (ngModelChange)="patch('free_quantity', +$event)" /></div>
+      <div class="ef ef-rate"><label>Rate <span class="req">*</span></label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().purchase_rate" (ngModelChange)="patch('purchase_rate', +$event)" /></div>
+      <div class="ef ef-mrp"><label>MRP <span class="req">*</span></label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().mrp" (ngModelChange)="patch('mrp', +$event)" /></div>
+      <div class="ef ef-ptr"><label>PTR</label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().ptr" (ngModelChange)="patch('ptr', +$event)" /></div>
+      <div class="ef ef-pts"><label>PTS</label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().pts" (ngModelChange)="patch('pts', +$event)" /></div>
+      <div class="ef ef-gst"><label>GST%</label>
+        <select class="form-select form-select-sm ef-select-left" [ngModel]="entry().gst_rate" (ngModelChange)="patch('gst_rate', +$event)">
+          @for (g of gstOptions; track g) { <option [ngValue]="g">{{ g }}</option> }
+        </select></div>
+      <div class="ef ef-disc"><label>Disc%</label>
+        <input type="number" step="0.01" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().discount_pct" (ngModelChange)="patch('discount_pct', +$event)" /></div>
+      <div class="ef ef-disc-amt"><label>Disc Amt</label>
+        <input type="number" step="0.01" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().discount_amt" (ngModelChange)="patch('discount_amt', +$event)" /></div>
+      <div class="ef ef-scheme"><label>Sch%</label>
+        <input type="number" class="form-control form-control-sm input-no-spinner"
+          [ngModel]="entry().scheme_pct" (ngModelChange)="patch('scheme_pct', +$event)" /></div>
+      <div class="ef ef-net-rate"><label>Net Rt</label>
+        <input class="form-control form-control-sm bg-light" [value]="netRate(entry()) | number: '1.2-2'" readonly tabindex="-1" /></div>
+      <div class="ef ef-total"><label>Total</label>
+        <input class="form-control form-control-sm bg-light fw-semibold" [value]="entryTotal(entry()) | number: '1.2-2'" readonly tabindex="-1" /></div>
+      <div class="ef ef-add d-flex align-items-end">
         <button class="btn btn-pharma btn-sm w-100" (click)="addLine()"><i class="bi bi-plus-lg"></i> ADD</button>
       </div>
     </div>
   </div>
 
-  <!-- Added lines -->
-  <div class="card-pharma">
+  <!-- Lines -->
+  <div class="card-pharma form-gradient-border purchase-lines-card">
     <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0 lines-table">
+      <table class="table table-sm align-middle mb-0 lines-table purchase-lines-table">
         <thead>
-          <tr><th>Product</th><th>Batch</th><th>Exp</th><th class="text-end">Qty</th><th class="text-end">Free</th>
-            <th class="text-end">Rate</th><th class="text-end">MRP</th><th class="text-end">PTR</th><th class="text-end">PTS</th>
-            <th class="text-end">GST%</th><th class="text-end">Net</th><th></th></tr>
+          <tr>
+            <th class="col-product">Product</th>
+            <th class="col-pack">Pack</th>
+            <th class="col-hsn">HSN</th>
+            <th class="col-batch">Batch</th>
+            <th class="col-exp">Exp</th>
+            <th class="col-qty">Qty</th>
+            <th class="col-qty">U/Pk</th>
+            <th class="col-qty">Free</th>
+            <th class="col-rate">Rate</th>
+            <th class="col-rate">MRP</th>
+            <th class="col-rate">PTR</th>
+            <th class="col-rate">PTS</th>
+            <th class="col-gst">GST</th>
+            <th class="col-disc">Disc%</th>
+            <th class="col-disc">Disc₹</th>
+            <th class="col-net">Net</th>
+            <th class="col-action"></th>
+          </tr>
         </thead>
         <tbody>
-          @for (l of lines(); track $index) {
-            <tr>
-              <td class="fw-semibold">{{ l.product_name }} <span class="text-secondary small">×{{ l.units_per_pack }}</span></td>
-              <td>{{ l.batch_no || '-' }}</td>
-              <td class="small">{{ l.expiry_date || '-' }}</td>
-              <td class="text-end">{{ l.quantity }}</td>
-              <td class="text-end">{{ l.free_quantity }}</td>
-              <td class="text-end">{{ l.purchase_rate | number: '1.2-2' }}</td>
-              <td class="text-end">{{ l.mrp | number: '1.2-2' }}</td>
-              <td class="text-end">{{ l.ptr | number: '1.2-2' }}</td>
-              <td class="text-end">{{ l.pts | number: '1.2-2' }}</td>
-              <td class="text-end">{{ l.gst_rate }}</td>
-              <td class="text-end fw-semibold">{{ entryTotal(l) | number: '1.2-2' }}</td>
-              <td><button class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button></td>
+          @for (l of lines(); track $index; let row = $index) {
+            <tr class="purchase-line-row">
+              <td class="col-product prod-cell" [title]="l.product_name">{{ l.product_name }}</td>
+              <td class="col-pack line-pack-cell">
+                <div class="pack-select-wrap pack-select-wrap--line" [class.open]="openLinePackIndex() === row">
+                  <input class="form-control form-control-sm p-cell-input text-uppercase"
+                    [ngModel]="linePackDisplay(row, l)"
+                    (ngModelChange)="onLinePackSearchInput(row, $event)"
+                    (focus)="openLinePackDropdown(row, l)"
+                    (click)="openLinePackIndex() !== row && openLinePackDropdown(row, l)"
+                    (blur)="onLinePackSearchBlur(row)"
+                    placeholder="Pack"
+                    autocomplete="off"
+                    title="Pack size (required)" />
+                  @if (openLinePackIndex() === row && filteredLinePackSizes().length > 0) {
+                    <ul class="pack-size-drop pack-size-drop--up">
+                      @for (p of filteredLinePackSizes(); track p.pack) {
+                        <li (mousedown)="selectLinePackSize(row, p); $event.preventDefault()">{{ packLabel(p) }}</li>
+                      }
+                    </ul>
+                  }
+                  @if (openLinePackIndex() === row && filteredLinePackSizes().length === 0) {
+                    <div class="pack-size-drop pack-size-drop--up pack-size-drop--empty">No pack size found</div>
+                  }
+                </div>
+              </td>
+              <td class="col-hsn"><input class="form-control form-control-sm p-cell-input" [ngModel]="l.hsn_code" (ngModelChange)="patchLine($index, 'hsn_code', $event)" /></td>
+              <td class="col-batch"><input class="form-control form-control-sm p-cell-input text-uppercase" [ngModel]="l.batch_no" (ngModelChange)="patchLine($index, 'batch_no', $event)" /></td>
+              <td class="col-exp">
+                <input type="month" class="form-control form-control-sm p-cell-input p-cell-exp" [min]="minExpiry" [max]="maxExpiry"
+                  [ngModel]="l.expiry_date" (ngModelChange)="patchLine($index, 'expiry_date', $event)" />
+              </td>
+              <td class="col-qty"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.quantity" (ngModelChange)="patchLine($index, 'quantity', +$event)" /></td>
+              <td class="col-qty"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.units_per_pack" (ngModelChange)="patchLine($index, 'units_per_pack', +$event)" title="Units per pack" /></td>
+              <td class="col-qty"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.free_quantity" (ngModelChange)="patchLine($index, 'free_quantity', +$event)" /></td>
+              <td class="col-rate"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.purchase_rate" (ngModelChange)="patchLine($index, 'purchase_rate', +$event)" /></td>
+              <td class="col-rate"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.mrp" (ngModelChange)="patchLine($index, 'mrp', +$event)" /></td>
+              <td class="col-rate"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.ptr" (ngModelChange)="patchLine($index, 'ptr', +$event)" /></td>
+              <td class="col-rate"><input type="number" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.pts" (ngModelChange)="patchLine($index, 'pts', +$event)" /></td>
+              <td class="col-gst">
+                <select class="form-select form-select-sm p-cell-input p-cell-gst" [ngModel]="l.gst_rate" (ngModelChange)="patchLine($index, 'gst_rate', +$event)">
+                  @for (g of gstOptions; track g) { <option [ngValue]="g">{{ g }}</option> }
+                </select>
+              </td>
+              <td class="col-disc"><input type="number" step="0.01" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.discount_pct" (ngModelChange)="patchLine($index, 'discount_pct', +$event)" /></td>
+              <td class="col-disc"><input type="number" step="0.01" class="form-control form-control-sm p-cell-input p-cell-num input-no-spinner" [ngModel]="l.discount_amt" (ngModelChange)="patchLine($index, 'discount_amt', +$event)" /></td>
+              <td class="col-net"><span class="cell-num fw-semibold text-primary">{{ entryTotal(l) | number: '1.2-2' }}</span></td>
+              <td class="col-action text-center">
+                <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeLine($index)"><i class="bi bi-x-lg"></i></button>
+              </td>
             </tr>
           } @empty {
-            <tr><td colspan="12" class="text-center text-secondary py-4">No items added yet. Use the form above and click ADD.</td></tr>
+            <tr><td colspan="17" class="text-center text-secondary py-4">No items added yet. Use the form above and click ADD.</td></tr>
           }
         </tbody>
       </table>
     </div>
-    <div class="grid-footer">
-      <div class="totals-chips">
-        <span>Gross <b>{{ grossTotal() | number: '1.2-2' }}</b></span>
-        <span>GST <b>{{ gstTotal() | number: '1.2-2' }}</b></span>
+    <div class="grid-footer flex-column align-items-stretch gap-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-3 col-lg-2"><label>Transportation Charge</label>
+          <input type="number" class="form-control form-control-sm" [ngModel]="transportCharge()" (ngModelChange)="transportCharge.set(+$event); persistDraft()" /></div>
+        <div class="col-6 col-md-3 col-lg-2"><label>Trans. GST %</label>
+          <input type="number" class="form-control form-control-sm" [ngModel]="transportGstPct()" (ngModelChange)="transportGstPct.set(+$event); persistDraft()" /></div>
+        <div class="col-6 col-md-3 col-lg-2"><label>Total Trans. Charge</label>
+          <input class="form-control form-control-sm bg-light" [value]="transportTotal() | number: '1.2-2'" readonly /></div>
+        <div class="col-6 col-md-3 col-lg-2"><label>Total Items</label>
+          <input class="form-control form-control-sm bg-light" [value]="lines().length" readonly /></div>
       </div>
-      <div class="net-total"><span class="small text-secondary">NET TOTAL</span><span class="net-amount">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
-      <button class="btn btn-pharma" [disabled]="saving()" (click)="save()">
-        @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> } <i class="bi bi-save me-1"></i> Save Purchase
-      </button>
+      <div class="totals-chips flex-wrap">
+        <span>Taxable <b>{{ taxableTotal() | number: '1.2-2' }}</b></span>
+        <span>GST <b>{{ gstTotal() | number: '1.2-2' }}</b></span>
+        <span>C.D. <b>{{ cdAmountComputed() | number: '1.2-2' }}</b></span>
+        <span>Line Disc <b>{{ lineDiscTotal() | number: '1.2-2' }}</b></span>
+        <span>Trans <b>{{ transportTotal() | number: '1.2-2' }}</b></span>
+        @if (debitDeductionAmt() > 0) {
+          <span class="text-danger">Debit <b>-{{ debitDeductionAmt() | number: '1.2-2' }}</b></span>
+        }
+      </div>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="small text-secondary fst-italic">Amount in Words: {{ amountInWords() }}</div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-total mb-0"><span class="small text-secondary">NET TOTAL</span><span class="net-amount">{{ netTotal() | currency: 'INR' : 'symbol' : '1.2-2' }}</span></div>
+          <button class="btn btn-pharma" [disabled]="saving()" (click)="save()">
+            @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            @if (isEditMode()) {
+              <i class="bi bi-check-lg me-1"></i> Update Purchase
+            } @else {
+              <i class="bi bi-save me-1"></i> Save Purchase
+            }
+          </button>
+          @if (!isEditMode()) {
+            <button type="button" class="btn btn-outline-danger" [disabled]="saving() || !hasDraft()" (click)="discardDraft()" title="Clear this unsaved purchase">
+              Discard
+            </button>
+          }
+        </div>
+      </div>
     </div>
   </div>
+  }
 
   @if (toast()) { <div class="toast-custom shadow-pharma-lg"><i class="bi bi-check-circle-fill text-success me-2"></i>{{ toast() }}</div> }
+
+  @if (soldEditLines(); as soldLines) {
+    <div class="modal-backdrop-custom" (click)="cancelSoldEdit()"></div>
+    <div class="modal-custom" role="dialog" aria-modal="true" aria-labelledby="soldEditTitle">
+      <div class="modal-card sold-edit-card card-pharma shadow-pharma-lg">
+        <div class="modal-head">
+          <div class="d-flex align-items-start gap-2">
+            <span class="sold-edit-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+            <div>
+              <h5 id="soldEditTitle" class="mb-0 fw-semibold">Stock already sold</h5>
+              <div class="small text-secondary">
+                @if (soldEditBlocked()) { This purchase cannot be updated } @else { Do you really want to edit this purchase? }
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-light border" (click)="cancelSoldEdit()" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="modal-body-custom">
+          <p class="small mb-2">
+            @if (soldEditBlocked()) {
+              Some products from this bill have already been sold or adjusted, and you don't have permission
+              to edit a purchase with sold stock. Ask your administrator if this bill needs correction.
+            } @else {
+              Some products from this bill have already been sold or adjusted. Updating will recalculate stock
+              from your edited lines and keep the sold quantity deducted.
+            }
+          </p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Product</th>
+                  <th>Batch</th>
+                  <th class="text-end">Purchased</th>
+                  <th class="text-end">Sold / Adjusted</th>
+                  <th class="text-end">In Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of soldLines; track $index) {
+                  <tr>
+                    <td class="fw-semibold">{{ s.product_name }}</td>
+                    <td>{{ s.batch_no }}</td>
+                    <td class="text-end">{{ s.purchased }}</td>
+                    <td class="text-end text-danger fw-semibold">{{ s.sold }}</td>
+                    <td class="text-end">{{ s.in_stock }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (!soldEditBlocked()) {
+            <div class="alert alert-warning small py-2 mb-0">
+              <i class="bi bi-info-circle me-1"></i>
+              Changing the batch number or removing a sold line can leave the old batch with negative stock.
+              Quantities are in units (tablets).
+            </div>
+          } @else {
+            <div class="small text-secondary">Quantities are in units (tablets).</div>
+          }
+        </div>
+        <div class="modal-foot">
+          @if (soldEditBlocked()) {
+            <button type="button" class="btn btn-pharma" (click)="cancelSoldEdit()">Close</button>
+          } @else {
+            <button type="button" class="btn btn-outline-secondary" (click)="cancelSoldEdit()">Cancel</button>
+            <button type="button" class="btn btn-warning fw-semibold" [disabled]="saving()" (click)="confirmSoldEdit()">
+              <i class="bi bi-pencil-square me-1"></i> Edit Anyway
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
 </div>

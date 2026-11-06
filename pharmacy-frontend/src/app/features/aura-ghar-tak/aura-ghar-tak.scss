@@ -1,0 +1,104 @@
+.agt-policy-card {
+  border-color: rgba(13, 148, 136, 0.2);
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.06), #fff);
+
+  &__text {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  &__toggle .btn {
+    min-width: 2.75rem;
+  }
+}
+
+.agt-selected-patient {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f0fdfa;
+  border: 1px solid rgba(13, 148, 136, 0.25);
+
+  &__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+}
+
+.agt-rider-box {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: #f8fafc;
+}
+
+.agt-rider-select {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.agt-drawer-rx {
+  &__img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 10px;
+    border: 1px solid rgba(13, 148, 136, 0.25);
+    object-fit: cover;
+  }
+
+  &__pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    color: #0f766e;
+  }
+}
+
+.agt-page {
+  .agt-suggest {
+    position: absolute;
+    z-index: 20;
+    max-height: 220px;
+    overflow: auto;
+    width: 100%;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .agt-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 1040;
+  }
+
+  .agt-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(420px, 100vw);
+    height: 100vh;
+    z-index: 1050;
+    padding: 1rem;
+    overflow-y: auto;
+    box-shadow: -4px 0 24px rgba(15, 23, 42, 0.15);
+  }
+
+  .agt-modal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1055;
+    width: min(440px, 92vw);
+  }
+}

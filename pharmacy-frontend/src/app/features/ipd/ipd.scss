@@ -3,6 +3,14 @@
 .table thead th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: #94a3b8; white-space: nowrap; }
 .form-label { font-weight: 500; font-size: 0.85rem; margin-bottom: 0.2rem; }
 
+.ipd-tabs .nav-link {
+  color: #475569;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  &.active { background: var(--pharma-primary); color: #fff; }
+}
+
 .tot-box {
   border-radius: 0.6rem; padding: 0.6rem 0.8rem; background: #f8fafc; display: flex; flex-direction: column;
   span { font-size: 0.72rem; color: #64748b; }
@@ -20,3 +28,36 @@
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
 .modal-body-custom { padding: 1.5rem; }
 .toast-custom { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border-radius: 0.7rem; padding: 0.85rem 1.25rem; z-index: 1060; font-weight: 500; }
+
+/* IPD bill grid */
+.ipd-bill-table.card-pharma,
+.card-pharma:has(.ipd-bill-table) { overflow: visible !important; }
+.ipd-bill-table { font-size: 0.82rem; }
+.ipd-bill-table thead th {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.7rem;
+}
+.draft-row { background: #fff; }
+.totals-row { background: #f8fafc; }
+
+.product-combo { position: relative; z-index: 1; }
+.product-panel {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 40;
+  max-height: 220px; overflow-y: auto;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: .5rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+}
+.product-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
+  width: 100%; border: 0; background: transparent; text-align: left;
+  padding: .45rem .65rem; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+}
+.product-item:hover { background: #f8fafc; }
+
+.btn-outline-pharma {
+  color: var(--pharma-primary);
+  border: 1px solid var(--pharma-primary);
+  background: #fff;
+  &:hover { background: var(--pharma-primary); color: #fff; }
+}

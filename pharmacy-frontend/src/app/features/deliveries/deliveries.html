@@ -6,6 +6,45 @@
     </div>
   </div>
 
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="bi bi-bag-check"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Orders</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().orders }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Active</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().active }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon"><i class="bi bi-truck"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Out for Delivery</span>
+          <b class="kpi-value">{{ loading() ? '—' : kpis().outForDelivery }}</b>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="kpi-body">
+          <span class="kpi-label">Est. Value</span>
+          <b class="kpi-value">{{ loading() ? '—' : (kpis().estimate | number: '1.0-0') }}</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Status filter -->
   <div class="d-flex flex-wrap gap-2 mb-3">
     @for (s of statuses; track s) {
@@ -47,7 +86,7 @@
   @if (selected(); as order) {
     <div class="modal-backdrop-custom" (click)="selected.set(null)"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg">
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border">
         <div class="modal-head">
           <h5 class="mb-0 fw-semibold">Order {{ order['order_no'] }}</h5>
           <button class="btn-close" (click)="selected.set(null)"></button>
@@ -87,9 +126,18 @@
             </div>
           </div>
 
-          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <button class="btn btn-light border" (click)="selected.set(null)">Close</button>
-            <button class="btn btn-pharma" (click)="saveStatus()">Update Order</button>
+          <div class="d-flex justify-content-between align-items-center gap-2 mt-4 pt-3 border-top flex-wrap">
+            <div>
+              @if (order['status'] !== 'cancelled' && order['status'] !== 'delivered') {
+                <button type="button" class="btn btn-outline-danger btn-sm" (click)="cancelOrder()">
+                  <i class="bi bi-x-circle me-1"></i> Cancel &amp; return stock
+                </button>
+              }
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-light border" (click)="selected.set(null)">Close</button>
+              <button class="btn btn-pharma" (click)="saveStatus()">Update Order</button>
+            </div>
           </div>
         </div>
       </div>

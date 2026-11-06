@@ -1,163 +1,594 @@
-<div class="reports">
-  <div class="mb-3">
-    <h4 class="fw-bold mb-0">Reports</h4>
-    <p class="text-secondary mb-0 small">Sales, purchase, GST, stock, expiry, profit &amp; compliance</p>
-  </div>
-
-  <div class="row g-3">
-    <!-- Report selector -->
-    <div class="col-lg-3">
-      <div class="card-pharma p-2 report-nav">
-        @for (grp of groups(); track grp[0]) {
-          <div class="report-group">{{ grp[0] }}</div>
-          @for (r of grp[1]; track r.key) {
-            <button class="report-nav-item" [class.active]="active().key === r.key" (click)="select(r)">
-              <i class="bi" [ngClass]="r.icon"></i> {{ r.label }}
-            </button>
-          }
+﻿<div class="reports">
+  @if (mode() === 'catalog') {
+    <!-- Catalog mode (Retail-like hub) -->
+    <div class="reports-header compact-header mb-3">
+      <h4 class="fw-bold mb-0 reports-title">
+        <i class="bi bi-grid-3x3-gap me-2"></i>Reports
+      </h4>
+      <div class="header-search">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search reports..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+        @if (searchQuery()) {
+          <button type="button" class="clear-search" (click)="searchQuery.set('')" title="Clear search">Ã—</button>
         }
       </div>
     </div>
 
-    <!-- Report content -->
-    <div class="col-lg-9">
-      <!-- Filters -->
-      <div class="card-pharma p-3 mb-3">
-        <div class="row g-2 align-items-end">
-          @if (isHo()) {
-            <div class="col-auto">
-              <label class="form-label small"><i class="bi bi-shop-window me-1"></i>Branch</label>
-              <select class="form-select form-select-sm" [ngModel]="branchId()" (ngModelChange)="branchId.set($event ? +$event : null); run()">
-                <option [ngValue]="null">All Branches</option>
-                @for (b of branches(); track b.id) { <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option> }
-              </select>
-            </div>
-          }
-          @if (active().hasDate) {
-            <div class="col-auto">
-              <label class="form-label small">From</label>
-              <input type="date" class="form-control form-control-sm" [ngModel]="from()" (ngModelChange)="from.set($event)" />
-            </div>
-            <div class="col-auto">
-              <label class="form-label small">To</label>
-              <input type="date" class="form-control form-control-sm" [ngModel]="to()" (ngModelChange)="to.set($event)" />
-            </div>
-          }
-          <div class="col-auto">
-            <button class="btn btn-sm btn-pharma" (click)="run()"><i class="bi bi-funnel me-1"></i>Apply</button>
+    <div class="reports-layout">
+      <aside class="filters-panel card-pharma">
+        <div class="filters-title">Categories</div>
+        @for (cat of categories; track cat.id) {
+          <button
+            type="button"
+            class="category-chip"
+            [class.active]="selectedCategory() === cat.id"
+            [style.--category-color]="cat.color"
+            (click)="selectCategory(cat.id)"
+          >
+            <i class="bi" [ngClass]="cat.icon"></i>
+            <span>{{ cat.name }}</span>
+          </button>
+        }
+        <div class="filters-hint">
+          <strong>Tip:</strong> Use search to find a report by name. Click View to open filters, or Excel to download immediately.
+        </div>
+      </aside>
+
+      <section class="reports-list-wrapper card-pharma">
+        @if (catalogLoading()) {
+          <div class="p-4 text-center"><span class="spinner-border spinner-border-sm text-pharma"></span></div>
+        }
+        @if (filteredReports().length > 0) {
+          <div class="list-header">
+            <span class="col-name">Report</span>
+            <span class="col-category">Category</span>
+            <span class="col-view">View</span>
+            <span class="col-download">Excel</span>
           </div>
-          <div class="col-auto ms-auto d-flex align-items-center gap-2">
-            <button class="btn btn-sm btn-outline-success" [disabled]="!canDownload()" (click)="downloadCsv()">
-              <i class="bi bi-download me-1"></i>CSV
+          <div class="reports-list" [style.--view-btn-color]="selectedCategoryColor()">
+            @for (r of filteredReports(); track r.key) {
+              <div class="report-row" (click)="openRunner(r)">
+                <div class="col-name">
+                  <i class="bi" [ngClass]="r.icon"></i>
+                  <span class="report-name">{{ r.label }}</span>
+                </div>
+                <div class="col-category">
+                  <span class="category-pill">{{ categoryLabel(r.category) }}</span>
+                </div>
+                <div class="col-view">
+                  <button
+                    type="button"
+                    class="btn-view-report"
+                    title="View report"
+                    (click)="$event.stopPropagation(); openRunner(r)"
+                  >
+                    <i class="bi bi-eye"></i> View
+                  </button>
+                </div>
+                <div class="col-download">
+                  <button
+                    type="button"
+                    class="btn-download-excel"
+                    title="Download Excel"
+                    (click)="downloadExcelFromCatalog(r, $event)"
+                  >
+                    <i class="bi bi-file-earmark-excel"></i> Excel
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="no-results">
+            <i class="bi bi-search"></i>
+            <p>No reports found matching your search or filters.</p>
+            <button type="button" class="btn btn-sm btn-pharma" (click)="clearFilters()">Clear Filters</button>
+          </div>
+        }
+      </section>
+    </div>
+  } @else {
+    <!-- Runner mode -->
+    <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="backToCatalog()">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </button>
+      <div class="min-w-0">
+        <h4 class="fw-bold mb-0">{{ active().label }}</h4>
+        <p class="text-secondary mb-0 small">{{ categoryLabel(active().category) }} report</p>
+      </div>
+    </div>
+
+    <div class="card-pharma report-filters-card p-3 mb-3">
+      <div class="report-runner-toolbar">
+        @if (isHo()) {
+          <div class="report-filter-field">
+            <label class="form-label small mb-1"><i class="bi bi-shop-window me-1"></i>Branch</label>
+            <select class="form-select form-select-sm" [ngModel]="branchId()" (ngModelChange)="branchId.set($event ? +$event : null)">
+              <option [ngValue]="null">All Branches</option>
+              @for (b of branches(); track b.id) {
+                <option [ngValue]="b.id">{{ b.code }} - {{ b.name }}</option>
+              }
+            </select>
+          </div>
+        }
+        @if (active().hasMonth) {
+          <div class="report-filter-field">
+            <label class="form-label small mb-1">Month</label>
+            <input
+              type="month"
+              class="form-control form-control-sm"
+              [ngModel]="month()"
+              [attr.max]="maxMonth()"
+              (ngModelChange)="onMonthChange($event)"
+            />
+          </div>
+        } @else if (active().hasDate) {
+          <div class="report-filter-field">
+            <label class="form-label small mb-1">From</label>
+            <input
+              type="date"
+              class="form-control form-control-sm"
+              [ngModel]="from()"
+              [attr.max]="maxDate()"
+              (ngModelChange)="onFromDateChange($event)"
+            />
+          </div>
+          <div class="report-filter-field">
+            <label class="form-label small mb-1">To</label>
+            <input
+              type="date"
+              class="form-control form-control-sm"
+              [ngModel]="to()"
+              [attr.max]="maxDate()"
+              [attr.min]="from() || null"
+              (ngModelChange)="onToDateChange($event)"
+            />
+          </div>
+        }
+        @if (active().hasMonths) {
+          <div class="report-filter-field">
+            <label class="form-label small mb-1">Within months</label>
+            <select class="form-select form-select-sm" [ngModel]="months()" (ngModelChange)="months.set(+$event)">
+              <option [ngValue]="3">3 months</option>
+              <option [ngValue]="6">6 months</option>
+              <option [ngValue]="9">9 months</option>
+              <option [ngValue]="12">12 months</option>
+            </select>
+          </div>
+        }
+        @if (active().hasMargin) {
+          <div class="report-filter-field report-filter-field--narrow">
+            <label class="form-label small mb-1">Margin %</label>
+            <input
+              type="number"
+              class="form-control form-control-sm"
+              min="0"
+              step="0.1"
+              [ngModel]="marginPct()"
+              (ngModelChange)="marginPct.set(+$event || 0)"
+            />
+          </div>
+        }
+        @if (active().entityFilter; as ef) {
+          <div class="report-filter-field report-entity-field">
+            <label class="form-label small mb-1 d-flex align-items-center gap-2 flex-wrap">
+              <span>{{ ef.label }}</span>
+              @if (!entityLoading() && entityOptions().length) {
+                <span class="text-secondary fw-normal" style="font-size:0.7rem">{{ entityOptions().length }} available</span>
+              }
+              @if (selectedEntityIsOpeningStock()) {
+                <span class="badge rounded-pill text-bg-info report-os-badge">Opening Stock</span>
+              }
+            </label>
+            <div class="report-entity-combo" [class.is-open]="entityMenuOpen()">
+              <div class="report-entity-search" [class.is-disabled]="entityLoading()">
+                <i class="bi bi-search report-entity-search__icon" aria-hidden="true"></i>
+                <input
+                  type="text"
+                  class="report-entity-search__input"
+                  autocomplete="off"
+                  [placeholder]="'Type to search ' + ef.label.toLowerCase() + 'â€¦'"
+                  [ngModel]="entitySearch()"
+                  (ngModelChange)="onEntitySearchType($event)"
+                  (focus)="onEntityFocus($event)"
+                  (blur)="onEntityBlur()"
+                  (keydown.escape)="entityMenuOpen.set(false)"
+                  (keydown.arrowdown)="$event.preventDefault(); entityMenuOpen.set(true)"
+                  [disabled]="entityLoading()"
+                  [attr.title]="ef.param === 'product_name' ? 'Opening stock items are marked (Opening Stock)' : null"
+                />
+                @if (entityValue() || entitySearch()) {
+                  <button
+                    type="button"
+                    class="report-entity-search__clear"
+                    title="Clear"
+                    (mousedown)="$event.preventDefault()"
+                    (click)="clearEntity()"
+                    [disabled]="entityLoading()"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="report-entity-search__toggle"
+                  title="Show list"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="toggleEntityMenu()"
+                  [disabled]="entityLoading()"
+                >
+                  <i class="bi" [class.bi-chevron-up]="entityMenuOpen()" [class.bi-chevron-down]="!entityMenuOpen()"></i>
+                </button>
+              </div>
+              @if (entityMenuOpen() && !entityLoading()) {
+                <div class="report-entity-menu" role="listbox">
+                  @if (ef.optional) {
+                    <button type="button" class="report-entity-option" (mousedown)="pickEntity('')">
+                      All {{ ef.label.toLowerCase() }}s
+                    </button>
+                  }
+                  @for (o of filteredEntityOptions(); track o.value) {
+                    <button
+                      type="button"
+                      class="report-entity-option"
+                      [class.active]="o.value === entityValue()"
+                      (mousedown)="pickEntity(o.value)"
+                    >
+                      <span class="text-truncate">{{ o.label }}</span>
+                      @if (o.from_opening) {
+                        <span class="badge text-bg-info flex-shrink-0">OS</span>
+                      }
+                    </button>
+                  } @empty {
+                    <div class="report-entity-empty">No {{ ef.label.toLowerCase() }} found</div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+        <div class="report-filter-field report-results-search">
+          <label class="form-label small mb-1">Search results</label>
+          <div class="report-entity-search">
+            <i class="bi bi-funnel report-entity-search__icon" aria-hidden="true"></i>
+            <input
+              type="text"
+              class="report-entity-search__input"
+              autocomplete="off"
+              placeholder="Search in tableâ€¦"
+              [ngModel]="resultsSearch()"
+              (ngModelChange)="resultsSearch.set($event ?? '')"
+            />
+            @if (resultsSearch()) {
+              <button
+                type="button"
+                class="report-entity-search__clear"
+                title="Clear"
+                (click)="resultsSearch.set('')"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
+            }
+          </div>
+        </div>
+        <div class="report-filter-field report-filter-field--actions">
+          <label class="form-label small mb-1 invisible">Apply</label>
+          <button type="button" class="btn btn-sm btn-pharma" (click)="run()">
+            <i class="bi bi-funnel me-1"></i>Apply
+          </button>
+        </div>
+        <div class="report-filter-field report-filter-field--actions ms-auto">
+          <label class="form-label small mb-1 invisible">Actions</label>
+          <div class="report-actions" role="group" aria-label="Report actions">
+            <button
+              type="button"
+              class="btn btn-sm btn-view-report"
+              [style.--view-btn-color]="selectedCategoryColor()"
+              [disabled]="!canView()"
+              (click)="openView()"
+              title="View report"
+            >
+              <i class="bi bi-eye me-1"></i>View
             </button>
-            <span class="badge text-bg-light">{{ active().label }}</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-download-excel"
+              [disabled]="!canDownloadCsv()"
+              (click)="downloadCsv()"
+              title="Download Excel"
+            >
+              <i class="bi bi-file-earmark-excel me-1"></i>Excel
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger report-btn"
+              [disabled]="!canDownloadPdf()"
+              (click)="downloadPdf()"
+              title="Download PDF"
+            >
+              <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+            </button>
           </div>
         </div>
       </div>
+    </div>
 
-      @if (loading()) {
-        <div class="card-pharma p-5 text-center"><span class="spinner-border text-pharma"></span></div>
-      } @else if (data()) {
-        <!-- GST summary -->
-        @if (active().key === 'gst') {
-          <div class="row g-3">
-            <div class="col-md-4"><div class="card-pharma p-3 text-center">
-              <div class="text-secondary small">Output GST (Sales)</div>
-              <div class="fs-4 fw-bold">{{ data().output_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
-            </div></div>
-            <div class="col-md-4"><div class="card-pharma p-3 text-center">
-              <div class="text-secondary small">Input GST (Purchase)</div>
-              <div class="fs-4 fw-bold">{{ data().input_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
-            </div></div>
-            <div class="col-md-4"><div class="card-pharma p-3 text-center">
-              <div class="text-secondary small">Net Payable</div>
-              <div class="fs-4 fw-bold" [class.text-success]="data().net_payable <= 0" [class.text-danger]="data().net_payable > 0">
-                {{ data().net_payable | currency: 'INR' : 'symbol' : '1.2-2' }}
-              </div>
-            </div></div>
-          </div>
-        }
-
-        <!-- Profit report -->
-        @else if (active().key === 'profit') {
-          <div class="card-pharma p-3 mb-3">
-            <div class="d-flex justify-content-between">
-              <h6 class="fw-semibold mb-0">Total Profit</h6>
-              <span class="fw-bold text-success">{{ data().total_profit | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
+    @if (loading()) {
+      <div class="card-pharma p-5 text-center"><span class="spinner-border text-pharma"></span></div>
+    } @else if (data()) {
+      @if (active().key === 'gst') {
+        <div class="row g-3">
+          <div class="col-md-4"><div class="card-pharma p-3 text-center">
+            <div class="text-secondary small">Output GST (Sales)</div>
+            <div class="fs-4 fw-bold">{{ data().output_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
+          </div></div>
+          <div class="col-md-4"><div class="card-pharma p-3 text-center">
+            <div class="text-secondary small">Input GST (Purchase)</div>
+            <div class="fs-4 fw-bold">{{ data().input_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</div>
+          </div></div>
+          <div class="col-md-4"><div class="card-pharma p-3 text-center">
+            <div class="text-secondary small">Net Payable</div>
+            <div class="fs-4 fw-bold" [class.text-success]="data().net_payable <= 0" [class.text-danger]="data().net_payable > 0">
+              {{ data().net_payable | currency: 'INR' : 'symbol' : '1.2-2' }}
             </div>
+          </div></div>
+        </div>
+      } @else if (active().key === 'profit') {
+        <div class="card-pharma p-3 mb-3">
+          <div class="d-flex justify-content-between">
+            <h6 class="fw-semibold mb-0">Total Profit</h6>
+            <span class="fw-bold text-success">{{ data().total_profit | currency: 'INR' : 'symbol' : '1.2-2' }}</span>
           </div>
-          <div class="card-pharma">
-            <div class="p-3 border-bottom fw-semibold">Top Products by Profit</div>
-            <div class="table-responsive">
-              <table class="table table-sm mb-0">
-                <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Revenue</th><th class="text-end">Profit</th></tr></thead>
-                <tbody>
-                  @for (p of data().by_product; track p.product_name) {
-                    <tr>
-                      <td>{{ p.product_name }}</td>
-                      <td class="text-end">{{ p.qty }}</td>
-                      <td class="text-end">{{ +p.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
-                      <td class="text-end text-success">{{ +p.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
-                    </tr>
-                  } @empty {
-                    <tr><td colspan="4" class="text-center text-secondary py-4">No data for this period.</td></tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        }
-
-        <!-- Tabular reports -->
-        @else {
-          <div class="card-pharma">
-            @if (data().totals) {
-              <div class="p-3 border-bottom d-flex flex-wrap gap-4">
-                <span class="text-secondary small">Records: <b class="text-dark">{{ data().totals.count }}</b></span>
-                @if (data().totals.net != null) { <span class="text-secondary small">Net: <b class="text-dark">{{ data().totals.net | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
-                @if (data().totals.gst != null) { <span class="text-secondary small">GST: <b class="text-dark">{{ data().totals.gst | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
-                @if (data().totals.profit != null) { <span class="text-secondary small">Profit: <b class="text-success">{{ data().totals.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span> }
-              </div>
-            }
-            @if (active().key === 'stock' && data().total_value != null) {
-              <div class="p-3 border-bottom d-flex flex-wrap gap-4">
-                <span class="text-secondary small">Items: <b class="text-dark">{{ data().total_items }}</b></span>
-                <span class="text-secondary small">Stock Value: <b class="text-dark">{{ data().total_value | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
-              </div>
-            }
-            <div class="table-responsive">
-              <table class="table table-hover table-sm mb-0">
-                <thead>
+        </div>
+        <div class="card-pharma">
+          <div class="p-3 border-bottom fw-semibold">Top Products by Profit</div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Revenue</th><th class="text-end">Profit</th></tr></thead>
+              <tbody>
+                @for (p of data().by_product; track p.product_name) {
                   <tr>
-                    @for (col of activeColumns(); track col.key) {
-                      <th [class.text-end]="col.align === 'end'">{{ col.label }}</th>
+                    <td>{{ p.product_name }}</td>
+                    <td class="text-end">{{ p.qty }}</td>
+                    <td class="text-end">{{ +p.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                    <td class="text-end text-success">{{ +p.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="text-center text-secondary py-4">No data for this period.</td></tr>
+                }
+              </tbody>
+              @if (hasTotalRow()) {
+                <tfoot>
+                  <tr class="report-total-row">
+                    @for (cell of totalRowDisplay(); track $index; let i = $index) {
+                      <td [class.text-end]="i > 0">{{ cell }}</td>
                     }
                   </tr>
-                </thead>
-                <tbody>
-                  @for (row of (data().rows || []); track $index) {
-                    <tr>
-                      @for (col of activeColumns(); track col.key) {
-                        <td [class.text-end]="col.align === 'end'">
-                          @if (col.type === 'badge') {
-                            <span class="badge text-bg-light">{{ row[col.key] }}</span>
-                          } @else {
-                            {{ cell(row, col) }}
-                          }
-                        </td>
-                      }
-                    </tr>
-                  } @empty {
-                    <tr><td [attr.colspan]="activeColumns().length" class="text-center text-secondary py-5">
-                      <i class="bi bi-inbox fs-3 d-block mb-2"></i> No records.
-                    </td></tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+        </div>
+      } @else {
+        <div class="card-pharma">
+          @if (data().totals) {
+            <div class="p-3 border-bottom d-flex flex-wrap gap-4">
+              <span class="text-secondary small">Records: <b class="text-dark">{{ data().totals.count }}</b></span>
+              @if (data().totals.items != null) { <span class="text-secondary small">Items: <b class="text-dark">{{ data().totals.items }}</b></span> }
+              @if (data().totals.gross != null) { <span class="text-secondary small">Gross: <b class="text-dark">{{ data().totals.gross | number: '1.2-2' }}</b></span> }
+              @if (data().totals.discount != null) { <span class="text-secondary small">Discount: <b class="text-dark">{{ data().totals.discount | number: '1.2-2' }}</b></span> }
+              @if (data().totals.net != null) { <span class="text-secondary small">Net: <b class="text-dark">{{ data().totals.net | number: '1.2-2' }}</b></span> }
+              @if (data().totals.gst != null) { <span class="text-secondary small">GST: <b class="text-dark">{{ data().totals.gst | number: '1.2-2' }}</b></span> }
+              @if (data().totals.profit != null) { <span class="text-secondary small">Profit: <b class="text-success">{{ data().totals.profit | number: '1.2-2' }}</b></span> }
+            </div>
+          }
+          @if (active().key === 'stock' && data().total_value != null) {
+            <div class="p-3 border-bottom d-flex flex-wrap gap-4">
+              <span class="text-secondary small">Items: <b class="text-dark">{{ data().total_items }}</b></span>
+              <span class="text-secondary small">Stock Value: <b class="text-dark">{{ data().total_value | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
+            </div>
+          }
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0" [class.report-compact]="active().key === 'purEditAudit'">
+              <thead>
+                <tr>
+                  @for (col of activeColumns(); track col.key) {
+                    <th [class.text-end]="col.align === 'end'">{{ col.label }}</th>
                   }
-                </tbody>
-              </table>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of displayRows(); track $index) {
+                  <tr>
+                    @for (col of activeColumns(); track col.key) {
+                      <td [class.text-end]="col.align === 'end'">
+                        @if (col.type === 'badge') {
+                          <span class="badge" [ngClass]="badgeClass(row[col.key])">{{ row[col.key] }}</span>
+                        } @else {
+                          {{ cell(row, col) }}
+                        }
+                      </td>
+                    }
+                  </tr>
+                } @empty {
+                  <tr><td [attr.colspan]="activeColumns().length" class="text-center text-secondary py-5">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    {{ resultsSearch() ? 'No matching rows.' : 'No records.' }}
+                  </td></tr>
+                }
+              </tbody>
+              @if (hasTotalRow() && !resultsSearch()) {
+                <tfoot>
+                  <tr class="report-total-row">
+                    @for (col of activeColumns(); track col.key; let i = $index) {
+                      <td [class.text-end]="col.align === 'end'">{{ totalRowDisplay()[i] }}</td>
+                    }
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <!-- Full report preview -->
+  @if (viewOpen()) {
+    <div class="report-view-backdrop" (click)="closeView()"></div>
+    <div class="report-view" role="dialog" aria-modal="true" [attr.aria-label]="active().label">
+      <header class="report-view-head">
+        <div class="report-view-titles">
+          <span class="report-view-eyebrow">{{ pharmacyHeader().businessName }}</span>
+          @if (pharmacyAddressLine()) {
+            <p class="report-view-letterhead">{{ pharmacyAddressLine() }}</p>
+          }
+          @if (pharmacyIdsLine()) {
+            <p class="report-view-letterhead report-view-ids">{{ pharmacyIdsLine() }}</p>
+          }
+          <h2>{{ active().label }}</h2>
+          <p>
+            @if (periodLabel()) { <span>{{ periodLabel() }}</span> }
+            @if (selectedBranchLabel()) { <span>Â· {{ selectedBranchLabel() }}</span> }
+          </p>
+        </div>
+        <div class="report-view-actions">
+          <button type="button" class="btn btn-sm btn-download-excel" [disabled]="!canDownloadCsv()" (click)="downloadCsv()">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger report-btn" [disabled]="!canDownloadPdf()" (click)="downloadPdf()">
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+          </button>
+          <button type="button" class="btn btn-sm btn-light border report-btn" (click)="closeView()" aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="report-view-body">
+        @if (active().key === 'gst' && data()) {
+          <div class="report-view-summary">
+            <div class="summary-card">
+              <span>Output GST (Sales)</span>
+              <b>{{ data().output_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+            </div>
+            <div class="summary-card">
+              <span>Input GST (Purchase)</span>
+              <b>{{ data().input_gst | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+            </div>
+            <div class="summary-card">
+              <span>Net Payable</span>
+              <b [class.text-success]="data().net_payable <= 0" [class.text-danger]="data().net_payable > 0">
+                {{ data().net_payable | currency: 'INR' : 'symbol' : '1.2-2' }}
+              </b>
             </div>
           </div>
+        } @else if (active().key === 'profit' && data()) {
+          <div class="report-view-totals">
+            <span>Total Profit</span>
+            <b class="text-success">{{ data().total_profit | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+          </div>
+          <div class="table-responsive report-view-table-wrap">
+            <table class="table table-sm report-view-table" [class.report-compact]="active().key === 'purEditAudit'">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">Revenue</th>
+                  <th class="text-end">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of data().by_product; track p.product_name) {
+                  <tr>
+                    <td>{{ p.product_name }}</td>
+                    <td class="text-end">{{ p.qty }}</td>
+                    <td class="text-end">{{ +p.revenue | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                    <td class="text-end text-success">{{ +p.profit | currency: 'INR' : 'symbol' : '1.2-2' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="text-center text-secondary py-4">No data for this period.</td></tr>
+                }
+              </tbody>
+              @if (hasTotalRow()) {
+                <tfoot>
+                  <tr class="report-total-row">
+                    @for (cell of totalRowDisplay(); track $index; let i = $index) {
+                      <td [class.text-end]="i > 0">{{ cell }}</td>
+                    }
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+        } @else if (data()) {
+          @if (data().totals) {
+            <div class="report-view-totals">
+              <span>Records: <b>{{ data().totals.count }}</b></span>
+              @if (data().totals.items != null) { <span>Items: <b>{{ data().totals.items }}</b></span> }
+              @if (data().totals.gross != null) { <span>Gross: <b>{{ data().totals.gross | number: '1.2-2' }}</b></span> }
+              @if (data().totals.discount != null) { <span>Discount: <b>{{ data().totals.discount | number: '1.2-2' }}</b></span> }
+              @if (data().totals.net != null) { <span>Net: <b>{{ data().totals.net | number: '1.2-2' }}</b></span> }
+              @if (data().totals.gst != null) { <span>GST: <b>{{ data().totals.gst | number: '1.2-2' }}</b></span> }
+              @if (data().totals.profit != null) { <span>Profit: <b class="text-success">{{ data().totals.profit | number: '1.2-2' }}</b></span> }
+            </div>
+          }
+          @if (active().key === 'stock' && data().total_value != null) {
+            <div class="report-view-totals">
+              <span>Items: <b>{{ data().total_items }}</b></span>
+              <span>Stock Value: <b>{{ data().total_value | currency: 'INR' : 'symbol' : '1.2-2' }}</b></span>
+            </div>
+          }
+          <div class="table-responsive report-view-table-wrap">
+            <table class="table table-sm report-view-table" [class.report-compact]="active().key === 'purEditAudit'">
+              <thead>
+                <tr>
+                  @for (col of activeColumns(); track col.key) {
+                    <th [class.text-end]="col.align === 'end'">{{ col.label }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of displayRows(); track $index) {
+                  <tr>
+                    @for (col of activeColumns(); track col.key) {
+                      <td [class.text-end]="col.align === 'end'">
+                        @if (col.type === 'badge') {
+                          <span class="badge" [ngClass]="badgeClass(row[col.key])">{{ row[col.key] }}</span>
+                        } @else {
+                          {{ cell(row, col) }}
+                        }
+                      </td>
+                    }
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td [attr.colspan]="activeColumns().length" class="text-center text-secondary py-5">
+                      {{ resultsSearch() ? 'No matching rows.' : 'No records.' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              @if (hasTotalRow() && !resultsSearch()) {
+                <tfoot>
+                  <tr class="report-total-row">
+                    @for (col of activeColumns(); track col.key; let i = $index) {
+                      <td [class.text-end]="col.align === 'end'">{{ totalRowDisplay()[i] }}</td>
+                    }
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
         }
-      }
+      </div>
     </div>
-  </div>
+  }
 </div>

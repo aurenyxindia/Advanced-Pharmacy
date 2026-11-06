@@ -1,0 +1,244 @@
+<div class="my-profile">
+  <div class="mp-header">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-person-badge fs-4 text-pharma"></i>
+        <h4 class="fw-bold mb-0">My Profile</h4>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Pharmacy account, documents & user access</p>
+    </div>
+  </div>
+
+  @if (isAdmin) {
+    <ul class="nav nav-tabs mp-tabs mb-3">
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'profile'" (click)="setTab('profile')">
+          <i class="bi bi-person me-1"></i> Profile
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'userRights'" (click)="setTab('userRights')">
+          <i class="bi bi-shield-check me-1"></i> User Rights
+        </button>
+      </li>
+    </ul>
+  }
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+  @if (success()) {
+    <div class="alert alert-success py-2">{{ success() }}</div>
+  }
+
+  @if (activeTab() === 'userRights' && isAdmin) {
+    <app-user-rights-panel />
+  }
+
+  @if (activeTab() === 'profile') {
+    @if (loading()) {
+      <div class="card card-pharma"><div class="card-body text-center py-5"><div class="spinner-border text-pharma"></div></div></div>
+    } @else if (profile(); as p) {
+      <div class="card card-pharma mp-hero mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+          <div class="mp-avatar">
+            @if (previews().photo) {
+              <img [src]="previews().photo" alt="Profile photo" />
+            } @else {
+              <i class="bi bi-person-fill"></i>
+            }
+          </div>
+          <div class="flex-grow-1 min-w-0">
+            <div class="small text-secondary text-uppercase">Pharmacy</div>
+            <h5 class="fw-bold mb-1 text-truncate">{{ p.business_name || '—' }}</h5>
+            <div class="d-flex flex-wrap gap-3 small text-secondary">
+              @if (p.contact_person) { <span><i class="bi bi-person me-1"></i>{{ p.contact_person }}</span> }
+              @if (p.phone) { <span><i class="bi bi-telephone me-1"></i>{{ p.phone }}</span> }
+              @if (p.email) { <span><i class="bi bi-envelope me-1"></i>{{ p.email }}</span> }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-xl-7">
+          <form (ngSubmit)="saveProfile()">
+            <div class="card card-pharma mb-3">
+              <div class="card-header bg-transparent fw-semibold"><i class="bi bi-geo-alt me-2"></i>Contact & Address</div>
+              <div class="card-body">
+                <p class="small text-muted mb-2">
+                  <i class="bi bi-lock me-1"></i>Filled from your registration — contact support to change locked fields.
+                </p>
+                <div class="row g-2">
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Client Name</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.business_name || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Contact Person</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.contact_person || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Phone</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.phone || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Alternate Phone</label>
+                    <input class="form-control form-control-sm" name="alternate_phone" maxlength="10" inputmode="numeric"
+                      [ngModel]="form.alternate_phone"
+                      (ngModelChange)="form.alternate_phone = ($event || '').replace(/\D+/g, '').slice(0, 10)"
+                      placeholder="10-digit mobile" autocomplete="tel" />
+                    <div class="text-muted small">Daily closing WhatsApp also goes here</div>
+                    @if (validation['alternate_phone']) { <div class="text-danger small">{{ validation['alternate_phone'] }}</div> }
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Email <span class="text-danger">*</span></label>
+                    <input class="form-control form-control-sm" name="email" [(ngModel)]="form.email" autocomplete="email" />
+                    @if (validation['email']) { <div class="text-danger small">{{ validation['email'] }}</div> }
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Date of Birth</label>
+                    <input type="date" class="form-control form-control-sm" name="dob" [(ngModel)]="form.dob" [max]="maxDob" />
+                    <div class="text-muted small">Shown on dashboard birthday</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small">Address</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="formatAddress(p)" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">City</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.city || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">State</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.state || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Pincode</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.pincode || '—'" readonly tabindex="-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card-pharma mb-3">
+              <div class="card-header bg-transparent fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Registration & Licenses</div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">GSTIN</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.gstin || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">PAN</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.pan || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">FSSAI No.</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.fssai_no || '—'" readonly tabindex="-1" />
+                  </div>
+                  <div class="col-md-6 col-12">
+                    <label class="form-label small">Drug License No.</label>
+                    <input class="form-control form-control-sm mp-readonly" [value]="p.drug_license_no || '—'" readonly tabindex="-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card-pharma mb-3">
+              <div class="card-header bg-transparent fw-semibold"><i class="bi bi-bank me-2"></i>Bank Details</div>
+              <div class="card-body">
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-4 col-12">
+                    <label class="form-label small">Bank Name</label>
+                    <input class="form-control form-control-sm" name="bank_name" [(ngModel)]="form.bank_name" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">Account No.</label>
+                    <input class="form-control form-control-sm" name="account_no" [(ngModel)]="form.account_no" />
+                  </div>
+                  <div class="col-md-4 col-6">
+                    <label class="form-label small">IFSC Code</label>
+                    <input class="form-control form-control-sm" name="ifsc_code" [(ngModel)]="form.ifsc_code" />
+                    @if (validation['ifsc_code']) { <div class="text-danger small">{{ validation['ifsc_code'] }}</div> }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            @if (isAdmin) {
+              <div class="card card-pharma mb-3">
+                <div class="card-header bg-transparent fw-semibold">
+                  <i class="bi bi-eye-slash me-2"></i>Hide Master Catalogue
+                </div>
+                <div class="card-body">
+                  <p class="small text-secondary mb-3 mb-md-2">
+                    Hide the shared platform catalogue for this pharmacy. Master tabs stay available so you can add your own
+                    products and distributors — only those appear in lists and dropdowns everywhere (purchase, import, sales, masters).
+                  </p>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="hideMasterProducts"
+                      name="hide_master_products" [(ngModel)]="form.hide_master_products" />
+                    <label class="form-check-label" for="hideMasterProducts">
+                      <span class="fw-semibold">Product Master</span>
+                      <span class="d-block small text-secondary">Show only products added by this pharmacy</span>
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="hideMasterDistributors"
+                      name="hide_master_distributors" [(ngModel)]="form.hide_master_distributors" />
+                    <label class="form-check-label" for="hideMasterDistributors">
+                      <span class="fw-semibold">Distributor Master</span>
+                      <span class="d-block small text-secondary">Show only distributors added by this pharmacy</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <div class="mb-3">
+              <button type="submit" class="btn btn-pharma btn-sm" [disabled]="saving()">
+                @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-check-lg me-1"></i> Save Profile
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12 col-xl-5">
+          <div class="card card-pharma">
+            <div class="card-header bg-transparent fw-semibold"><i class="bi bi-cloud-upload me-2"></i>Documents & Images</div>
+            <div class="card-body pt-0">
+              <p class="small text-muted mb-2">Upload starts when you choose a file (images or PDF, up to 50 MB).</p>
+              <div class="row g-2">
+                @for (t of uploadKeys; track t) {
+                  <div class="col-6">
+                    <div class="mp-upload card h-100">
+                      <div class="mp-upload-preview">
+                        @if (previews()[t]) {
+                          <img [src]="previews()[t]" [alt]="uploadLabel(t)" />
+                        } @else {
+                          <i class="bi bi-image"></i>
+                        }
+                      </div>
+                      <div class="p-2">
+                        <div class="small fw-semibold">{{ uploadLabel(t) }}</div>
+                        <input type="file" class="form-control form-control-sm mt-1" accept="image/*,application/pdf"
+                          (change)="onFilePick(t, $event)" />
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-1"
+                          [disabled]="uploadBusy() === t" (click)="upload(t)">
+                          @if (uploadBusy() === t) { <span class="spinner-border spinner-border-sm"></span> }
+                          @else { Retry }
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>

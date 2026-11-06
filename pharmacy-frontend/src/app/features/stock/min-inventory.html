@@ -1,0 +1,156 @@
+<div class="card-pharma mi-picker-card p-3 mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-6 col-lg-5">
+      <label class="mi-label">
+        <span>Select Product (from stock) <span class="text-danger">*</span></span>
+      </label>
+      <div class="position-relative">
+        <input
+          type="text"
+          class="form-control form-control-sm"
+          placeholder="Type to search product…"
+          autocomplete="off"
+          [ngModel]="query()"
+          (ngModelChange)="onQueryInput($event)"
+          (focus)="openResults()"
+          (keydown)="onQueryKeydown($event)"
+          (blur)="closeResults()"
+        />
+        @if (resultsOpen() && results().length) {
+          <ul class="mi-results">
+            @for (r of results(); track r.id; let i = $index) {
+              <li [class.active]="i === activeResult()" (mousedown)="pick(r)">
+                <span class="fw-semibold">{{ r.product_name }}</span>
+                <span class="small text-secondary">
+                  {{ r.pack_size || '—' }} · Qty: {{ r.available_qty }} · Min: {{ r.min_qty }}{{ r.is_custom ? '' : ' (default)' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <label class="mi-label">
+        <span>Available Qty</span>
+        @if (selected(); as s) {
+          @if (packHint(s.available_qty, s.units_per_pack); as hint) { <em>{{ hint }}</em> }
+        }
+      </label>
+      <input
+        type="text"
+        class="form-control form-control-sm text-end"
+        readonly
+        [value]="selected() ? selected()!.available_qty : '—'"
+      />
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <label class="mi-label" for="mi-min-qty">
+        <span>Minimum Qty <span class="text-danger">*</span></span>
+        @if (selected(); as s) { <em>{{ s.is_custom ? 'Custom' : 'Default' }}</em> }
+      </label>
+      <input
+        id="mi-min-qty"
+        type="number"
+        min="1"
+        step="1"
+        class="form-control form-control-sm text-end"
+        placeholder="Min qty"
+        [(ngModel)]="minQty"
+        (keydown.enter)="save()"
+      />
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="mi-actions">
+        <button type="button" class="btn btn-pharma btn-sm" [disabled]="saving()" (click)="save()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          } @else {
+            <i class="bi bi-bell me-1"></i>
+          }
+          Save Trigger
+        </button>
+        <button type="button" class="btn btn-light border btn-sm" (click)="clear()">Clear</button>
+      </div>
+    </div>
+  </div>
+  <div class="mi-note mt-3">
+    <i class="bi bi-info-circle"></i>
+    <span>
+      Every product uses a default minimum of <b>{{ defaultMin }}</b> units. Set a custom minimum here for any product.
+      When stock goes below its minimum, the product shows in the Dashboard alert and in Purchase Order → Auto-Purchase.
+      Quantities are in units (tablets / pieces), same as stock.
+    </span>
+  </div>
+</div>
+
+@if (toast()) {
+  <div class="alert alert-success py-2">{{ toast() }}</div>
+}
+@if (error()) {
+  <div class="alert alert-danger py-2">{{ error() }}</div>
+}
+
+<div class="card-pharma">
+  <div class="px-3 pt-3 pb-2 d-flex flex-wrap justify-content-between gap-2">
+    <span class="fw-semibold"><i class="bi bi-list-check me-1"></i> Custom Minimums</span>
+    <span class="small text-secondary">All other products use the default minimum ({{ defaultMin }})</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0 mi-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th>Pack Size</th>
+          <th class="text-end">Available Qty</th>
+          <th class="text-end">Minimum Qty</th>
+          <th class="text-center">Status</th>
+          <th class="text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr>
+            <td colspan="7" class="text-center py-4 text-secondary">
+              <span class="spinner-border spinner-border-sm me-2"></span> Loading…
+            </td>
+          </tr>
+        } @else if (!triggers().length) {
+          <tr>
+            <td colspan="7" class="text-center py-4 text-secondary">
+              No custom minimums yet — all products use the default ({{ defaultMin }}).
+            </td>
+          </tr>
+        } @else {
+          @for (t of triggers(); track t.id; let i = $index) {
+            <tr [class.row-low]="t.is_low">
+              <td class="text-secondary">{{ i + 1 }}</td>
+              <td class="fw-semibold">{{ t.product_name }}</td>
+              <td>{{ t.pack_size || '—' }}</td>
+              <td class="text-end" [class.text-danger]="t.is_low">{{ t.available_qty }}</td>
+              <td class="text-end">{{ t.min_qty }}</td>
+              <td class="text-center">
+                <span class="mi-badge" [class.low]="t.is_low">{{ t.is_low ? 'Low Stock' : 'OK' }}</span>
+              </td>
+              <td class="text-center text-nowrap">
+                <button type="button" class="btn btn-sm btn-light border" title="Edit minimum" (click)="edit(t)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-light border ms-1"
+                  [title]="'Reset to default (' + defaultMin + ')'"
+                  [disabled]="removingId() === t.id"
+                  (click)="remove(t)"
+                >
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

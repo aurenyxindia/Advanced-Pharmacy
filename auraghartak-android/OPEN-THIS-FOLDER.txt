@@ -1,0 +1,10 @@
+Open THIS folder in Android Studio (File → Open):
+
+  auraghartak-android
+
+Full path:
+  C:\xampp\htdocs\Advanced Pharmacy\auraghartak-android
+
+Do NOT open the parent "Advanced Pharmacy" folder — Run will not appear.
+
+See README.md in this folder for Gradle sync and device steps.

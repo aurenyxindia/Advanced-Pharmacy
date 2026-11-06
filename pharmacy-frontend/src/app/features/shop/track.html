@@ -1,0 +1,189 @@
+<div class="track-page">
+  <header class="shop-header">
+    <div class="container shop-header-inner">
+      <a routerLink="/shop" class="brand">
+        <span class="brand-mark"><i class="bi bi-capsule-pill"></i></span>
+        <span class="brand-text">
+          <strong>ePharmacy</strong>
+          <em>Advanced Pharmacy</em>
+        </span>
+      </a>
+      <a routerLink="/shop" class="btn-shop"><i class="bi bi-shop me-1"></i> Back to shop</a>
+    </div>
+  </header>
+
+  <section class="track-hero">
+    <div class="track-hero-bg" aria-hidden="true"></div>
+    <div class="container track-hero-inner">
+      <p class="eyebrow">Advanced paperless pharmacy</p>
+      <h1>Track your medicine delivery</h1>
+      <p class="lead">
+        No login needed. Find your order with the mobile number you used at checkout,
+        or with your order / tracking number.
+      </p>
+    </div>
+  </section>
+
+  <div class="container track-body">
+    <div class="track-card">
+      <div class="mode-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="mode-tab"
+          [class.active]="mode() === 'phone'"
+          (click)="setMode('phone')"
+        >
+          <i class="bi bi-phone"></i> Phone number
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="mode-tab"
+          [class.active]="mode() === 'ref'"
+          (click)="setMode('ref')"
+        >
+          <i class="bi bi-upc"></i> Order / tracking no.
+        </button>
+      </div>
+
+      <p class="hint">
+        @if (mode() === 'phone') {
+          Enter the same 10-digit mobile number used when you placed the order.
+        } @else {
+          Use the order number (ORD-…) or the long tracking number from your confirmation.
+        }
+      </p>
+
+      <div class="search-row">
+        <div class="search-field">
+          <i class="bi" [class.bi-phone]="mode() === 'phone'" [class.bi-search]="mode() === 'ref'"></i>
+          <input
+            type="text"
+            [attr.inputmode]="mode() === 'phone' ? 'tel' : 'text'"
+            [attr.maxlength]="mode() === 'phone' ? 15 : 64"
+            [placeholder]="mode() === 'phone' ? 'e.g. 9876543210' : 'ORD-… or tracking token'"
+            [ngModel]="query()"
+            (ngModelChange)="query.set($event)"
+            (keyup.enter)="track()"
+            autocomplete="tel"
+          />
+        </div>
+        <button type="button" class="btn-primary-shop" (click)="track()" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+            <i class="bi bi-truck"></i> Track
+          }
+        </button>
+      </div>
+
+      @if (error()) {
+        <div class="track-alert">{{ error() }}</div>
+      }
+
+      @if (list(); as orders) {
+        <div class="list-block">
+          <div class="list-head">
+            <h2>Orders for ···{{ listPhone().slice(-4) }}</h2>
+            <p>Select an order to see live delivery status.</p>
+          </div>
+          <div class="order-list">
+            @for (o of orders; track o.order_no) {
+              <button type="button" class="order-row" (click)="openOrder(o.order_no)">
+                <div class="order-row-main">
+                  <strong>{{ o.order_no }}</strong>
+                  <span>{{ o.customer_name }} · {{ o.created_at | date: 'dd-MM-yyyy HH:mm' }}</span>
+                </div>
+                <div class="order-row-side">
+                  <span class="status-pill" [ngClass]="badge(o.status)">{{ label(o.status) }}</span>
+                  <b>{{ o.total_estimate | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (detail(); as r) {
+        <div class="detail-block">
+          @if (listPhone()) {
+            <button type="button" class="back-link" (click)="backToList()">
+              <i class="bi bi-arrow-left"></i> All orders for this phone
+            </button>
+          }
+          <div class="detail-top">
+            <div>
+              <span class="meta-label">Order</span>
+              <h2>{{ r.order_no }}</h2>
+              <p>{{ r.customer_name }}@if (r.phone) { · {{ r.phone }} }</p>
+            </div>
+            <span class="status-pill lg" [ngClass]="badge(r.status)">{{ label(r.status) }}</span>
+          </div>
+          <div class="detail-meta">
+            <div>
+              <span>Estimated total</span>
+              <b>{{ r.total_estimate | currency: 'INR' : 'symbol' : '1.2-2' }}</b>
+            </div>
+            <div>
+              <span>Placed on</span>
+              <b>{{ r.created_at | date: 'dd-MM-yyyy HH:mm' }}</b>
+            </div>
+          </div>
+
+          <h3 class="timeline-title">Delivery timeline</h3>
+          <div class="timeline">
+            @for (e of r.events; track $index) {
+              <div class="tl-item">
+                <div class="tl-dot" [class.cancelled]="e.status === 'cancelled'"></div>
+                <div class="tl-body">
+                  <strong>{{ label(e.status) }}</strong>
+                  @if (e.note) { <span class="note">{{ e.note }}</span> }
+                  <span class="when">{{ e.created_at | date: 'dd-MM-yyyy HH:mm' }}</span>
+                </div>
+              </div>
+            } @empty {
+              <p class="empty-events">Status updates will appear here as the pharmacy processes your order.</p>
+            }
+          </div>
+
+          @if (successMsg()) {
+            <div class="track-ok">{{ successMsg() }}</div>
+          }
+
+          @if (canCancel(r.status, r.cancellable)) {
+            <div class="cancel-box">
+              <p>Changed your mind? You can cancel before the order goes out for delivery. Stock returns to the pharmacy automatically.</p>
+              <button type="button" class="btn-cancel" [disabled]="cancelling()" (click)="cancelOrder()">
+                @if (cancelling()) {
+                  <span class="spinner-border spinner-border-sm"></span>
+                } @else {
+                  <i class="bi bi-x-circle"></i> Cancel order
+                }
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <aside class="trust-panel">
+      <h3>Advanced paperless pharmacy</h3>
+      <p>
+        Your neighbourhood pharmacy — online. Order medicines without paperwork queues,
+        pay cash on delivery, and follow every step from packed to your door.
+      </p>
+      <ul>
+        <li><i class="bi bi-check2-circle"></i> Guest checkout — no account required</li>
+        <li><i class="bi bi-check2-circle"></i> Track anytime with your phone number</li>
+        <li><i class="bi bi-check2-circle"></i> Live status from pharmacy to delivery</li>
+      </ul>
+      <a routerLink="/shop" class="btn-ghost-shop">Order medicines</a>
+    </aside>
+  </div>
+
+  <footer class="shop-footer">
+    <div class="container">Advanced Pharmacy Suite · Paperless ordering · Track anytime</div>
+  </footer>
+</div>

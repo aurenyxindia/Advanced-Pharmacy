@@ -47,6 +47,150 @@ final class PackSize
     }
 
     /**
+     * Retail master pack_size list (from legacy pack_size table).
+     * Labels match Retail dropdown exactly, e.g. "1 x 10", "60 ML".
+     *
+     * @return list<array{pack:string,label:string,units:int,form:string}>
+     */
+    public static function retailMaster(): array
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $labels = [
+            '1 x 1',
+            '1 x 2',
+            '1 x 3',
+            '1 x 4',
+            '1 x 5',
+            '1 x 6',
+            '1 x 7',
+            '1 x 8',
+            '1 x 10',
+            '1 x 12',
+            '1 x 14',
+            '1 x 15',
+            '1 x 16',
+            '1 x 20',
+            '1 x 21',
+            '1 x 25',
+            '1 x 30',
+            '1 x 45',
+            '1 x 50',
+            '1 x 60',
+            '1 x 100',
+            '1 x 1000',
+            '3 x 10',
+            '1 GM',
+            '1GM',
+            '2.5 GM',
+            '3 GM',
+            '4 GM',
+            '4.5 GM',
+            '5 GM',
+            '10 GM',
+            '12 GM',
+            '14 GM',
+            '15 GM',
+            '20 GM',
+            '20GM',
+            '25GM',
+            '30 GM',
+            '40 GM',
+            '50GM',
+            '60 GM',
+            '75 GM',
+            '80 GM',
+            '100 GM',
+            '125 GM',
+            '200GM',
+            '250 GM',
+            '300 GM',
+            '400 GM',
+            '450 GM',
+            '500GM',
+            '750 GM',
+            '0.7 ML',
+            '1 ML',
+            '2 ML',
+            '2.5 ML',
+            '3 ML',
+            '4 ML',
+            '5 ML',
+            '6 ML',
+            '10 ML',
+            '15 ML',
+            '20 ML',
+            '25 ML',
+            '30 ML',
+            '35 ML',
+            '40 ML',
+            '50 ML',
+            '60 ML',
+            '90 ML',
+            '99 ML',
+            '100 ML',
+            '110 ML',
+            '120 ML',
+            '150 ML',
+            '170 ML',
+            '200 ML',
+            '300 ML',
+            '500 ML',
+            '650 ML',
+            '600 ML',
+            '250 ML',
+            '400 ML',
+            '450 ML',
+            '1 KG',
+            '1.2 KG',
+            '1.5 KG',
+            '2 KG',
+            '5 KG',
+            '10 KG',
+            '15 KG',
+            '20 KG',
+            '25 KG',
+            '80 MG',
+            '250 MG',
+            '500 MG',
+            '1 LIT',
+            '2.5 LIT',
+            'STRIP ',
+            '1 VIAL',
+            '2 VIAL',
+            '1 AMP',
+            '10 Tab',
+            '1 BOX',
+            '1 x 56',
+            '1 x 40',
+            '1 x 28',
+        ];
+
+        $out = [];
+        $seen = [];
+        foreach ($labels as $label) {
+            $key = strtolower(trim($label));
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $parsed = self::parse($label);
+            $out[] = [
+                'pack'  => $label,
+                'label' => $label,
+                'units' => (int) $parsed['units_per_pack'],
+                'form'  => (string) $parsed['form'],
+            ];
+        }
+
+        $cache = $out;
+        return $out;
+    }
+
+    /**
      * @return array{units_per_pack:int, pack_size:string, form:string, raw:string}
      */
     public static function parse(string $raw): array
