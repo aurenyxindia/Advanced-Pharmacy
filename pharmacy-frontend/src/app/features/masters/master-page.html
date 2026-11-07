@@ -241,21 +241,55 @@
   @if (modalOpen()) {
     <div class="modal-backdrop-custom" (click)="closeModal()"></div>
     <div class="modal-custom">
-      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" [class.modal-card-wide]="config.key === 'products' || config.key === 'customers' || config.key === 'accounts' || config.key === 'rate-margins' || config.key === 'employees' || config.key === 'doctors'">
-        <div class="modal-head">
-          <h5 class="mb-0 fw-semibold">
-            {{ editingId() ? 'Edit' : 'Add' }} {{ config.title }}
-          </h5>
+      <div class="modal-card card-pharma shadow-pharma-lg form-gradient-border" [class.modal-card-wide]="config.key === 'products' || config.key === 'customers' || config.key === 'accounts' || config.key === 'rate-margins' || config.key === 'employees' || config.key === 'doctors'" [class.modal-card-product]="isSectionedForm()" [class.modal-card-sectioned]="isSectionedForm() && config.key !== 'products'">
+        <div class="modal-head" [class.modal-head-product]="isSectionedForm()">
+          <div class="modal-head-copy">
+            @if (formHeader(); as head) {
+              <span class="modal-head-badge"><i [class]="head.icon"></i></span>
+            }
+            <div>
+              <h5 class="mb-0 fw-semibold">
+                {{ editingId() ? 'Edit' : 'Add' }} {{ config.title }}
+              </h5>
+              @if (formHeader(); as head) {
+                <div class="modal-head-sub">{{ head.subtitle }}</div>
+              }
+            </div>
+          </div>
           <button class="btn-close" (click)="closeModal()"></button>
         </div>
 
-        <form [formGroup]="form" (ngSubmit)="save()" class="modal-body-custom">
+        <form [formGroup]="form" (ngSubmit)="save()" class="modal-body-custom" [class.product-form]="isSectionedForm()">
           @if (formError()) {
             <div class="alert alert-danger py-2">{{ formError() }}</div>
           }
+          @if (isSectionedForm()) {
+            <div class="product-sections">
+              @for (section of formSections(); track section.id) {
+                <section class="product-section" [attr.data-tone]="section.tone">
+                  <div class="product-section-title">
+                    <i [class]="section.icon"></i>
+                    <span>{{ section.title }}</span>
+                  </div>
+                  <div class="row g-2">
+                    @for (field of section.fields; track field.key) {
+                      <ng-container [ngTemplateOutlet]="masterField" [ngTemplateOutletContext]="{ $implicit: field }" />
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+          } @else {
           <div class="row g-3">
             @for (field of config.fields; track field.key) {
               @if (showField(field)) {
+                <ng-container [ngTemplateOutlet]="masterField" [ngTemplateOutletContext]="{ $implicit: field }" />
+              }
+            }
+          </div>
+          }
+
+          <ng-template #masterField let-field>
               <div [ngClass]="field.col || 'col-md-6'">
                 <label class="form-label">
                   {{ field.label }}
@@ -417,13 +451,11 @@
                 }
                 @if (fieldError(field); as err) {
                   <div class="invalid-feedback d-block">{{ err }}</div>
-                } @else if (field.hint) {
+                } @else if (field.hint && !isSectionedForm()) {
                   <div class="form-text">{{ field.hint }}</div>
                 }
               </div>
-              }
-            }
-          </div>
+          </ng-template>
 
           <div class="modal-foot">
             <button type="button" class="btn btn-light border" (click)="closeModal()">

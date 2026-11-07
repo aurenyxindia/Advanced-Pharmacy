@@ -159,12 +159,139 @@
   max-width: min(980px, 96vw);
 }
 
+.modal-card-product {
+  max-width: min(920px, 96vw);
+  background: #f4f7fb;
+}
+
+.modal-card-sectioned {
+  max-width: min(680px, 96vw);
+}
+
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-head-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.modal-head-product {
+  padding: 0.85rem 1.1rem;
+  border-bottom: none;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 255, 255, 0.22), transparent 36%),
+    linear-gradient(115deg, #0f766e 0%, #0d9488 42%, #155e75 100%);
+
+  h5 { color: #fff; letter-spacing: 0.01em; font-size: 1.05rem; }
+  .btn-close { filter: invert(1) grayscale(1) brightness(2); opacity: 0.9; }
+}
+
+.modal-head-badge {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 1.05rem;
+  flex: none;
+}
+
+.modal-head-sub {
+  margin-top: 0.05rem;
+  font-size: 0.75rem;
+  color: rgba(240, 253, 250, 0.88);
+}
+
+.product-form {
+  padding: 0.75rem 0.85rem 0.9rem;
+  background: linear-gradient(180deg, #eef6f4 0%, #f4f7fb 55%, #eef2ff 100%);
+
+  .form-label {
+    font-size: 0.72rem;
+    margin-bottom: 0.12rem;
+    color: #334155;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.8rem;
+    padding: 0.28rem 0.5rem;
+    min-height: 1.85rem;
+    background: #fff;
+  }
+
+  textarea.form-control {
+    min-height: 2.6rem;
+  }
+
+  .modal-foot {
+    margin-top: 0.75rem;
+    padding-top: 0.7rem;
+    border-top-color: rgba(15, 23, 42, 0.08);
+  }
+}
+
+.product-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.product-section {
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.6rem 0.55rem;
+  border: 1px solid transparent;
+
+  &[data-tone='teal'] {
+    background: #e7f7f3;
+    border-color: #b7e6dc;
+    .product-section-title { color: #0f766e; }
+  }
+  &[data-tone='indigo'] {
+    background: #eef2ff;
+    border-color: #d4d9f7;
+    .product-section-title { color: #4338ca; }
+  }
+  &[data-tone='amber'] {
+    background: #fff6eb;
+    border-color: #f3ddc0;
+    .product-section-title { color: #c2410c; }
+  }
+  &[data-tone='mint'] {
+    background: #ecfeff;
+    border-color: #c5eef2;
+    .product-section-title { color: #0e7490; }
+  }
+  &[data-tone='slate'] {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    .product-section-title { color: #334155; }
+  }
+}
+
+.product-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  i { font-size: 0.85rem; }
 }
 
 .modal-body-custom {

@@ -501,6 +501,52 @@ export class MasterPage implements OnInit {
     });
   }
 
+  /** Compact colored popup used by Product, Generic, and Manufacturer masters. */
+  isSectionedForm(): boolean {
+    return this.config?.key === 'products' || this.config?.key === 'generics' || this.config?.key === 'manufacturers';
+  }
+
+  formHeader(): { icon: string; subtitle: string } | null {
+    switch (this.config?.key) {
+      case 'products':
+        return { icon: 'bi bi-capsule', subtitle: 'Schedule, pack, tax and MRP' };
+      case 'generics':
+        return { icon: 'bi bi-droplet-half', subtitle: 'Molecule name and drug class' };
+      case 'manufacturers':
+        return { icon: 'bi bi-building', subtitle: 'Company name and bill code' };
+      default:
+        return null;
+    }
+  }
+
+  /** Popup groups. Empty sections stay hidden (e.g. dosage on a General product). */
+  formSections(): { id: string; title: string; icon: string; tone: string; fields: FormField[] }[] {
+    const byKey: Record<string, { id: string; title: string; icon: string; tone: string }[]> = {
+      products: [
+        { id: 'identity', title: 'Product', icon: 'bi bi-capsule', tone: 'teal' },
+        { id: 'catalog', title: 'Catalog', icon: 'bi bi-diagram-3', tone: 'indigo' },
+        { id: 'pack', title: 'Pack & dosage', icon: 'bi bi-box-seam', tone: 'amber' },
+        { id: 'price', title: 'Price & tax', icon: 'bi bi-receipt', tone: 'mint' },
+        { id: 'notes', title: 'Composition', icon: 'bi bi-card-text', tone: 'slate' },
+      ],
+      generics: [
+        { id: 'identity', title: 'Molecule', icon: 'bi bi-droplet-half', tone: 'teal' },
+        { id: 'class', title: 'Classification', icon: 'bi bi-diagram-3', tone: 'indigo' },
+      ],
+      manufacturers: [
+        { id: 'identity', title: 'Company', icon: 'bi bi-building', tone: 'teal' },
+        { id: 'code', title: 'Bill code', icon: 'bi bi-upc', tone: 'amber' },
+      ],
+    };
+    const meta = byKey[this.config?.key] ?? [];
+    return meta
+      .map((section) => ({
+        ...section,
+        fields: this.config.fields.filter((field) => field.section === section.id && this.showField(field)),
+      }))
+      .filter((section) => section.fields.length > 0);
+  }
+
   /** Used by template to keep product/customer forms aligned with Retail behavior. */
   showField(field: FormField): boolean {
     if (!this.matchesShowWhen(field)) return false;
